@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'simple_history',
     'common',
-    #'catalog',
+    'catalog',
 ]
 
 MIDDLEWARE = [
