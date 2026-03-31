@@ -4,7 +4,7 @@ Admin:
     - all permission
 
 
-Exclusive:
+Executive:
     - all permission
 
 

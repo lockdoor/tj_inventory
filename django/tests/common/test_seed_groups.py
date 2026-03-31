@@ -1,0 +1,130 @@
+"""
+Tests for seed_groups management command
+
+Tests cover:
+- All 4 groups are created
+- Correct permission count per group
+- Exclusive has full catalog CRUD
+- Stock controller / sales rep / warehouse admin are catalog view-only
+- Command is idempotent (safe to run twice)
+- Admin role uses is_superuser (no group needed)
+"""
+
+import pytest
+from django.core.management import call_command
+from django.contrib.auth.models import Group, Permission, User
+
+
+@pytest.fixture(autouse=True)
+def seed(db):
+    """Run seed_groups before every test."""
+    call_command('seed_groups')
+
+
+# ============================================================
+# Group Creation
+# ============================================================
+class TestGroupCreation:
+
+    def test_executive_group_exists(self):
+        assert Group.objects.filter(name='executive').exists()
+
+    def test_stock_controller_group_exists(self):
+        assert Group.objects.filter(name='stock_controller').exists()
+
+    def test_sales_rep_group_exists(self):
+        assert Group.objects.filter(name='sales_rep').exists()
+
+    def test_warehouse_admin_group_exists(self):
+        assert Group.objects.filter(name='warehouse_admin').exists()
+
+    def test_exactly_4_groups_created(self):
+        group_names = {'executive', 'stock_controller', 'sales_rep', 'warehouse_admin'}
+        created = set(Group.objects.filter(name__in=group_names).values_list('name', flat=True))
+        assert created == group_names
+
+
+# ============================================================
+# Permission Assignments
+# ============================================================
+class TestPermissionAssignment:
+
+    def test_executive_has_full_catalog_crud(self):
+        group = Group.objects.get(name='executive')
+        codenames = set(group.permissions.values_list('codename', flat=True))
+        for model in ['category', 'item', 'itemimage']:
+            for action in ['add', 'change', 'delete', 'view']:
+                assert f'{action}_{model}' in codenames
+
+    def test_executive_has_12_permissions(self):
+        group = Group.objects.get(name='executive')
+        assert group.permissions.count() == 12
+
+    def test_stock_controller_is_catalog_view_only(self):
+        group = Group.objects.get(name='stock_controller')
+        codenames = set(group.permissions.values_list('codename', flat=True))
+        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+
+    def test_sales_rep_is_catalog_view_only(self):
+        group = Group.objects.get(name='sales_rep')
+        codenames = set(group.permissions.values_list('codename', flat=True))
+        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+
+    def test_warehouse_admin_is_catalog_view_only(self):
+        group = Group.objects.get(name='warehouse_admin')
+        codenames = set(group.permissions.values_list('codename', flat=True))
+        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+
+
+# ============================================================
+# Idempotent (safe to run multiple times)
+# ============================================================
+class TestIdempotent:
+
+    def test_running_twice_does_not_duplicate_groups(self):
+        call_command('seed_groups')  # second run (first is autouse fixture)
+        assert Group.objects.filter(name='executive').count() == 1
+
+    def test_running_twice_does_not_duplicate_permissions(self):
+        call_command('seed_groups')
+        group = Group.objects.get(name='executive')
+        assert group.permissions.count() == 12
+
+
+# ============================================================
+# Admin Role
+# ============================================================
+class TestAdminRole:
+
+    def test_superuser_has_all_permissions_without_group(self):
+        admin = User.objects.create_superuser(
+            username='admin', password='admin123',
+        )
+        # Superuser bypasses permission checks entirely
+        assert admin.has_perm('catalog.add_category') is True
+        assert admin.has_perm('catalog.delete_item') is True
+        assert admin.groups.count() == 0
+
+
+# ============================================================
+# User Group Assignment
+# ============================================================
+class TestUserGroupAssignment:
+
+    def test_user_in_executive_group_has_catalog_crud(self):
+        user = User.objects.create_user(username='exc_user', password='pass123')
+        user.groups.add(Group.objects.get(name='executive'))
+        assert user.has_perm('catalog.add_category') is True
+        assert user.has_perm('catalog.delete_item') is True
+
+    def test_user_in_sales_rep_can_view_but_not_add(self):
+        user = User.objects.create_user(username='sales_user', password='pass123')
+        user.groups.add(Group.objects.get(name='sales_rep'))
+        assert user.has_perm('catalog.view_item') is True
+        assert user.has_perm('catalog.add_item') is False
+
+    def test_user_in_stock_controller_can_view_but_not_delete(self):
+        user = User.objects.create_user(username='stock_user', password='pass123')
+        user.groups.add(Group.objects.get(name='stock_controller'))
+        assert user.has_perm('catalog.view_category') is True
+        assert user.has_perm('catalog.delete_category') is False
