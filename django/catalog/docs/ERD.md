@@ -4,32 +4,33 @@ erDiagram
     CATEGORY {
         int id PK
         string name
-        string code
-        int parent_id FK "for nest category"
+        string code UK
+        int parent_id FK "self-ref for nesting"
         string note
         string status "active,inactive"
     }
 
     ITEM {
         int id PK
-        int category_id FK
-        string sku
-        string express_sku
+        int category_id FK "SET_NULL"
+        string sku UK
+        string express_sku "for Express system sync"
         string name
-        string unit
-        string status "active,inactive"
+        string unit "free text (pcs, kg, box)"
+        text description
         string note
+        string status "active,inactive"
     }
 
-    ITEM_IMG {
+    ITEM_IMAGE {
         int id PK
-        int item_id FK
-        bool is_main
-        string img_url
+        int item_id FK "CASCADE"
+        image image "ImageField upload"
+        bool is_main "only one per item"
         string note
         string status "active,inactive"
     }
 
     CATEGORY ||--o{ ITEM : "contains"
-    ITEM ||--o{ ITEM_IMG : "has"
+    ITEM ||--o{ ITEM_IMAGE : "has"
 ```
