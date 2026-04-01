@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Categories - TJ Inventory{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">Categories</h1>
+            <p style="color: var(--text-dim);">Manage your product classification and hierarchy.</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            {% if perms.catalog.delete_category %}
+                <a href="{% url 'catalog:category-trash' %}" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-muted); text-decoration: none; border-color: rgba(255,255,255,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    View Trash
+                </a>
+            {% endif %}
+            {% if perms.catalog.add_category %}
+                <a href="{% url 'catalog:category-create' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Category
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="glass-card" style="padding: 0; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--glass-border);">
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 120px;">Code</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Name & Hierarchy</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 150px;">Status</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; text-align: right; width: 120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                    <tr style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1.25rem 1rem;">
+                            <span style="font-family: monospace; color: var(--primary-light); font-weight: 600;">{{ category.code }}</span>
+                        </td>
+                        <td style="padding: 1.25rem 1rem;">
+                            <a href="{% url 'catalog:category-detail' category.pk %}" class="table-link" style="color: var(--text-main); font-weight: 600; text-decoration: none; transition: var(--transition);">{{ category.name }}</a>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ category.full_path }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1rem;">
+                            <span class="status-chip {% if category.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                <span class="status-dot"></span>
+                                {{ category.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="padding: 1.25rem 1rem; text-align: right;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                {% if perms.catalog.change_category %}
+                                    <a href="{% url 'catalog:category-update' category.pk %}" class="btn btn-icon" title="Update">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                    </a>
+                                {% endif %}
+                                {% if perms.catalog.delete_category %}
+                                    <a href="{% url 'catalog:category-delete' category.pk %}" class="btn btn-icon" title="Delete" style="color: var(--error);">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" style="padding: 4rem 1rem; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 1.5rem;">No categories found.</div>
+                            {% if perms.catalog.add_category %}
+                                <a href="{% url 'catalog:category-create' %}" class="btn btn-primary" style="text-decoration: none;">Create Your First Category</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .status-chip {
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.4rem; 
+        padding: 0.2rem 0.6rem; 
+        border-radius: 9999px; 
+        font-size: 0.7rem; 
+        font-weight: 600;
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--text-muted);
+    }
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    .status-dot {
+        width: 6px; 
+        height: 6px; 
+        border-radius: 50%; 
+        background: currentColor;
+    }
+    .btn-icon {
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 0.5rem;
+        color: var(--text-dim);
+        transition: var(--transition);
+        display: inline-flex;
+        cursor: pointer;
+    }
+    .btn-icon:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--primary-light);
+        border-color: var(--primary-light);
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}

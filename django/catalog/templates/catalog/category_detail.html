@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }} - TJ Inventory{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="max-width: 900px; margin: 0 auto;">
+    <!-- Breadcrumbs -->
+    <nav style="margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-dim);">
+        <a href="{% url 'catalog:category-list' %}" style="color: var(--primary-light); text-decoration: none;">Categories</a>
+        <span>/</span>
+        {% if category.parent %}
+            <a href="{% url 'catalog:category-detail' category.parent.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ category.parent.name }}</a>
+            <span>/</span>
+        {% endif %}
+        <span style="color: var(--text-main); font-weight: 500;">{{ category.name }}</span>
+    </nav>
+
+    <!-- Header Card -->
+    <div class="glass-card" style="margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <span style="font-family: monospace; font-size: 0.75rem; color: var(--primary-light); background: rgba(16, 185, 129, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; display: inline-block;">
+                    {{ category.code }}
+                </span>
+                <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 700; margin-bottom: 0.5rem;">{{ category.name }}</h1>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span class="status-chip {% if category.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                        <span class="status-dot"></span>
+                        {{ category.get_status_display }}
+                    </span>
+                    <span style="font-size: 0.875rem; color: var(--text-muted);">
+                        Created by {{ category.created_by.username }}
+                    </span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem;">
+                {% if perms.catalog.change_category %}
+                    <a href="{% url 'catalog:category-update' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">Update</a>
+                {% endif %}
+                {% if perms.catalog.delete_category %}
+                    <a href="{% url 'catalog:category-delete' category.pk %}" class="btn btn-outline" style="color: var(--error); padding: 0.6rem 1.25rem;">Delete</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if category.note %}
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+                <h3 style="font-size: 0.875rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Notes</h3>
+                <p style="color: var(--text-dim); line-height: 1.6;">{{ category.note }}</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Sub-categories Section -->
+    <div class="glass-card">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 600;">Sub-categories</h2>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">{{ category.children.count }} item{{ category.children.count|pluralize }}</span>
+        </header>
+
+        {% with children=category.children.all %}
+        {% if children %}
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
+                {% for child in children %}
+                    {% if not child.is_deleted %}
+                        <a href="{% url 'catalog:category-detail' child.pk %}" class="sub-category-card" style="display: block; padding: 1.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.02); text-decoration: none; transition: var(--transition);">
+                            <div style="font-family: monospace; font-size: 0.7rem; color: var(--primary-light); margin-bottom: 0.4rem;">{{ child.code }}</div>
+                            <div style="font-weight: 600; color: var(--text-main); font-size: 1rem;">{{ child.name }}</div>
+                            <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-dim);">
+                                {{ child.children.count }} children
+                            </div>
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="padding: 2rem; text-align: center; color: var(--text-muted); background: rgba(255, 255, 255, 0.01); border-radius: var(--radius-md);">
+                This category has no sub-categories.
+            </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+</div>
+
+<style>
+    .sub-category-card:hover {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border-color: var(--primary-light) !important;
+        transform: translateY(-2px);
+    }
+    .status-chip {
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.4rem; 
+        padding: 0.25rem 0.75rem; 
+        border-radius: 9999px; 
+        font-size: 0.75rem; 
+        font-weight: 600;
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--text-muted);
+    }
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+    }
+    .status-dot {
+        width: 6px; 
+        height: 6px; 
+        border-radius: 50%; 
+        background: currentColor;
+    }
+</style>
+{% endblock %}

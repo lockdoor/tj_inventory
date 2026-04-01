@@ -14,6 +14,28 @@ from catalog.models import Category
 class CategoryService:
 
     @staticmethod
+    def get_active_queryset():
+        """
+        Return a base queryset of non-deleted categories.
+        Used by views to ensure soft-deleted records are excluded.
+        """
+        return Category.objects.filter(is_deleted=False)
+
+    @staticmethod
+    def list_active():
+        """
+        Return all active (non-deleted) categories ordered by name.
+        """
+        return CategoryService.get_active_queryset().order_by('name')
+
+    @staticmethod
+    def list_deleted():
+        """
+        Return all soft-deleted categories ordered by name.
+        """
+        return Category.objects.filter(is_deleted=True).order_by('name')
+
+    @staticmethod
     def create(*, name, code, user, parent=None, note=''):
         """
         Create a new category.
@@ -76,3 +98,29 @@ class CategoryService:
                 f"Please delete or reassign them first."
             )
         category.delete(user=user)
+
+    @staticmethod
+    def restore(category, *, user):
+        """
+        Restore a soft-deleted category.
+
+        Rules:
+        - If category has a parent, the parent MUST be active (non-deleted) 
+          otherwise restoration is blocked to prevent orphaned records.
+
+        Raises:
+            ValidationError: If business rules are violated.
+        """
+        if category.parent and category.parent.is_deleted:
+            raise ValidationError(
+                f"Cannot restore category '{category.name}' because its parent "
+                f"'{category.parent.name}' is still in the trash. "
+                f"Please restore the parent first."
+            )
+        
+        category.is_deleted = False
+        category.deleted_at = None
+        category.deleted_by = None
+        category.updated_by = user
+        category.save()
+        return category

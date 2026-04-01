@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TJ Inventory{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'common/css/index.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Messages / Toasts -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {% if message.tags == 'success' %}
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <nav>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <a href="{% url 'catalog:category-list' %}" class="logo text-gradient">TJ INVENTORY</a>
+            <div class="nav-links" style="display: flex; gap: 2rem; align-items: center;">
+                <a href="{% url 'catalog:category-list' %}" style="text-decoration: none; color: var(--text-dim); font-size: 0.875rem; font-weight: 500; transition: var(--transition);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-dim)'">Categories</a>
+                {% if perms.catalog.add_category %}
+                    <a href="{% url 'catalog:category-create' %}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.875rem;">+ Create Category</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--glass-border); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+        <div class="container">
+            &copy; 2024 TJ Inventory Preorder System. Built with Emerald Green Elegance.
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Auto-dismiss messages
+        document.addEventListener('DOMContentLoaded', () => {
+            const messages = document.querySelectorAll('.message');
+            messages.forEach(msg => {
+                setTimeout(() => {
+                    msg.style.transform = 'translateX(120%)';
+                    msg.style.opacity = '0';
+                    setTimeout(() => msg.remove(), 300);
+                }, 5000);
+            });
+        });
+    </script>
+</body>
+</html>
