@@ -1,145 +1,125 @@
-"""
-Tests for CategoryService
-
-Tests cover:
-- Create functionality
-- Update functionality
-- Soft delete business rules (blocked if active children)
-
-Note: Permission checks are NOT tested here.
-      They will be tested at the View/API layer.
-"""
-
 import pytest
-from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
-
+from django.core.exceptions import ValidationError
 from catalog.models import Category
 from catalog.services import CategoryService
 
-
-# ---------- Fixtures ----------
 @pytest.fixture
-def admin_user(db):
-    return User.objects.create_user(
-        username="admin", password="admin123", is_staff=True,
-    )
+def user(db):
+    return User.objects.create_user(username='testuser', password='password123')
 
+@pytest.mark.django_db
+class TestCategoryService:
+    """
+    Unit tests for CategoryService business logic.
+    Focuses on data integrity, hierarchical rules, and audit tracking.
+    """
 
-@pytest.fixture
-def root(db, admin_user):
-    return Category.objects.create(
-        name="Electronics", code="ELEC", created_by=admin_user,
-    )
-
-
-@pytest.fixture
-def child(db, admin_user, root):
-    return Category.objects.create(
-        name="Smartphones", code="SMART", parent=root, created_by=admin_user,
-    )
-
-
-# ============================================================
-# Create
-# ============================================================
-class TestCreate:
-
-    def test_create_category(self, admin_user):
+    def test_create_category_success(self, user):
         cat = CategoryService.create(
-            name="Toys", code="TOY", user=admin_user,
+            name='Electronics',
+            code='ELEC',
+            user=user,
+            note='Test electronics'
         )
         assert cat.pk is not None
-        assert cat.name == "Toys"
-        assert cat.code == "TOY"
+        assert cat.name == 'Electronics'
+        assert cat.code == 'ELEC'
+        assert cat.created_by == user
+        assert cat.is_deleted is False
 
-    def test_create_sets_created_by(self, admin_user):
-        cat = CategoryService.create(
-            name="Toys", code="TOY", user=admin_user,
-        )
-        assert cat.created_by == admin_user
-
-    def test_create_with_parent(self, admin_user, root):
-        cat = CategoryService.create(
-            name="Laptops", code="LAP", user=admin_user, parent=root,
-        )
-        assert cat.parent == root
-
-    def test_create_with_note(self, admin_user):
-        cat = CategoryService.create(
-            name="Food", code="FOOD", user=admin_user, note="Perishable items",
-        )
-        assert cat.note == "Perishable items"
-
-    def test_create_validates_before_save(self, admin_user, root):
-        """Duplicate code should raise ValidationError via full_clean."""
+    def test_create_category_duplicate_code_fails(self, user):
+        CategoryService.create(name='First', code='DUP', user=user)
         with pytest.raises(ValidationError):
-            CategoryService.create(
-                name="Duplicate", code="ELEC", user=admin_user,
-            )
+            CategoryService.create(name='Second', code='DUP', user=user)
 
-
-# ============================================================
-# Update
-# ============================================================
-class TestUpdate:
-
-    def test_update_name(self, admin_user, root):
-        CategoryService.update(root, user=admin_user, name="Consumer Electronics")
-        root.refresh_from_db()
-        assert root.name == "Consumer Electronics"
-
-    def test_update_sets_updated_by(self, admin_user, root):
-        CategoryService.update(root, user=admin_user, name="New Name")
-        root.refresh_from_db()
-        assert root.updated_by == admin_user
-
-    def test_update_multiple_fields(self, admin_user, root):
-        CategoryService.update(
-            root, user=admin_user, name="Updated", note="Changed",
+    def test_update_category_success(self, user):
+        cat = CategoryService.create(name='Old', code='OLD', user=user)
+        
+        updated_cat = CategoryService.update(
+            cat,
+            user=user,
+            name='New Name',
+            code='NEW'
         )
-        root.refresh_from_db()
-        assert root.name == "Updated"
-        assert root.note == "Changed"
+        
+        assert updated_cat.name == 'New Name'
+        assert updated_cat.code == 'NEW'
+        assert updated_cat.updated_by == user
 
-    def test_update_ignores_unknown_fields(self, admin_user, root):
-        original_name = root.name
-        CategoryService.update(root, user=admin_user, fake_field="ignored")
-        root.refresh_from_db()
-        assert root.name == original_name
+    def test_soft_delete_success(self, user):
+        cat = CategoryService.create(name='To Delete', code='DEL', user=user)
+        
+        CategoryService.soft_delete(cat, user=user)
+        
+        cat.refresh_from_db()
+        assert cat.is_deleted is True
+        assert cat.deleted_by == user
+        assert cat.deleted_at is not None
 
+    def test_soft_delete_blocked_with_active_children(self, user):
+        parent = CategoryService.create(name='Parent', code='P1', user=user)
+        child = CategoryService.create(name='Child', code='C1', parent=parent, user=user)
+        
+        with pytest.raises(ValidationError) as excinfo:
+            CategoryService.soft_delete(parent, user=user)
+        
+        assert "Cannot delete category 'Parent' because it has active children" in str(excinfo.value)
+        assert "Child" in str(excinfo.value)
+        
+        # Verify parent still active
+        parent.refresh_from_db()
+        assert parent.is_deleted is False
 
-# ============================================================
-# Soft Delete — Business Rules
-# ============================================================
-class TestSoftDelete:
+    def test_soft_delete_allowed_with_already_deleted_children(self, user):
+        parent = CategoryService.create(name='Parent', code='P1', user=user)
+        child = CategoryService.create(name='Child', code='C1', parent=parent, user=user)
+        
+        # First, delete the child
+        CategoryService.soft_delete(child, user=user)
+        
+        # Now, deleting parent should be allowed because child is no longer active
+        CategoryService.soft_delete(parent, user=user)
+        parent.refresh_from_db()
+        assert parent.is_deleted is True
 
-    def test_delete_leaf_category(self, admin_user, root):
-        CategoryService.soft_delete(root, user=admin_user)
-        root.refresh_from_db()
-        assert root.is_deleted is True
+    def test_restore_success(self, user):
+        cat = CategoryService.create(name='Deleted', code='DEL', user=user)
+        CategoryService.soft_delete(cat, user=user)
+        
+        restored = CategoryService.restore(cat, user=user)
+        
+        assert restored.is_deleted is False
+        assert restored.deleted_by is None
+        assert restored.deleted_at is None
+        assert restored.updated_by == user
 
-    def test_delete_sets_deleted_by(self, admin_user, root):
-        CategoryService.soft_delete(root, user=admin_user)
-        root.refresh_from_db()
-        assert root.deleted_by == admin_user
+    def test_restore_blocked_if_parent_is_deleted(self, user):
+        parent = CategoryService.create(name='Parent', code='P1', user=user)
+        child = CategoryService.create(name='Child', code='C1', parent=parent, user=user)
+        
+        # Soft delete both
+        CategoryService.soft_delete(child, user=user)
+        CategoryService.soft_delete(parent, user=user)
+        
+        # Restoration of child should fail while parent is still deleted
+        with pytest.raises(ValidationError) as excinfo:
+            CategoryService.restore(child, user=user)
+            
+        assert "parent 'Parent' is still in the trash" in str(excinfo.value)
+        child.refresh_from_db()
+        assert child.is_deleted is True
 
-    def test_blocked_when_has_active_children(self, admin_user, root, child):
-        with pytest.raises(ValidationError, match="active children"):
-            CategoryService.soft_delete(root, user=admin_user)
-
-    def test_parent_not_deleted_when_blocked(self, admin_user, root, child):
-        with pytest.raises(ValidationError):
-            CategoryService.soft_delete(root, user=admin_user)
-        root.refresh_from_db()
-        assert root.is_deleted is False
-
-    def test_allowed_when_children_already_deleted(self, admin_user, root, child):
-        CategoryService.soft_delete(child, user=admin_user)
-        CategoryService.soft_delete(root, user=admin_user)
-        root.refresh_from_db()
-        assert root.is_deleted is True
-
-    def test_error_includes_child_names(self, admin_user, root, child):
-        with pytest.raises(ValidationError, match="Smartphones"):
-            CategoryService.soft_delete(root, user=admin_user)
+    def test_querysets_logic(self, user):
+        # 2 active, 1 deleted
+        CategoryService.create(name='A1', code='C1', user=user)
+        CategoryService.create(name='A2', code='C2', user=user)
+        cat_del = CategoryService.create(name='D1', code='CD', user=user)
+        CategoryService.soft_delete(cat_del, user=user)
+        
+        active_list = CategoryService.list_active()
+        deleted_list = CategoryService.list_deleted()
+        
+        assert len(active_list) == 2
+        assert len(deleted_list) == 1
+        assert deleted_list[0].name == 'D1'
