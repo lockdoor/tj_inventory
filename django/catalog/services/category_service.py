@@ -89,6 +89,7 @@ class CategoryService:
         Raises:
             ValidationError: If business rules are violated.
         """
+        # Rule: Cannot delete if it has active (non-deleted) children
         active_children = category.children.filter(is_deleted=False)
         if active_children.exists():
             child_names = list(active_children.values_list('name', flat=True))
@@ -97,6 +98,20 @@ class CategoryService:
                 f"active children: {', '.join(child_names)}. "
                 f"Please delete or reassign them first."
             )
+
+        # Rule: Cannot delete if it has active items
+        active_items = category.items.filter(is_deleted=False)
+        if active_items.exists():
+            item_skus = list(active_items.values_list('sku', flat=True))[:5]
+            sku_list = ', '.join(item_skus)
+            if active_items.count() > 5:
+                sku_list += "..."
+                
+            raise ValidationError(
+                f"Cannot delete category '{category.name}' because it has {active_items.count()} "
+                f"active items (e.g. {sku_list}). Please delete or reassign them first."
+            )
+
         category.delete(user=user)
 
     @staticmethod

@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from catalog.models import Category
-from catalog.services import CategoryService
+from catalog.services import CategoryService, ItemService
 
 @pytest.fixture
 def user(db):
@@ -123,3 +123,30 @@ class TestCategoryService:
         assert len(active_list) == 2
         assert len(deleted_list) == 1
         assert deleted_list[0].name == 'D1'
+    
+    def test_soft_delete_blocked_with_active_items(self, user):
+        cat = CategoryService.create(name='Electronics', code='ELEC', user=user)
+        # Create an active item
+        ItemService.create(category=cat, sku='ITEM1', name='Active Item', unit='pcs', user=user)
+        
+        with pytest.raises(ValidationError) as excinfo:
+            CategoryService.soft_delete(cat, user=user)
+        
+        assert "Cannot delete category 'Electronics' because it has 1 active items" in str(excinfo.value)
+        assert "ITEM1" in str(excinfo.value)
+        
+        cat.refresh_from_db()
+        assert cat.is_deleted is False
+
+    def test_soft_delete_allowed_with_already_deleted_items(self, user):
+        cat = CategoryService.create(name='Electronics', code='ELEC', user=user)
+        item = ItemService.create(category=cat, sku='ITEM1', name='Item to delete', unit='pcs', user=user)
+        
+        # Soft delete the item
+        ItemService.soft_delete(item, user=user)
+        
+        # Now category deletion should be allowed
+        CategoryService.soft_delete(cat, user=user)
+        
+        cat.refresh_from_db()
+        assert cat.is_deleted is True
