@@ -2,6 +2,14 @@
 
 {% block title %}{{ title }} - TJ Inventory{% endblock %}
 
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:category-list' %}" style="color: var(--primary-light); text-decoration: none;">Categories</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
 {% block content %}
 <div class="container-sm">
     <div class="glass-card" style="max-width: 600px; margin: 0 auto;">

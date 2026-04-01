@@ -2,6 +2,12 @@
 
 {% block title %}Categories - TJ Inventory{% endblock %}
 
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Categories</span>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <!-- Header Area -->

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Catalog Overview - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Catalog</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <!-- Header Section -->
+    <div style="margin-bottom: 3rem;">
+        <h1 class="text-gradient" style="font-size: 2.75rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Catalog Overview</h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem; max-width: 600px;">
+            Central management for item classifications and inventory stock. 
+            Monitor your collections and item distribution from a single dashboard.
+        </p>
+    </div>
+
+    <!-- Stats Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem;">
+        
+        <!-- Categories Card -->
+        <div class="glass-card module-card" style="padding: 2rem; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: -10%; right: -5%; opacity: 0.05; color: var(--primary-light);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; color: var(--primary-light);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">Categories</h3>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <div style="font-size: 3rem; font-weight: 800; color: var(--primary-light); line-height: 1;">{{ category_count }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Active Classifications</div>
+            </div>
+            
+            <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; flex-grow: 1;">
+                Define and organize your item hierarchy. Manage parent-child relationships and system-wide classification codes.
+            </p>
+            
+            <div style="display: flex; gap: 1rem;">
+                <a href="{% url 'catalog:category-list' %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">View All</a>
+                {% if perms.catalog.add_category %}
+                    <a href="{% url 'catalog:category-create' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">+ Add New</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Inventory Items Card -->
+        <div class="glass-card module-card" style="padding: 2rem; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: -10%; right: -5%; opacity: 0.05; color: var(--primary-light);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; color: var(--primary-light);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+                </div>
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">Items</h3>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <div style="font-size: 3rem; font-weight: 800; color: var(--primary-light); line-height: 1;">{{ item_count }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Stock Records</div>
+            </div>
+            
+            <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; flex-grow: 1;">
+                Maintain your item catalogue. Track SKUs, units of measure, and associate items with designated categories for reporting.
+            </p>
+            
+            <div style="display: flex; gap: 1rem;">
+                <a href="{% url 'catalog:item-list' %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">View Items</a>
+                {% if perms.catalog.add_item %}
+                    <a href="#" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">+ Add Item</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .module-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid var(--glass-border);
+    }
+    .module-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary-light);
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2), 0 0 20px rgba(16, 185, 129, 0.1);
+    }
+</style>
+{% endblock %}

@@ -17,7 +17,6 @@ erDiagram
         string express_sku "for Express system sync"
         string name
         string unit "free text (pcs, kg, box)"
-        text description
         string note
         string status "active,inactive"
     }

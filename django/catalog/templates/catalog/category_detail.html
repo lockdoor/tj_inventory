@@ -2,18 +2,20 @@
 
 {% block title %}{{ category.name }} - TJ Inventory{% endblock %}
 
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:category-list' %}" style="color: var(--primary-light); text-decoration: none;">Categories</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+{% if category.parent %}
+    <a href="{% url 'catalog:category-detail' category.parent.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ category.parent.name }}</a>
+    <span style="color: var(--text-dim); opacity: 0.5;">/</span>
+{% endif %}
+<span style="color: var(--text-main); font-weight: 500;">{{ category.name }}</span>
+{% endblock %}
+
 {% block content %}
 <div class="container-sm" style="max-width: 900px; margin: 0 auto;">
-    <!-- Breadcrumbs -->
-    <nav style="margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--text-dim);">
-        <a href="{% url 'catalog:category-list' %}" style="color: var(--primary-light); text-decoration: none;">Categories</a>
-        <span>/</span>
-        {% if category.parent %}
-            <a href="{% url 'catalog:category-detail' category.parent.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ category.parent.name }}</a>
-            <span>/</span>
-        {% endif %}
-        <span style="color: var(--text-main); font-weight: 500;">{{ category.name }}</span>
-    </nav>
 
     <!-- Header Card -->
     <div class="glass-card" style="margin-bottom: 2rem; border-left: 4px solid var(--primary);">
