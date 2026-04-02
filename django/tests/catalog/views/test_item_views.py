@@ -229,3 +229,81 @@ class TestItemDetailView:
         # Verify update link
         update_url = reverse('catalog:item-update', kwargs={'sku': item.sku})
         assert update_url in content
+        
+        # Verify delete link
+        delete_url = reverse('catalog:item-delete', kwargs={'sku': item.sku})
+        assert delete_url in content
+
+@pytest.mark.django_db
+class TestItemTrashView:
+    """Functional tests for Item Trash and Restore."""
+
+    def test_unauthenticated_denied(self, client, executive_user):
+        url = reverse('catalog:item-trash')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_sales_rep_denied(self, client, sales_user):
+        client.login(username='sales', password='password123')
+        url = reverse('catalog:item-trash')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_trash_visibility_and_restore(self, client, executive_user):
+        cat = Category.objects.create(name='Electronics', code='ELEC', created_by=executive_user)
+        item = Item.objects.create(sku='DEL-SKU', name='Deleted Product', unit='Pcs', category=cat, is_deleted=True, created_by=executive_user)
+        
+        client.login(username='executive', password='password123')
+        
+        # Check Trash List
+        url_trash = reverse('catalog:item-trash')
+        response = client.get(url_trash)
+        assert response.status_code == 200
+        assert 'DEL-SKU' in response.content.decode()
+        assert 'Deleted Product' in response.content.decode()
+
+        # Perform Restore
+        url_restore = reverse('catalog:item-restore', kwargs={'sku': item.sku})
+        response = client.post(url_restore)
+        assert response.status_code == 302
+        assert response.url == reverse('catalog:item-list')
+
+        # Verify restored in DB
+        item.refresh_from_db()
+        assert not item.is_deleted
+        assert item.deleted_at is None
+        assert item.updated_by == executive_user
+
+@pytest.mark.django_db
+class TestItemDeleteView:
+    """Functional tests for Item Delete view."""
+
+    def test_unauthenticated_denied(self, client, executive_user):
+        item = Item.objects.create(sku='T1', name='Test', unit='Pcs', created_by=executive_user)
+        url = reverse('catalog:item-delete', kwargs={'sku': item.sku})
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_executive_delete_success(self, client, executive_user):
+        cat = Category.objects.create(name='Cat', code='C', created_by=executive_user)
+        item = Item.objects.create(sku='TO-DEL', name='To Delete', unit='Pcs', category=cat, created_by=executive_user)
+        
+        client.login(username='executive', password='password123')
+        url = reverse('catalog:item-delete', kwargs={'sku': item.sku})
+        
+        # GET show confirmation
+        response = client.get(url)
+        assert response.status_code == 200
+        assert 'Delete Item?' in response.content.decode()
+        assert item.sku in response.content.decode()
+
+        # POST confirm delete
+        response = client.post(url)
+        assert response.status_code == 302
+        assert response.url == reverse('catalog:item-list')
+
+        # Verify soft-deleted
+        item.refresh_from_db()
+        assert item.is_deleted
+        assert item.deleted_by == executive_user
+        assert item.deleted_at is not None

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Item Trash - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-list' %}" style="color: var(--primary-light); text-decoration: none;">Items</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Trash</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem;">
+        <div>
+            <h1 style="font-size: 2rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Item Trash</h1>
+            <p style="color: var(--text-dim); margin-top: 0.25rem;">View and restore soft-deleted items.</p>
+        </div>
+    </div>
+
+    <!-- Trash Table -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border-top: 4px solid var(--text-muted); opacity: 0.9;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--glass-border);">
+                        <th style="padding: 1.25rem 1.5rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Item / SKU</th>
+                        <th style="padding: 1.25rem 1.5rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Category</th>
+                        <th style="padding: 1.25rem 1.5rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Deleted By</th>
+                        <th style="padding: 1.25rem 1.5rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Deleted At</th>
+                        <th style="padding: 1.25rem 1.5rem; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody style="color: var(--text-dim);">
+                    {% for item in items %}
+                    <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <div style="font-weight: 600; color: var(--text-muted);">{{ item.name }}</div>
+                            <div style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">SKU: {{ item.sku }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <span class="category-badge">
+                                {{ item.category.name|default:"Uncategorized" }}
+                            </span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; font-size: 0.875rem;">
+                            {% if item.deleted_by %}
+                                {{ item.deleted_by.get_full_name|default:item.deleted_by.username }}
+                            {% else %}
+                                <span style="color: var(--text-muted); opacity: 0.5;">System / Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; font-size: 0.875rem;">
+                            {{ item.deleted_at|date:"Y-m-d H:i" }}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <form action="{% url 'catalog:item-restore' item.sku %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline" style="font-size: 0.75rem; padding: 0.4rem 0.8rem; color: var(--primary-light);">
+                                    Restore
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="padding: 4rem 1.5rem; text-align: center;">
+                            <div style="color: var(--text-muted); margin-bottom: 1rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3;"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </div>
+                            <p style="color: var(--text-muted); font-size: 1rem;">Trash is empty.</p>
+                            <a href="{% url 'catalog:item-list' %}" style="color: var(--primary-light); text-decoration: none; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">Back to Items</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .category-badge {
+        display: inline-block;
+        background: rgba(160, 174, 192, 0.1);
+        color: var(--text-muted);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+</style>
+{% endblock %}

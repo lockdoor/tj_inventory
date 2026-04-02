@@ -27,6 +27,13 @@ class ItemService:
         return ItemService.get_active_queryset().order_by('sku')
 
     @staticmethod
+    def list_deleted():
+        """
+        Return all soft-deleted items ordered by SKU.
+        """
+        return Item.objects.filter(is_deleted=True).select_related('category', 'deleted_by').order_by('sku')
+
+    @staticmethod
     def create(*, sku, name, unit, user, category=None, express_sku='', note='', status=Item.Status.ACTIVE):
         """
         Create a new item.
