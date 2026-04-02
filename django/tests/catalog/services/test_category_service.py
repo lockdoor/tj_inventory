@@ -40,11 +40,13 @@ class TestCategoryService:
             cat,
             user=user,
             name='New Name',
-            code='NEW'
+            code='NEW',
+            status=Category.Status.INACTIVE
         )
         
         assert updated_cat.name == 'New Name'
         assert updated_cat.code == 'NEW'
+        assert updated_cat.status == Category.Status.INACTIVE
         assert updated_cat.updated_by == user
 
     def test_soft_delete_success(self, user):
@@ -150,3 +152,39 @@ class TestCategoryService:
         
         cat.refresh_from_db()
         assert cat.is_deleted is True
+
+    def test_deactivate_category_blocked_with_active_children(self, user):
+        parent = CategoryService.create(name='Parent', code='P1', user=user)
+        child = CategoryService.create(name='Child', code='C1', parent=parent, user=user)
+        
+        with pytest.raises(ValidationError) as excinfo:
+            CategoryService.update(parent, user=user, status=Category.Status.INACTIVE)
+        
+        assert "Cannot deactivate category 'Parent' because it has active children: Child" in str(excinfo.value)
+        parent.refresh_from_db()
+        assert parent.status == Category.Status.ACTIVE
+
+    def test_deactivate_category_blocked_with_active_items(self, user):
+        cat = CategoryService.create(name='Electronics', code='ELEC', user=user)
+        ItemService.create(category=cat, sku='ITEM1', name='Active Item', unit='pcs', user=user)
+        
+        with pytest.raises(ValidationError) as excinfo:
+            CategoryService.update(cat, user=user, status=Category.Status.INACTIVE)
+        
+        assert "Cannot deactivate category 'Electronics' because it has 1 active items (e.g. ITEM1)" in str(excinfo.value)
+        cat.refresh_from_db()
+        assert cat.status == Category.Status.ACTIVE
+
+    def test_deactivate_category_success_with_inactive_dependencies(self, user):
+        parent = CategoryService.create(name='Parent', code='P1', user=user)
+        child = CategoryService.create(name='Child', code='C1', parent=parent, user=user)
+        item = ItemService.create(category=parent, sku='ITEM1', name='Active Item', unit='pcs', user=user)
+
+        # Deactivate child and item first
+        CategoryService.update(child, user=user, status=Category.Status.INACTIVE)
+        ItemService.update(item, user=user, status=Category.Status.INACTIVE)
+
+        # Now deactivating parent should work
+        CategoryService.update(parent, user=user, status=Category.Status.INACTIVE)
+        parent.refresh_from_db()
+        assert parent.status == Category.Status.INACTIVE

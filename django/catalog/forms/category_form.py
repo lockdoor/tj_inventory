@@ -8,7 +8,7 @@ class CategoryForm(forms.ModelForm):
     """
     class Meta:
         model = Category
-        fields = ['name', 'code', 'parent', 'note']
+        fields = ['name', 'code', 'parent', 'note', 'status']
         widgets = {
             'name': forms.TextInput(attrs={
                 'placeholder': 'e.g. Smartphones',
@@ -25,6 +25,9 @@ class CategoryForm(forms.ModelForm):
                 'placeholder': 'Optional internal notes...',
                 'rows': 3,
                 'class': 'form-textarea'
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select'
             }),
         }
 

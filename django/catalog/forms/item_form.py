@@ -8,7 +8,7 @@ class ItemForm(forms.ModelForm):
     """
     class Meta:
         model = Item
-        fields = ['category', 'sku', 'express_sku', 'name', 'unit', 'note']
+        fields = ['category', 'sku', 'express_sku', 'name', 'unit', 'note', 'status']
         widgets = {
             'category': forms.Select(attrs={
                 'class': 'form-select'
@@ -33,6 +33,9 @@ class ItemForm(forms.ModelForm):
                 'placeholder': 'Optional internal notes...',
                 'rows': 3,
                 'class': 'form-textarea'
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select'
             }),
         }
 

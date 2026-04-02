@@ -36,7 +36,7 @@ class CategoryService:
         return Category.objects.filter(is_deleted=True).order_by('name')
 
     @staticmethod
-    def create(*, name, code, user, parent=None, note=''):
+    def create(*, name, code, user, parent=None, note='', status=Category.Status.ACTIVE):
         """
         Create a new category.
 
@@ -52,6 +52,7 @@ class CategoryService:
             code=code,
             parent=parent,
             note=note,
+            status=status,
             created_by=user,
         )
         category.full_clean()
@@ -68,7 +69,28 @@ class CategoryService:
             user: The user performing the action.
             **fields: Fields to update (name, code, parent, note).
         """
-        allowed_fields = {'name', 'code', 'parent', 'note'}
+        allowed_fields = {'name', 'code', 'parent', 'note', 'status'}
+        
+        # Rule: Cannot deactivate if it has active children or items
+        if fields.get('status') == Category.Status.INACTIVE:
+            active_children = category.children.filter(is_deleted=False, status=Category.Status.ACTIVE)
+            if active_children.exists():
+                child_names = ", ".join(list(active_children.values_list('name', flat=True)))
+                raise ValidationError(
+                    f"Cannot deactivate category '{category.name}' because it has "
+                    f"active children: {child_names}. Please deactivate them first."
+                )
+
+            active_items = category.items.filter(is_deleted=False, status=Category.Status.ACTIVE)
+            if active_items.exists():
+                item_skus = ", ".join(list(active_items.values_list('sku', flat=True))[:5])
+                count = active_items.count()
+                suffix = "..." if count > 5 else ""
+                raise ValidationError(
+                    f"Cannot deactivate category '{category.name}' because it has {count} "
+                    f"active items (e.g. {item_skus}{suffix}). Please deactivate them first."
+                )
+
         for field, value in fields.items():
             if field in allowed_fields:
                 setattr(category, field, value)

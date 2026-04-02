@@ -8,7 +8,7 @@ from catalog.views.category_views import (
     CategoryTrashListView,
     CategoryRestoreView
 )
-from catalog.views.item_views import ItemListView, ItemCreateView, ItemUpdateView
+from catalog.views.item_views import ItemListView, ItemCreateView, ItemUpdateView, ItemDetailView
 from catalog.views.catalog_views import CatalogOverviewView
 
 app_name = 'catalog'
@@ -21,13 +21,14 @@ urlpatterns = [
     path('categories/', CategoryListView.as_view(), name='category-list'),
     path('categories/trash/', CategoryTrashListView.as_view(), name='category-trash'),
     path('categories/create/', CategoryCreateView.as_view(), name='category-create'),
-    path('categories/<int:pk>/', CategoryDetailView.as_view(), name='category-detail'),
-    path('categories/<int:pk>/update/', CategoryUpdateView.as_view(), name='category-update'),
-    path('categories/<int:pk>/delete/', CategoryDeleteView.as_view(), name='category-delete'),
-    path('categories/<int:pk>/restore/', CategoryRestoreView.as_view(), name='category-restore'),
+    path('categories/<str:code>/', CategoryDetailView.as_view(), name='category-detail'),
+    path('categories/<str:code>/update/', CategoryUpdateView.as_view(), name='category-update'),
+    path('categories/<str:code>/delete/', CategoryDeleteView.as_view(), name='category-delete'),
+    path('categories/<str:code>/restore/', CategoryRestoreView.as_view(), name='category-restore'),
 
     # Items
     path('items/', ItemListView.as_view(), name='item-list'),
     path('items/create/', ItemCreateView.as_view(), name='item-create'),
-    path('items/<int:pk>/update/', ItemUpdateView.as_view(), name='item-update'),
+    path('items/<str:sku>/', ItemDetailView.as_view(), name='item-detail'),
+    path('items/<str:sku>/update/', ItemUpdateView.as_view(), name='item-update'),
 ]

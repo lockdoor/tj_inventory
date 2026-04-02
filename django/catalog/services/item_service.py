@@ -27,7 +27,7 @@ class ItemService:
         return ItemService.get_active_queryset().order_by('sku')
 
     @staticmethod
-    def create(*, sku, name, unit, user, category=None, express_sku='', note=''):
+    def create(*, sku, name, unit, user, category=None, express_sku='', note='', status=Item.Status.ACTIVE):
         """
         Create a new item.
         """
@@ -38,6 +38,7 @@ class ItemService:
             category=category,
             express_sku=express_sku,
             note=note,
+            status=status,
             created_by=user
         )
         item.full_clean()

@@ -1,5 +1,5 @@
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView
+from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from catalog.models import Item
 from catalog.services.item_service import ItemService
@@ -51,7 +51,8 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             user=self.request.user,
             category=data['category'],
             express_sku=data['express_sku'],
-            note=data['note']
+            note=data['note'],
+            status=data['status']
         )
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect(self.get_success_url())
@@ -64,9 +65,13 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     model = Item
     form_class = ItemForm
     template_name = 'catalog/item_form.html'
-    success_url = reverse_lazy('catalog:item-list')
+    slug_field = 'sku'
+    slug_url_kwarg = 'sku'
     permission_required = 'catalog.change_item'
     raise_exception = True
+
+    def get_success_url(self):
+        return reverse_lazy('catalog:item-detail', kwargs={'sku': self.object.sku})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -84,3 +89,22 @@ class ItemUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
         )
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect(self.get_success_url())
+
+class ItemDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """
+    Detailed view for a specific item.
+    Shows item info, category, and audit trail.
+    """
+    model = Item
+    template_name = 'catalog/item_detail.html'
+    context_object_name = 'item'
+    slug_field = 'sku'
+    slug_url_kwarg = 'sku'
+    permission_required = 'catalog.view_item'
+    raise_exception = True
+
+    def get_queryset(self):
+        """
+        Optimize queryset with related fields.
+        """
+        return Item.objects.select_related('category', 'created_by', 'updated_by')

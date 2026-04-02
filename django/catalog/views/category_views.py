@@ -45,6 +45,8 @@ class CategoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     model = Category
     template_name = 'catalog/category_detail.html'
     context_object_name = 'category'
+    slug_field = 'code'
+    slug_url_kwarg = 'code'
     permission_required = 'catalog.view_category'
     raise_exception = True
 
@@ -77,6 +79,7 @@ class CategoryCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
                 code=form.cleaned_data['code'],
                 parent=form.cleaned_data['parent'],
                 note=form.cleaned_data['note'],
+                status=form.cleaned_data['status'],
                 user=self.request.user
             )
             messages.success(self.request, f"Category '{category.name}' created successfully!")
@@ -92,6 +95,8 @@ class CategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
     model = Category
     form_class = CategoryForm
     template_name = 'catalog/category_form.html'
+    slug_field = 'code'
+    slug_url_kwarg = 'code'
     permission_required = 'catalog.change_category'
     raise_exception = True
 
@@ -112,10 +117,11 @@ class CategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
                 name=form.cleaned_data['name'],
                 code=form.cleaned_data['code'],
                 parent=form.cleaned_data['parent'],
-                note=form.cleaned_data['note']
+                note=form.cleaned_data['note'],
+                status=form.cleaned_data['status']
             )
             messages.success(self.request, f"Category '{self.object.name}' updated successfully!")
-            return redirect('catalog:category-detail', pk=self.object.pk)
+            return redirect('catalog:category-detail', code=self.object.code)
         except Exception as e:
             messages.error(self.request, f"Error updating category: {str(e)}")
             return self.form_invalid(form)
@@ -127,6 +133,8 @@ class CategoryDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView
     """
     model = Category
     template_name = 'catalog/category_confirm_delete.html'
+    slug_field = 'code'
+    slug_url_kwarg = 'code'
     permission_required = 'catalog.delete_category'
     success_url = reverse_lazy('catalog:category-list')
     raise_exception = True
@@ -157,8 +165,8 @@ class CategoryRestoreView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'catalog.delete_category'
     raise_exception = True
 
-    def post(self, request, pk):
-        category = get_object_or_404(Category, pk=pk, is_deleted=True)
+    def post(self, request, code):
+        category = get_object_or_404(Category, code=code, is_deleted=True)
         try:
             CategoryService.restore(category, user=request.user)
             messages.success(request, f"Category '{category.name}' restored successfully.")

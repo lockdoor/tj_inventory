@@ -44,7 +44,7 @@
                     {% for item in items %}
                     <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
                         <td style="padding: 1.25rem 1.5rem;">
-                            <a href="#" style="font-family: monospace; color: var(--primary-light); font-weight: 700; text-decoration: none;">{{ item.sku }}</a>
+                            <a href="{% url 'catalog:item-detail' item.sku %}" style="font-family: monospace; color: var(--primary-light); font-weight: 700; text-decoration: none;">{{ item.sku }}</a>
                             {% if item.express_sku %}
                                 <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">Ex: {{ item.express_sku }}</div>
                             {% endif %}
@@ -53,9 +53,15 @@
                             <div style="font-weight: 600; color: var(--text-main);">{{ item.name }}</div>
                         </td>
                         <td style="padding: 1.25rem 1.5rem;">
-                            <span class="category-badge">
-                                {{ item.category.name|default:"Uncategorized" }}
-                            </span>
+                            {% if item.category %}
+                                <a href="{% url 'catalog:category-detail' item.category.code %}" style="text-decoration: none;">
+                                    <span class="category-badge">
+                                        {{ item.category.name }}
+                                    </span>
+                                </a>
+                            {% else %}
+                                <span class="category-badge" style="opacity: 0.5;">Uncategorized</span>
+                            {% endif %}
                         </td>
                         <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.875rem;">
                             {{ item.unit }}
@@ -69,7 +75,7 @@
                         <td style="padding: 1.25rem 1.5rem; text-align: right;">
                             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                                 {% if perms.catalog.change_item %}
-                                    <a href="{% url 'catalog:item-update' item.pk %}" class="btn btn-icon" title="Update">
+                                    <a href="{% url 'catalog:item-update' item.sku %}" class="btn btn-icon" title="Update">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                     </a>
                                 {% endif %}

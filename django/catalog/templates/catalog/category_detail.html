@@ -8,7 +8,7 @@
 <a href="{% url 'catalog:category-list' %}" style="color: var(--primary-light); text-decoration: none;">Categories</a>
 <span style="color: var(--text-dim); opacity: 0.5;">/</span>
 {% if category.parent %}
-    <a href="{% url 'catalog:category-detail' category.parent.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ category.parent.name }}</a>
+    <a href="{% url 'catalog:category-detail' category.parent.code %}" style="color: var(--primary-light); text-decoration: none;">{{ category.parent.name }}</a>
     <span style="color: var(--text-dim); opacity: 0.5;">/</span>
 {% endif %}
 <span style="color: var(--text-main); font-weight: 500;">{{ category.name }}</span>
@@ -38,10 +38,10 @@
             
             <div style="display: flex; gap: 0.75rem;">
                 {% if perms.catalog.change_category %}
-                    <a href="{% url 'catalog:category-update' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">Update</a>
+                    <a href="{% url 'catalog:category-update' category.code %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">Update</a>
                 {% endif %}
                 {% if perms.catalog.delete_category %}
-                    <a href="{% url 'catalog:category-delete' category.pk %}" class="btn btn-outline" style="color: var(--error); padding: 0.6rem 1.25rem;">Delete</a>
+                    <a href="{% url 'catalog:category-delete' category.code %}" class="btn btn-outline" style="color: var(--error); padding: 0.6rem 1.25rem;">Delete</a>
                 {% endif %}
             </div>
         </div>
@@ -66,7 +66,7 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
                 {% for child in children %}
                     {% if not child.is_deleted %}
-                        <a href="{% url 'catalog:category-detail' child.pk %}" class="sub-category-card" style="display: block; padding: 1.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.02); text-decoration: none; transition: var(--transition);">
+                        <a href="{% url 'catalog:category-detail' child.code %}" class="sub-category-card" style="display: block; padding: 1.25rem; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.02); text-decoration: none; transition: var(--transition);">
                             <div style="font-family: monospace; font-size: 0.7rem; color: var(--primary-light); margin-bottom: 0.4rem;">{{ child.code }}</div>
                             <div style="font-weight: 600; color: var(--text-main); font-size: 1rem;">{{ child.name }}</div>
                             <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-dim);">

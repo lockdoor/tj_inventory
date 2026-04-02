@@ -57,7 +57,7 @@
                         {% if object.children.all %}disabled title="Cannot delete category with children"{% endif %}>
                     Confirm Delete
                 </button>
-                <a href="{% url 'catalog:category-detail' object.pk %}" 
+                <a href="{% url 'catalog:category-detail' object.code %}" 
                    class="btn btn-outline" 
                    style="flex: 1; text-align: center; text-decoration: none;">
                     Cancel

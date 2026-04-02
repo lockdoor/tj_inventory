@@ -108,7 +108,7 @@ class TestCategoryDetailView:
     
     def test_unauthenticated_denied(self, client, executive_user):
         cat = Category.objects.create(name='Test', code='T1', created_by=executive_user)
-        url = reverse('catalog:category-detail', args=[cat.pk])
+        url = reverse('catalog:category-detail', kwargs={'code': cat.code})
         response = client.get(url)
         assert response.status_code == 403
 
@@ -117,7 +117,7 @@ class TestCategoryDetailView:
         child = Category.objects.create(name='Child', code='C1', parent=parent, created_by=sales_user)
         
         client.login(username='sales', password='password123')
-        url = reverse('catalog:category-detail', args=[child.pk])
+        url = reverse('catalog:category-detail', kwargs={'code': child.code})
         response = client.get(url)
         
         assert response.status_code == 200
@@ -130,7 +130,7 @@ class TestCategoryDetailView:
         cat = Category.objects.create(name='Deleted', code='DEL', is_deleted=True, created_by=executive_user)
         
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-detail', args=[cat.pk])
+        url = reverse('catalog:category-detail', kwargs={'code': cat.code})
         response = client.get(url)
         
         # DetailView should return 404 if queryset filters out deleted
@@ -142,27 +142,28 @@ class TestCategoryUpdateView:
 
     def test_unauthenticated_denied(self, client, executive_user):
         cat = Category.objects.create(name='Test', code='T1', created_by=executive_user)
-        url = reverse('catalog:category-update', args=[cat.pk])
+        url = reverse('catalog:category-update', kwargs={'code': cat.code})
         response = client.get(url)
         assert response.status_code == 403
 
     def test_sales_rep_denied(self, client, sales_user):
         cat = Category.objects.create(name='Test', code='T1', created_by=sales_user)
         client.login(username='sales', password='password123')
-        url = reverse('catalog:category-update', args=[cat.pk])
+        url = reverse('catalog:category-update', kwargs={'code': cat.code})
         response = client.get(url)
         assert response.status_code == 403
 
     def test_executive_update_success(self, client, executive_user):
         cat = Category.objects.create(name='Old Name', code='OLD', created_by=executive_user)
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-update', args=[cat.pk])
+        url = reverse('catalog:category-update', kwargs={'code': cat.code})
         
         data = {
             'name': 'New Name',
             'code': 'NEW',
             'parent': '',
-            'note': 'Updated notes'
+            'note': 'Updated notes',
+            'status': 'active'
         }
         response = client.post(url, data)
         
@@ -178,7 +179,7 @@ class TestCategoryUpdateView:
         cat = Category.objects.create(name='Mine', code='MINE', created_by=executive_user)
         
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-update', args=[cat.pk])
+        url = reverse('catalog:category-update', kwargs={'code': cat.code})
         
         data = {'name': 'Mine', 'code': 'BUSY', 'parent': '', 'note': ''}
         response = client.post(url, data)
@@ -192,14 +193,14 @@ class TestCategoryDeleteView:
 
     def test_unauthenticated_denied(self, client, executive_user):
         cat = Category.objects.create(name='Test', code='T1', created_by=executive_user)
-        url = reverse('catalog:category-delete', args=[cat.pk])
+        url = reverse('catalog:category-delete', kwargs={'code': cat.code})
         response = client.get(url)
         assert response.status_code == 403
 
     def test_executive_delete_success(self, client, executive_user):
         cat = Category.objects.create(name='To Delete', code='DEL', created_by=executive_user)
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-delete', args=[cat.pk])
+        url = reverse('catalog:category-delete', kwargs={'code': cat.code})
         
         # GET should show confirmation
         response = client.get(url)
@@ -218,7 +219,7 @@ class TestCategoryDeleteView:
         child = Category.objects.create(name='Child', code='C1', parent=parent, created_by=executive_user)
         
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-delete', args=[parent.pk])
+        url = reverse('catalog:category-delete', kwargs={'code': parent.code})
         
         # GET should show warning
         response = client.get(url)
@@ -236,7 +237,7 @@ class TestCategoryDeleteView:
     def test_sales_rep_denied(self, client, sales_user):
         cat = Category.objects.create(name='Test', code='T1', created_by=sales_user)
         client.login(username='sales', password='password123')
-        url = reverse('catalog:category-delete', args=[cat.pk])
+        url = reverse('catalog:category-delete', kwargs={'code': cat.code})
         response = client.post(url)
         assert response.status_code == 403
 
@@ -261,7 +262,7 @@ class TestCategoryTrashView:
     def test_executive_restore_success(self, client, executive_user):
         cat = Category.objects.create(name='To Restore', code='RES', is_deleted=True, created_by=executive_user)
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-restore', args=[cat.pk])
+        url = reverse('catalog:category-restore', kwargs={'code': cat.code})
         
         response = client.post(url)
         assert response.status_code == 302 # Redirect to list
@@ -274,7 +275,7 @@ class TestCategoryTrashView:
         child = Category.objects.create(name='Child', code='C1', parent=parent, is_deleted=True, created_by=executive_user)
         
         client.login(username='executive', password='password123')
-        url = reverse('catalog:category-restore', args=[child.pk])
+        url = reverse('catalog:category-restore', kwargs={'code': child.code})
         
         response = client.post(url, follow=True) # Follow redirect to see messages
         assert response.status_code == 200 
@@ -295,7 +296,7 @@ class TestCategoryTrashView:
         
         # Check restore action access
         cat = Category.objects.get(code='DEL')
-        url_restore = reverse('catalog:category-restore', args=[cat.pk])
+        url_restore = reverse('catalog:category-restore', kwargs={'code': cat.code})
         assert client.post(url_restore).status_code == 403
 
 @pytest.mark.django_db
@@ -316,7 +317,8 @@ class TestCategoryCreateView:
             'name': 'New Category',
             'code': 'CAT-001',
             'parent': '',
-            'note': 'Test note'
+            'note': 'Test note',
+            'status': 'active'
         }
         response = client.post(url, data)
         assert response.status_code == 302 # Redirect on success
