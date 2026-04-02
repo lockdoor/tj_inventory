@@ -5,3 +5,5 @@ venv
 __pycache__
 .pytest_cache
 *.sqlite3
+django/media/item_images/*
+!django/media/item_images/.gitkeep

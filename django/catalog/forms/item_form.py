@@ -6,9 +6,15 @@ class ItemForm(forms.ModelForm):
     Form for creating and updating Items.
     Styled for the Emerald Green glassmorphism theme.
     """
+    image = forms.ImageField(
+        required=False, 
+        widget=forms.FileInput(attrs={'class': 'form-input-file'}),
+        help_text="Optional item photo (min 400x400 recommended)"
+    )
+
     class Meta:
         model = Item
-        fields = ['category', 'sku', 'express_sku', 'name', 'unit', 'note', 'status']
+        fields = ['category', 'sku', 'express_sku', 'name', 'unit', 'note', 'status', 'image']
         widgets = {
             'category': forms.Select(attrs={
                 'class': 'form-select'

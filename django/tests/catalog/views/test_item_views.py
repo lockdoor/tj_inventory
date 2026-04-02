@@ -116,6 +116,53 @@ class TestItemCreateView:
         assert response.status_code == 200
         assert 'Item with this Sku already exists' in response.content.decode()
 
+    def test_create_with_image_success(self, client, executive_user):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        import io
+        
+        cat = Category.objects.create(name='Electronics', code='ELEC', created_by=executive_user)
+        client.login(username='executive', password='password123')
+        
+        # Create a dummy non-square image
+        image_content = io.BytesIO()
+        img = Image.new('RGB', (800, 600), color='red')
+        img.save(image_content, format='JPEG')
+        image_content.seek(0)
+        
+        uploaded_image = SimpleUploadedFile(
+            "test_photo.jpg", 
+            image_content.read(), 
+            content_type="image/jpeg"
+        )
+        
+        url = reverse('catalog:item-create')
+        data = {
+            'sku': 'IMG-SKU',
+            'name': 'Photo Product',
+            'category': cat.id,
+            'unit': 'Pcs',
+            'status': 'active',
+            'image': uploaded_image
+        }
+        
+        response = client.post(url, data)
+        assert response.status_code == 302
+        
+        # Verify in DB
+        item = Item.objects.get(sku='IMG-SKU')
+        assert item.images.count() == 1
+        main_img = item.images.first()
+        assert main_img.is_main
+        
+        # Verify naming (SKU in filename)
+        assert 'IMG-SKU' in main_img.image.name
+        assert main_img.image.name.endswith('.jpg')
+        
+        # Verify processing (check size if pillow is available to read)
+        saved_img = Image.open(main_img.image.path)
+        assert saved_img.size == (400, 400)  # Should be cropped and resized
+
 @pytest.mark.django_db
 class TestItemUpdateView:
     """Functional tests for Item updates."""

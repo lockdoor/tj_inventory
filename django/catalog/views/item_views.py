@@ -69,7 +69,8 @@ class ItemCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             category=data['category'],
             express_sku=data['express_sku'],
             note=data['note'],
-            status=data['status']
+            status=data['status'],
+            image=data.get('image')
         )
         from django.http import HttpResponseRedirect
         return HttpResponseRedirect(self.get_success_url())

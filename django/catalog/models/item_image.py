@@ -13,12 +13,12 @@ from common.mixins import AuditableMixin, StatusMixin
 
 def item_image_upload_path(instance, filename):
     """
-    Generate upload path: item_images/item_<id>_<uuid8>.<ext>
+    Generate upload path: item_images/<sku>-<uuid8>.<ext>
     """
     ext = filename.split('.')[-1].lower()
     unique_id = uuid.uuid4().hex[:8]
-    item_id = instance.item_id or 'new'
-    return os.path.join('item_images', f"item_{item_id}_{unique_id}.{ext}")
+    sku = instance.item.sku if instance.item else 'new'
+    return os.path.join('item_images', f"{sku}-{unique_id}.{ext}")
 
 
 class ItemImage(AuditableMixin, StatusMixin):

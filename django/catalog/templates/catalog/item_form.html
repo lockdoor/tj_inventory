@@ -19,7 +19,7 @@
             <p style="color: var(--text-dim); margin-top: 0.5rem;">Provide the core details for your inventory item.</p>
         </div>
 
-        <form method="post" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate>
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -144,6 +144,40 @@
                 {% endif %}
             </div>
 
+            <!-- Image Upload -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label style="display: block; margin-bottom: 0.8rem; font-weight: 700; color: var(--text-main); font-size: 1rem;">
+                    Item Photo
+                </label>
+                <div class="image-upload-container">
+                    <div id="image-preview" class="image-preview-box">
+                        {% if form.instance.pk and form.instance.images.all %}
+                            <img src="{{ form.instance.images.all.0.image.url }}" alt="Current Item Photo">
+                        {% else %}
+                            <div class="upload-placeholder">
+                                <i class="bi bi-image" style="font-size: 2rem; opacity: 0.3;"></i>
+                                <p style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.5;">No photo selected</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="file" 
+                               name="{{ form.image.name }}" 
+                               id="{{ form.image.id_for_label }}" 
+                               class="form-control-file"
+                               accept="image/*">
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                            {{ form.image.help_text }}
+                        </p>
+                        {% if form.image.errors %}
+                            <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                                {{ form.image.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
             <!-- Status Toggle -->
             <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
                 <div>
@@ -219,6 +253,63 @@
       background-color: #10b981;
     }
 
+    /* Image Upload Styles */
+    .image-upload-container {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        padding: 1.25rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--glass-border);
+        border-radius: var(--radius-md);
+        transition: all 0.3s ease;
+    }
+    .image-upload-container:hover {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: var(--primary-light);
+    }
+    .image-preview-box {
+        width: 100px;
+        height: 100px;
+        border-radius: var(--radius-sm);
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border: 1px solid var(--glass-border);
+    }
+    .image-preview-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .upload-placeholder {
+        text-align: center;
+        color: var(--text-dim);
+    }
+    .form-control-file {
+        width: 100%;
+        color: var(--text-main);
+        font-size: 0.9rem;
+    }
+    .form-control-file::file-selector-button {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid var(--primary-light);
+        color: var(--primary-light);
+        padding: 0.4rem 1rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        margin-right: 1rem;
+        transition: all 0.2s ease;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+    .form-control-file::file-selector-button:hover {
+        background: var(--primary-light);
+        color: white;
+    }
+
     /* Form Styles */
     .uppercase { text-transform: uppercase; }
     .form-control::placeholder { color: var(--text-muted); opacity: 0.5; }
@@ -231,6 +322,21 @@
         
         toggle.addEventListener('change', function() {
             hiddenInput.value = this.checked ? 'active' : 'inactive';
+        });
+
+        // Image Preview Logic
+        const imageInput = document.getElementById('{{ form.image.id_for_label }}');
+        const previewBox = document.getElementById('image-preview');
+
+        imageInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewBox.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                }
+                reader.readAsDataURL(file);
+            }
         });
     });
 </script>
