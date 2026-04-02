@@ -58,3 +58,90 @@ class TestItemListView:
         assert 'Visible Item' in content
         assert 'Hidden Item' not in content
         assert 'Test Cat' in content
+
+@pytest.mark.django_db
+class TestItemCreateView:
+    """Functional tests for Item creation."""
+
+    def test_unauthenticated_denied(self, client):
+        url = reverse('catalog:item-create')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_sales_rep_denied(self, client, sales_user):
+        # Sales reps can view but not add
+        client.login(username='sales', password='password123')
+        url = reverse('catalog:item-create')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_create_success(self, client, executive_user):
+        cat = Category.objects.create(name='Electronics', code='ELEC', created_by=executive_user)
+        client.login(username='executive', password='password123')
+        
+        url = reverse('catalog:item-create')
+        data = {
+            'sku': 'NEW-SKU',
+            'name': 'New Product',
+            'category': cat.id,
+            'unit': 'Pcs',
+            'express_sku': 'EXP-123',
+            'note': 'Fresh stock'
+        }
+        
+        response = client.post(url, data)
+        assert response.status_code == 302
+        assert response.url == reverse('catalog:item-list')
+        
+        # Verify in DB
+        del_item = Item.objects.get(sku='NEW-SKU')
+        assert del_item.name == 'New Product'
+        assert del_item.created_by == executive_user
+
+    def test_duplicate_sku_error(self, client, executive_user):
+        cat = Category.objects.create(name='Electronics', code='ELEC', created_by=executive_user)
+        Item.objects.create(sku='DUP-01', name='Existing', unit='Pcs', category=cat, created_by=executive_user)
+        
+        client.login(username='executive', password='password123')
+        url = reverse('catalog:item-create')
+        data = {
+            'sku': 'DUP-01',
+            'name': 'Should Fail',
+            'category': cat.id,
+            'unit': 'Pcs'
+        }
+        
+        response = client.post(url, data)
+        assert response.status_code == 200
+        assert 'Item with this Sku already exists' in response.content.decode()
+
+@pytest.mark.django_db
+class TestItemUpdateView:
+    """Functional tests for Item updates."""
+
+    def test_update_success(self, client, executive_user):
+        cat = Category.objects.create(name='Electronics', code='ELEC', created_by=executive_user)
+        item = Item.objects.create(sku='SKU-1', name='Old Name', unit='Pcs', category=cat, created_by=executive_user)
+        
+        client.login(username='executive', password='password123')
+        url = reverse('catalog:item-update', kwargs={'pk': item.pk})
+        
+        # Verify title in GET request before update
+        response = client.get(url)
+        assert f"Update {item.name}" in response.content.decode()
+
+        data = {
+            'sku': 'SKU-1',  # Keep same SKU
+            'name': 'Updated Name',
+            'category': cat.id,
+            'unit': 'Kg',
+            'note': 'Price drop'
+        }
+        
+        response = client.post(url, data)
+        assert response.status_code == 302
+        
+        item.refresh_from_db()
+        assert item.name == 'Updated Name'
+        assert item.unit == 'Kg'
+        assert item.updated_by == executive_user

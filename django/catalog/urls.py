@@ -8,7 +8,7 @@ from catalog.views.category_views import (
     CategoryTrashListView,
     CategoryRestoreView
 )
-from catalog.views.item_views import ItemListView
+from catalog.views.item_views import ItemListView, ItemCreateView, ItemUpdateView
 from catalog.views.catalog_views import CatalogOverviewView
 
 app_name = 'catalog'
@@ -28,4 +28,6 @@ urlpatterns = [
 
     # Items
     path('items/', ItemListView.as_view(), name='item-list'),
+    path('items/create/', ItemCreateView.as_view(), name='item-create'),
+    path('items/<int:pk>/update/', ItemUpdateView.as_view(), name='item-update'),
 ]

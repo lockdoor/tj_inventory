@@ -75,7 +75,7 @@
             <div style="display: flex; gap: 1rem;">
                 <a href="{% url 'catalog:item-list' %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">View Items</a>
                 {% if perms.catalog.add_item %}
-                    <a href="#" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">+ Add Item</a>
+                    <a href="{% url 'catalog:item-create' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">+ Add Item</a>
                 {% endif %}
             </div>
         </div>

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-list' %}" style="color: var(--primary-light); text-decoration: none;">Items</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <div class="glass-card" style="max-width: 700px; margin: 0 auto;">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem;">
+            <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 700;">{{ title }}</h1>
+            <p style="color: var(--text-dim); margin-top: 0.5rem;">Provide the core details for your inventory item.</p>
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-error" style="margin-bottom: 1.5rem;">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <!-- SKU -->
+                <div class="form-group" style="margin-bottom: 1.5rem; grid-column: span 1;">
+                    <label for="{{ form.sku.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                        Internal SKU
+                    </label>
+                    <input type="text" 
+                           name="{{ form.sku.name }}" 
+                           id="{{ form.sku.id_for_label }}" 
+                           class="form-control uppercase {% if form.sku.errors %}is-invalid{% endif %}" 
+                           placeholder="e.g. SKU-12345"
+                           value="{{ form.sku.value|default:'' }}">
+                    {% if form.sku.errors %}
+                        <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                            {{ form.sku.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Express SKU -->
+                <div class="form-group" style="margin-bottom: 1.5rem; grid-column: span 1;">
+                    <label for="{{ form.express_sku.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                        Express SKU (Optional)
+                    </label>
+                    <input type="text" 
+                           name="{{ form.express_sku.name }}" 
+                           id="{{ form.express_sku.id_for_label }}" 
+                           class="form-control uppercase {% if form.express_sku.errors %}is-invalid{% endif %}" 
+                           placeholder="e.g. EXP-999"
+                           value="{{ form.express_sku.value|default:'' }}">
+                    {% if form.express_sku.errors %}
+                        <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                            {{ form.express_sku.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Item Name -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.name.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                    Item Name
+                </label>
+                <input type="text" 
+                       name="{{ form.name.name }}" 
+                       id="{{ form.name.id_for_label }}" 
+                       class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                       placeholder="e.g. Wireless Mouse G502"
+                       value="{{ form.name.value|default:'' }}">
+                {% if form.name.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.name.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <!-- Category -->
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="{{ form.category.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                        Category
+                    </label>
+                    <select name="{{ form.category.name }}" 
+                            id="{{ form.category.id_for_label }}" 
+                            class="form-control {% if form.category.errors %}is-invalid{% endif %}">
+                        {% for value, label in form.fields.category.choices %}
+                            <option value="{{ value }}" {% if form.category.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.category.errors %}
+                        <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                            {{ form.category.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Unit -->
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label for="{{ form.unit.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                        Unit
+                    </label>
+                    <input type="text" 
+                           name="{{ form.unit.name }}" 
+                           id="{{ form.unit.id_for_label }}" 
+                           class="form-control {% if form.unit.errors %}is-invalid{% endif %}" 
+                           placeholder="e.g. Pcs, Box"
+                           value="{{ form.unit.value|default:'' }}">
+                    {% if form.unit.errors %}
+                        <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                            {{ form.unit.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Note -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.note.id_for_label }}" style="display: block; margin-bottom:0.5rem; font-weight: 600; color: var(--text-main);">
+                    Notes
+                </label>
+                <textarea name="{{ form.note.name }}" 
+                          id="{{ form.note.id_for_label }}" 
+                          class="form-control {% if form.note.errors %}is-invalid{% endif %}" 
+                          rows="3" 
+                          placeholder="Optional internal details...">{{ form.note.value|default:'' }}</textarea>
+                {% if form.note.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.note.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div style="margin-top: 2.5rem; display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    Save Item
+                </button>
+                <a href="{% url 'catalog:item-list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
