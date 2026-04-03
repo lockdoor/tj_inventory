@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Partners - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Partners</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">Partners</h1>
+            <p style="color: var(--text-dim);">Manage your suppliers and customers database.</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <div class="glass-pill" style="display: flex; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 9999px; padding: 4px;">
+                <a href="?role=all" class="pill-item {% if current_role == 'all' %}active{% endif %}">All</a>
+                <a href="?role=supplier" class="pill-item {% if current_role == 'supplier' %}active{% endif %}">Suppliers</a>
+                <a href="?role=customer" class="pill-item {% if current_role == 'customer' %}active{% endif %}">Customers</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="glass-card" style="padding: 0; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--glass-border);">
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 120px;">Code</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Name & Roles</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Contact Info</th>
+                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 150px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for partner in partners %}
+                    <tr style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1.25rem 1rem;">
+                            <span style="font-family: monospace; color: var(--primary-light); font-weight: 600;">{{ partner.code }}</span>
+                        </td>
+                        <td style="padding: 1.25rem 1rem;">
+                            <div style="color: var(--text-main); font-weight: 600; margin-bottom: 0.4rem;">{{ partner.name }}</div>
+                            <div style="display: flex; gap: 0.4rem;">
+                                {% if partner.is_supplier %}
+                                    <span class="role-badge role-supplier">Supplier</span>
+                                {% endif %}
+                                {% if partner.is_customer %}
+                                    <span class="role-badge role-customer">Customer</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 1.25rem 1rem;">
+                            <div style="color: var(--text-main); font-size: 0.875rem;">{{ partner.contact_name|default:"---" }}</div>
+                            <div style="color: var(--text-muted); font-size: 0.75rem;">{{ partner.email|default:partner.phone|default:"" }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1rem;">
+                            <span class="status-chip {% if partner.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                <span class="status-dot"></span>
+                                {{ partner.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" style="padding: 4rem 1rem; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 1.1rem;">No partners found matching your criteria.</div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .pill-item {
+        padding: 0.4rem 1.2rem;
+        border-radius: 9999px;
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: var(--transition);
+        font-weight: 500;
+    }
+    .pill-item:hover {
+        color: var(--text-main);
+        background: rgba(255,255,255,0.03);
+    }
+    .pill-item.active {
+        background: var(--primary-light);
+        color: #000;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .role-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        letter-spacing: 0.02em;
+    }
+    .role-supplier {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .role-customer {
+        background: rgba(245, 158, 11, 0.1);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .status-chip {
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.4rem; 
+        padding: 0.2rem 0.6rem; 
+        border-radius: 9999px; 
+        font-size: 0.7rem; 
+        font-weight: 600;
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--text-muted);
+    }
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    .status-inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+    }
+    .status-dot {
+        width: 6px; 
+        height: 6px; 
+        border-radius: 50%; 
+        background: currentColor;
+    }
+</style>
+{% endblock %}
