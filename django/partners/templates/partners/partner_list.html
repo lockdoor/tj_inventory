@@ -9,65 +9,141 @@
 {% block content %}
 <div class="container">
     <!-- Header Area -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem;">
         <div>
-            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">Partners</h1>
-            <p style="color: var(--text-dim);">Manage your suppliers and customers database.</p>
+            <h1 class="text-gradient"
+                style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Partners</h1>
+            <p style="color: var(--text-dim); font-size: 1.1rem;">Manage your global trade relationships and contact
+                network.</p>
         </div>
-        <div style="display: flex; gap: 1rem;">
-            <div class="glass-pill" style="display: flex; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 9999px; padding: 4px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 1rem;">
+            <div style="display: flex; gap: 0.75rem;">
+                {% if perms.partners.add_partner %}
+                <a href="{% url 'partners:partner-create' %}" class="btn btn-primary"
+                    style="padding: 0.6rem 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Create Partner
+                </a>
+                {% endif %}
+                <a href="{% url 'partners:partner-trash' %}" class="btn btn-outline"
+                    style="padding: 0.6rem 1rem; border-color: rgba(255,255,255,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        style="opacity: 0.7;">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                    </svg>
+                </a>
+            </div>
+            <div class="glass-pill"
+                style="display: flex; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 9999px; padding: 4px;">
                 <a href="?role=all" class="pill-item {% if current_role == 'all' %}active{% endif %}">All</a>
-                <a href="?role=supplier" class="pill-item {% if current_role == 'supplier' %}active{% endif %}">Suppliers</a>
-                <a href="?role=customer" class="pill-item {% if current_role == 'customer' %}active{% endif %}">Customers</a>
+                <a href="?role=supplier"
+                    class="pill-item {% if current_role == 'supplier' %}active{% endif %}">Suppliers</a>
+                <a href="?role=customer"
+                    class="pill-item {% if current_role == 'customer' %}active{% endif %}">Customers</a>
             </div>
         </div>
     </div>
 
     <!-- Table Card -->
-    <div class="glass-card" style="padding: 0; overflow: hidden;">
+    <div class="glass-card" style="padding: 0; overflow: hidden; border-color: rgba(255,255,255,0.1);">
         <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <thead>
-                <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--glass-border);">
-                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 120px;">Code</th>
-                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Name & Roles</th>
-                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">Contact Info</th>
-                    <th style="padding: 1.25rem 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; width: 150px;">Status</th>
+                <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--glass-border);">
+                    <th
+                        style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 140px;">
+                        ID Code</th>
+                    <th
+                        style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                        Partner Entity</th>
+                    <th
+                        style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                        Contact & Comms</th>
+                    <th
+                        style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 140px;">
+                        Status</th>
+                    <th
+                        style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 100px; text-align: right;">
+                        Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for partner in partners %}
-                    <tr style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-                        <td style="padding: 1.25rem 1rem;">
-                            <span style="font-family: monospace; color: var(--primary-light); font-weight: 600;">{{ partner.code }}</span>
-                        </td>
-                        <td style="padding: 1.25rem 1rem;">
-                            <div style="color: var(--text-main); font-weight: 600; margin-bottom: 0.4rem;">{{ partner.name }}</div>
-                            <div style="display: flex; gap: 0.4rem;">
+                <tr class="table-row"
+                    style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
+                    <td style="padding: 1.25rem;">
+                        <span
+                            style="font-family: monospace; color: var(--primary-light); font-weight: 700; font-size: 0.875rem; background: rgba(16, 185, 129, 0.05); padding: 0.2rem 0.6rem; border-radius: 4px;">
+                            {{partner.code }}</span>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <a href="{% url 'partners:partner-detail' partner.code %}"
+                            class="group" style="text-decoration: none; display: block;">
+                            <div style="color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem;"
+                                class="row-title">{{ partner.name }}</div>
+                            <div style="display: flex; gap: 0.5rem;">
                                 {% if partner.is_supplier %}
-                                    <span class="role-badge role-supplier">Supplier</span>
+                                <span class="role-badge role-supplier">Supplier</span>
                                 {% endif %}
                                 {% if partner.is_customer %}
-                                    <span class="role-badge role-customer">Customer</span>
+                                <span class="role-badge role-customer">Customer</span>
                                 {% endif %}
                             </div>
-                        </td>
-                        <td style="padding: 1.25rem 1rem;">
-                            <div style="color: var(--text-main); font-size: 0.875rem;">{{ partner.contact_name|default:"---" }}</div>
-                            <div style="color: var(--text-muted); font-size: 0.75rem;">{{ partner.email|default:partner.phone|default:"" }}</div>
-                        </td>
-                        <td style="padding: 1.25rem 1rem;">
-                            <span class="status-chip {% if partner.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
-                                <span class="status-dot"></span>
-                                {{ partner.get_status_display }}
-                            </span>
-                        </td>
-                    </tr>
+                        </a>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <div style="color: var(--text-main); font-weight: 600; font-size: 0.9375rem;">
+                            {{partner.contact_name|default:"---" }}</div>
+                        <div style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.2rem;">
+                            {{partner.email|default:partner.phone|default:"No contact set" }}</div>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <span
+                            class="status-chip {% if partner.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                            <span class="status-dot"></span>
+                            {{ partner.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <a href="{% url 'partners:partner-update' partner.code %}" class="action-btn" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </a>
+                            <a href="{% url 'partners:partner-delete' partner.code %}" class="action-btn delete"
+                                title="Delete">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
                 {% empty %}
-                    <tr>
-                        <td colspan="4" style="padding: 4rem 1rem; text-align: center;">
-                            <div style="color: var(--text-muted); font-size: 1.1rem;">No partners found matching your criteria.</div>
-                        </td>
-                    </tr>
+                <tr>
+                    <td colspan="5" style="padding: 5rem 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 1.25rem; font-weight: 500;">No partners found.
+                        </div>
+                        {% if current_role != 'all' %}<p style="color: var(--text-muted); margin-top: 0.5rem;">Try
+                            clearing your filters.</p>{% endif %}
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -75,67 +151,113 @@
 </div>
 
 <style>
+    .table-row:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .row-title {
+        transition: var(--transition);
+    }
+
+    .table-row:hover .row-title,
+    .group:hover .row-title {
+        color: var(--primary-light);
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        border: 1px solid var(--glass-border);
+        transition: var(--transition);
+        text-decoration: none;
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-main);
+        border-color: var(--primary-light);
+    }
+
+    .action-btn.delete:hover {
+        border-color: var(--error);
+        color: var(--error);
+        background: rgba(239, 68, 68, 0.1);
+    }
+
     .pill-item {
-        padding: 0.4rem 1.2rem;
+        padding: 0.5rem 1.5rem;
         border-radius: 9999px;
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
         color: var(--text-muted);
         text-decoration: none;
         transition: var(--transition);
-        font-weight: 500;
+        font-weight: 600;
     }
+
     .pill-item:hover {
         color: var(--text-main);
-        background: rgba(255,255,255,0.03);
     }
+
     .pill-item.active {
         background: var(--primary-light);
         color: #000;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
     }
 
     .role-badge {
-        font-size: 0.65rem;
-        font-weight: 700;
+        font-size: 0.625rem;
+        font-weight: 800;
         text-transform: uppercase;
-        padding: 0.1rem 0.4rem;
+        padding: 0.15rem 0.5rem;
         border-radius: 4px;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.05em;
+        border: 1px solid transparent;
     }
+
     .role-supplier {
         background: rgba(59, 130, 246, 0.1);
         color: #60a5fa;
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-color: rgba(59, 130, 246, 0.2);
     }
+
     .role-customer {
         background: rgba(245, 158, 11, 0.1);
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-color: rgba(245, 158, 11, 0.2);
     }
 
     .status-chip {
-        display: inline-flex; 
-        align-items: center; 
-        gap: 0.4rem; 
-        padding: 0.2rem 0.6rem; 
-        border-radius: 9999px; 
-        font-size: 0.7rem; 
-        font-weight: 600;
-        background: rgba(100, 116, 139, 0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: rgba(100, 116, 139, 0.12);
         color: var(--text-muted);
     }
+
     .status-active {
-        background: rgba(16, 185, 129, 0.1);
+        background: rgba(16, 185, 129, 0.15);
         color: #10b981;
     }
+
     .status-inactive {
-        background: rgba(239, 68, 68, 0.1);
+        background: rgba(239, 68, 68, 0.15);
         color: #f87171;
     }
+
     .status-dot {
-        width: 6px; 
-        height: 6px; 
-        border-radius: 50%; 
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
         background: currentColor;
     }
 </style>

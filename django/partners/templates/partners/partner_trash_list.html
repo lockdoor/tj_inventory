@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Partner Trash - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'partners:partner-list' %}" style="color: var(--primary-light); text-decoration: none;">Partners</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Trash</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="max-width: 900px; margin: 0 auto; padding-top: 2rem;">
+    <div class="glass-card" style="padding: 2.5rem; text-align: center; margin-bottom: 2rem;">
+        <h1 class="text-gradient"
+            style="font-size: 2.25rem; font-weight: 800; margin-bottom: 1rem; --gradient-colors: #94a3b8, #64748b;">
+            Partner Trash</h1>
+        <p style="color: var(--text-dim); font-size: 1.125rem;">View and restore recently deleted partner records.</p>
+    </div>
+
+    {% if partners %}
+    <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+        {% for partner in partners %}
+        <div class="glass-card"
+            style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--text-muted); background: rgba(255,255,255,0.01);">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                    <span
+                        style="font-family: monospace; font-size: 0.7rem; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px;">
+                        {{ partner.code }}</span>
+                    <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main); margin: 0;">
+                        {{ partner.name }}</h3>
+                </div>
+                <p style="font-size: 0.8125rem; color: var(--text-dim); margin: 0;">Deleted on
+                    {{ partner.deleted_at|date:"M j, Y, g:i a" }} by {{ partner.deleted_by.username|default:"System" }}
+                </p>
+            </div>
+
+            <form action="{% url 'partners:partner-restore' partner.code %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline"
+                    style="padding: 0.5rem 1.25rem; color: var(--success); border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.05);">
+                    Restore Partner
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card"
+        style="padding: 4rem; text-align: center; border: 1px dashed var(--glass-border); background: transparent;">
+        <div style="color: var(--text-muted); margin-bottom: 1.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                style="opacity: 0.3;">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+        </div>
+        <p style="color: var(--text-dim); font-size: 1.125rem; font-weight: 500;">Your trash is currently empty.</p>
+        <p style="color: var(--text-muted); margin-top: 0.5rem;">Great job keeping your database clean!</p>
+        <div style="margin-top: 2rem;">
+            <a href="{% url 'partners:partner-list' %}" class="btn btn-outline">Back to Partners</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

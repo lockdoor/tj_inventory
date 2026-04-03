@@ -26,6 +26,13 @@ class PartnerService:
         return PartnerService.get_active_queryset().order_by('name')
 
     @staticmethod
+    def list_deleted():
+        """
+        Return all soft-deleted partners ordered by name.
+        """
+        return Partner.objects.filter(is_deleted=True).order_by('name')
+
+    @staticmethod
     def list_suppliers():
         """
         Return active partners that are suppliers.
