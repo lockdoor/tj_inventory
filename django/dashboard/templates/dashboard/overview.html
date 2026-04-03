@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Overview</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="welcome-header" style="margin-bottom: 3rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+            Hello, {{ user.first_name|default:user.username }}
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.125rem;">Welcome back. Here is your inventory management summary.</p>
+    </div>
+
+    <!-- Module Grid -->
+    <div class="module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        {% for module in modules %}
+            <a href="{% url module.url %}" class="glass-card module-card" style="text-decoration: none; display: flex; flex-direction: column; padding: 2rem; position: relative; overflow: hidden; transition: var(--transition);">
+                <!-- Card Background Decoration -->
+                <div class="card-bg-glow"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+                    <div class="icon-box" style="background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.75rem; border-radius: 1rem; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        {{ module.icon_svg|safe }}
+                    </div>
+                    {% if module.badge %}
+                        <span style="font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 0.25rem 0.5rem; border-radius: 4px;">
+                            {{ module.badge }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">{{ module.title }}</h2>
+                <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; flex-grow: 1;">{{ module.description }}</p>
+                
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--primary-light); font-weight: 600; font-size: 0.875rem;">
+                    <span>Open Module</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .module-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary-light);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.1);
+    }
+    .module-card .card-bg-glow {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+        opacity: 0;
+        transition: var(--transition);
+        pointer-events: none;
+    }
+    .module-card:hover .card-bg-glow {
+        opacity: 1;
+    }
+    .module-card:hover .arrow-icon {
+        transform: translateX(4px);
+    }
+    .arrow-icon {
+        transition: var(--transition);
+    }
+</style>
+{% endblock %}
