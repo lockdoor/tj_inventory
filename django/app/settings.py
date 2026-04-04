@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'common',
     'catalog',
     'partners',
+    'inventory',
     'dashboard',
 ]
 
