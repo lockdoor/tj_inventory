@@ -1,5 +1,5 @@
 ```mermaid
-erDiagram
+    erDiagram
 
     WAREHOUSE {
         int id PK
@@ -72,13 +72,15 @@ erDiagram
 
     %% Detail Table: The Items inside the document
     INVENTORY_MOVEMENT_ITEM {
-        int id PK
-        int movement_id FK "CASCADE"
-        int item_id FK "Outer Domain Reference"
-        string lot_number "Mandatory for batch control"
-        decimal quantity
-        decimal unit_cost "optional: cost price"
-        string note
+       int id PK
+       int movement_id FK "CASCADE"
+       int item_id FK "Outer Domain Reference"
+       string lot_number "Mandatory for batch control"
+       decimal quantity
+       decimal unit_cost "optional: cost price"
+       datetime mfg_date "Captured during Draft"
+       datetime exp_date "Captured during Draft"
+       string note
     }
 
     %% Relationships
@@ -87,12 +89,19 @@ erDiagram
     STOCK ||--o{ STOCKCARD : "audit_history"
     INVENTORY_MOVEMENT ||--o{ INVENTORY_MOVEMENT_ITEM : "contains"
     INVENTORY_MOVEMENT ||--o{ INVENTORY_MOVEMENT_ATTACHMENT : "has_files"
-    INVENTORY_MOVEMENT_ITEM ||--o| STOCKCARD : "generates_transaction"
+    INVENTORY_MOVEMENT_ITEM ||--o{ STOCKCARD : "generates_transaction"
     PARTNER ||--o{ INVENTORY_MOVEMENT : "involved"
-
-    %% Business Logic Notes
-    %% Logic: [INBOUND] Create or update STOCK record for the specified lot_number.
-    %% Logic: [OUTBOUND] Select existing lot_number from STOCK. Deduct balance.
-    %% Logic: [TRACEABILITY] Every STOCKCARD entry must be tied to a lot_number for full audit trail.
-    %% Logic: [BALANCE] Total item balance = sum of STOCK.balance where item_id matches.
 ```
+
+Business Logic: Status Transitions (Draft <-> Completed)
+Event: DRAFT -> COMPLETED
+   1. Validate: Ensure lot_number, mfg_date, exp_date are present. For OUT, ensure STOCK >= quantity.
+   2. Ledger (STOCKCARD): Generate STOCKCARD record mapping 1-to-1 with Movement Item.
+   3. Balance (STOCK): Update STOCK balance (increase for IN, decrease for OUT).
+
+Event: COMPLETED -> DRAFT (Reversal)
+   1. Validate: For IN reversals, ensure STOCK balance won't drop below zero.
+   2. Ledger (STOCKCARD): Delete or reverse generated STOCKCARD entries first.
+   3. Balance (STOCK): Reverse the balance change second (decrease for reversed IN, increase for reversed OUT).
+
+Logic: [BALANCE] Total item balance = sum of STOCK.balance where item_id matches.
