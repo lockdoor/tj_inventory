@@ -1,0 +1,1 @@
+from .overview_views import InventoryOverviewView
