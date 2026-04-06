@@ -9,6 +9,10 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         INBOUND = 'inbound', 'Inbound'
         OUTBOUND = 'outbound', 'Outbound'
 
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        COMPLETED = 'completed', 'Completed'
+
     document_no = models.CharField(
         max_length=50, 
         unique=True, 
@@ -19,6 +23,12 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         max_length=20, 
         choices=MovementType.choices,
         help_text="Movement direction"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        help_text="Document lifecycle status"
     )
     date = models.DateField(
         help_text="Transaction date"
