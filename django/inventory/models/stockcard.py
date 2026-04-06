@@ -6,6 +6,10 @@ class StockCard(AuditableMixin):
     The ledger entry for all inventory changes. 
     Every movement results in a StockCard record for full traceability.
     """
+    class StockCardType(models.TextChoices):
+        IN = 'in', 'In'
+        OUT = 'out', 'Out'
+
     stock = models.ForeignKey(
         'inventory.Stock',
         on_delete=models.CASCADE,
@@ -36,17 +40,17 @@ class StockCard(AuditableMixin):
         related_name='stock_cards',
         help_text="Source movement line item"
     )
-    qty_in = models.DecimalField(
+    quantity = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0.00,
-        help_text="Quantity added"
+        help_text="Magnitude of change"
     )
-    qty_out = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=0.00,
-        help_text="Quantity removed"
+    type = models.CharField(
+        max_length=10,
+        choices=StockCardType.choices,
+        default=StockCardType.IN,
+        help_text="Direction of change (in/out)"
     )
     note = models.TextField(
         blank=True,
@@ -64,4 +68,4 @@ class StockCard(AuditableMixin):
         ]
 
     def __str__(self):
-        return f"{self.created_at.strftime('%Y-%m-%d %H:%M')} | {self.lot_number} | +{self.qty_in} -{self.qty_out}"
+        return f"{self.created_at.strftime('%Y-%m-%d %H:%M')} | {self.lot_number} | {self.get_type_display()} {self.quantity}"

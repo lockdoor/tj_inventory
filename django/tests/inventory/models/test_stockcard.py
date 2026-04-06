@@ -63,16 +63,18 @@ class TestStockCardModel:
             item=stock.item,
             lot_number=stock.lot_number,
             movement_item=movement_item,
-            qty_in=50.00,
-            qty_out=0.00,
+            quantity=50.00,
+            type=StockCard.StockCardType.IN,
             note="Initial Stock In",
             created_by=user
         )
         assert card.stock == stock
-        assert card.qty_in == 50.00
+        assert card.quantity == 50.00
+        assert card.type == StockCard.StockCardType.IN
         assert card.lot_number == "LOT-999"
         assert card.created_by == user
         assert str(card).find("LOT-999") != -1
+        assert str(card).find("In") != -1
 
     def test_stockcard_reversibility(self, user, stock, movement_item):
         """Verify that stockcard allows reverse mapping."""
@@ -82,7 +84,8 @@ class TestStockCardModel:
             item=stock.item,
             lot_number=stock.lot_number,
             movement_item=movement_item,
-            qty_in=25,
+            quantity=25,
+            type=StockCard.StockCardType.IN,
             created_by=user
         )
         assert stock.stock_cards.count() == 1

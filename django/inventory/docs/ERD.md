@@ -43,8 +43,8 @@
         int item_id FK "Outer Domain Reference"
         string lot_number "Recorded batch ID"
         int movement_item_id FK "Ref back to source movement"
-        decimal qty_in
-        decimal qty_out
+        decimal quantity
+        string type "in, out"
         datetime created_at
         string note
     }
