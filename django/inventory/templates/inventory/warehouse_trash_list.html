@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Warehouse Trash - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'inventory:overview' %}" style="color: var(--primary-light); text-decoration: none;">Inventory</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'inventory:warehouse-list' %}" style="color: var(--primary-light); text-decoration: none;">Warehouses</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Trash</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">Warehouse Trash</h1>
+            <p style="color: var(--text-dim);">Review and restore soft-deleted warehouses.</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            <a href="{% url 'inventory:warehouse-list' %}" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-weight: 500; transition: var(--transition);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+                Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.1);">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(239, 68, 68, 0.03); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px;">Code</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em;">Warehouse Name</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 220px;">Deleted At</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; text-align: right; width: 140px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for warehouse in warehouses %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);" onmouseover="this.style.background='rgba(239, 68, 68, 0.015)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <span style="font-family: 'JetBrains Mono', monospace; color: #ef4444; font-weight: 600; font-size: 0.9rem;">{{ warehouse.code }}</span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <div style="font-weight: 600; color: var(--text-main); font-size: 1rem; opacity: 0.7;">{{ warehouse.name }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <div style="font-size: 0.85rem; color: var(--text-dim);">{{ warehouse.deleted_at|date:"d M Y, H:i" }}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.1rem;">by {{ warehouse.deleted_by.get_full_name|default:warehouse.deleted_by.username }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <form action="{% url 'inventory:warehouse-restore' warehouse.code %}" method="POST" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-restore" title="Restore Warehouse">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                                    Restore
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" style="padding: 5rem 1.5rem; text-align: center;">
+                            <div style="background: rgba(255,255,255,0.02); display: inline-flex; padding: 1.5rem; border-radius: 50%; margin-bottom: 1.5rem; border: 1px dashed rgba(255,255,255,0.1);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-6-6m6 6v-4.8m0 4.8h-4.8"></path><path d="M3 16V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.5"></path><path d="M3 10h18"></path><path d="M7 15h4"></path></svg>
+                            </div>
+                            <div style="color: var(--text-muted); font-size: 1.1rem; font-weight: 500;">Your trash is empty. Good job!</div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .btn-restore {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.8rem;
+        background: rgba(16, 185, 129, 0.05);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 0.5rem;
+        color: #10b981;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    .btn-restore:hover {
+        background: #10b981;
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+</style>
+{% endblock %}

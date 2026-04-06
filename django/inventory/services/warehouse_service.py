@@ -27,6 +27,13 @@ class WarehouseService:
         return WarehouseService.get_queryable_queryset().filter(status='active').order_by('code')
 
     @staticmethod
+    def list_deleted():
+        """
+        Return all soft-deleted warehouses ordered by code.
+        """
+        return Warehouse.objects.filter(is_deleted=True).order_by('code')
+
+    @staticmethod
     def create(*, name, code, user, note='', status='active'):
         """
         Create a new warehouse.

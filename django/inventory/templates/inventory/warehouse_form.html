@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'inventory:overview' %}" style="color: var(--primary-light); text-decoration: none;">Inventory</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'inventory:warehouse-list' %}" style="color: var(--primary-light); text-decoration: none;">Warehouses</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="max-width: 800px; margin: 2rem auto;">
+    <div style="margin-bottom: 2.5rem; text-align: center;">
+        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">{{ title }}</h1>
+        <p style="color: var(--text-dim);">Define attributes for your physical storage location.</p>
+    </div>
+
+    <form method="POST" class="glass-card" style="padding: 2.5rem; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Warehouse Name -->
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}" class="glass-label">Warehouse Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="form-error">{{ form.name.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Warehouse Code -->
+            <div class="form-group">
+                <label for="{{ form.code.id_for_label }}" class="glass-label">Warehouse Code</label>
+                {{ form.code }}
+                {% if form.code.errors %}
+                    <div class="form-error">{{ form.code.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Status Selection -->
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="{{ form.status.id_for_label }}" class="glass-label">Operational Status</label>
+            {{ form.status }}
+            {% if form.status.errors %}
+                <div class="form-error">{{ form.status.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Note Textarea -->
+        <div class="form-group" style="margin-bottom: 2rem;">
+            <label for="{{ form.note.id_for_label }}" class="glass-label">Internal Notes (Optional)</label>
+            {{ form.note }}
+            {% if form.note.errors %}
+                <div class="form-error">{{ form.note.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 2rem; justify-content: flex-end;">
+            <a href="{% url 'inventory:warehouse-list' %}" class="btn btn-outline" style="text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 500;">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 700; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);">
+                {{ action_label }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .glass-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin-left: 0.25rem;
+        letter-spacing: 0.02em;
+    }
+    .glass-input {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.75rem;
+        padding: 0.8rem 1rem;
+        color: var(--text-main);
+        font-size: 1rem;
+        transition: var(--transition);
+        outline: none;
+    }
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--primary-light);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+    }
+    .glass-input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    .form-error {
+        color: #ef4444;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+        margin-left: 0.25rem;
+    }
+    select.glass-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+    select.glass-input option {
+        background: #111827;
+        color: white;
+    }
+</style>
+{% endblock %}
