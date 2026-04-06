@@ -49,31 +49,48 @@ class TestGroupCreation:
 # ============================================================
 class TestPermissionAssignment:
 
-    def test_executive_has_full_catalog_crud(self):
+    def test_executive_has_full_crud(self):
         group = Group.objects.get(name='executive')
         codenames = set(group.permissions.values_list('codename', flat=True))
+        
+        # Catalog
         for model in ['category', 'item', 'itemimage']:
             for action in ['add', 'change', 'delete', 'view']:
                 assert f'{action}_{model}' in codenames
+        
+        # Inventory
+        for model in ['warehouse']:
+            for action in ['add', 'change', 'delete', 'view']:
+                assert f'{action}_{model}' in codenames
 
-    def test_executive_has_12_permissions(self):
+    def test_executive_has_16_permissions(self):
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 12
+        # 12 (catalog) + 4 (inventory)
+        assert group.permissions.count() == 16
 
-    def test_stock_controller_is_catalog_view_only(self):
+    def test_stock_controller_permissions(self):
         group = Group.objects.get(name='stock_controller')
         codenames = set(group.permissions.values_list('codename', flat=True))
-        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+        assert codenames == {
+            'view_category', 'view_item', 'view_itemimage',
+            'view_warehouse'
+        }
 
-    def test_sales_rep_is_catalog_view_only(self):
+    def test_sales_rep_permissions(self):
         group = Group.objects.get(name='sales_rep')
         codenames = set(group.permissions.values_list('codename', flat=True))
-        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+        assert codenames == {
+            'view_category', 'view_item', 'view_itemimage',
+            'view_warehouse'
+        }
 
-    def test_warehouse_admin_is_catalog_view_only(self):
+    def test_warehouse_admin_permissions(self):
         group = Group.objects.get(name='warehouse_admin')
         codenames = set(group.permissions.values_list('codename', flat=True))
-        assert codenames == {'view_category', 'view_item', 'view_itemimage'}
+        assert codenames == {
+            'view_category', 'view_item', 'view_itemimage',
+            'add_warehouse', 'change_warehouse', 'delete_warehouse', 'view_warehouse'
+        }
 
 
 # ============================================================
@@ -88,7 +105,7 @@ class TestIdempotent:
     def test_running_twice_does_not_duplicate_permissions(self):
         call_command('seed_groups')
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 12
+        assert group.permissions.count() == 16
 
 
 # ============================================================

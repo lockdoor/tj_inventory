@@ -41,7 +41,11 @@ ROLE_PERMISSIONS = {
         'catalog.change_itemimage',
         'catalog.delete_itemimage',
         'catalog.view_itemimage',
-        # Will be extended with inventory, orders, etc.
+        # Inventory Permissions
+        'inventory.add_warehouse',
+        'inventory.change_warehouse',
+        'inventory.delete_warehouse',
+        'inventory.view_warehouse',
     ],
 
     'stock_controller': [
@@ -49,8 +53,8 @@ ROLE_PERMISSIONS = {
         'catalog.view_category',
         'catalog.view_item',
         'catalog.view_itemimage',
-        # Inbound / discrepancy / provider permissions will be added
-        # when inventory app is created.
+        # View Inventory
+        'inventory.view_warehouse',
     ],
 
     'sales_rep': [
@@ -58,8 +62,8 @@ ROLE_PERMISSIONS = {
         'catalog.view_category',
         'catalog.view_item',
         'catalog.view_itemimage',
-        # Reservation / customer permissions will be added
-        # when orders app is created.
+        # View Inventory
+        'inventory.view_warehouse',
     ],
 
     'warehouse_admin': [
@@ -67,8 +71,11 @@ ROLE_PERMISSIONS = {
         'catalog.view_category',
         'catalog.view_item',
         'catalog.view_itemimage',
-        # Receive shipment / stock discrepancy permissions will be added
-        # when inventory app is created.
+        # Full Warehouse Access (operational)
+        'inventory.add_warehouse',
+        'inventory.change_warehouse',
+        'inventory.delete_warehouse',
+        'inventory.view_warehouse',
     ],
 }
 

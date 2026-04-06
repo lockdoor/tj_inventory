@@ -56,7 +56,7 @@ class TestMovementModel:
             created_by=user
         )
         assert str(movement) == "MOV-2024-001 (Inbound)"
-        assert movement.status == "active" # Default from StatusMixin
+        assert movement.status == "draft" # override StatusMixin with draft, completed
 
     def test_movement_item_creation(self, user, warehouse, item):
         """Verify that movement items can be added with batch details."""
