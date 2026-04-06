@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Movements - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'inventory:overview' %}" style="color: var(--primary-light); text-decoration: none;">Inventory</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Movements</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">Inventory Movements</h1>
+            <p style="color: var(--text-dim);">Track all stock transactions and structural flow history.</p>
+        </div>
+        <div style="display: flex; gap: 1rem;">
+            {% if perms.inventory.add_inventorymovement %}
+                <a href="#" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 0.75rem; font-weight: 600; transition: var(--transition);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    New Movement
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 180px;">Doc No</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px;">Date</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px;">Type</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em;">Warehouse / Partner</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 160px;">Status</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; text-align: right; width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for movement in movements %}
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);" onmouseover="this.style.background='rgba(255,255,255,0.015)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <span style="font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 600; font-size: 0.9rem;">{{ movement.document_no }}</span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.9rem;">
+                            {{ movement.date|date:"d M Y"|default:"-" }}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <span class="type-pill {% if movement.type == 'inbound' %}type-in{% else %}type-out{% endif %}">
+                                {% if movement.type == 'inbound' %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"></path><path d="M20 7H4"></path></svg>
+                                {% else %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m8 21-4-4 4-4"></path><path d="M4 17h16"></path></svg>
+                                {% endif %}
+                                {{ movement.get_type_display }}
+                            </span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">{{ movement.warehouse.name }}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem;">{{ movement.partner.name|default:"Internal Transaction" }}</div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <span class="status-chip {% if movement.status == 'completed' %}status-active{% else %}status-inactive{% endif %}">
+                                <span class="status-dot"></span>
+                                {{ movement.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                                <a href="#" class="btn-icon" title="View Details">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding: 5rem 1.5rem; text-align: center;">
+                            <div style="background: rgba(255,255,255,0.02); display: inline-flex; padding: 1.5rem; border-radius: 50%; margin-bottom: 1.5rem; border: 1px dashed rgba(255,255,255,0.1);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"></path><path d="M20 7H4"></path><path d="m8 21-4-4 4-4"></path><path d="M4 17h16"></path></svg>
+                            </div>
+                            <div style="color: var(--text-muted); font-size: 1.1rem; font-weight: 500;">No movements recorded yet.</div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Redesigned Pagination -->
+        {% if is_paginated %}
+        <div style="background: rgba(255, 255, 255, 0.02); border-top: 1px solid rgba(255, 255, 255, 0.05); padding: 1.5rem 2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <div style="color: var(--text-dim); font-size: 0.85rem;">
+                Showing <strong style="color: var(--text-main);">{{ page_obj.start_index }}</strong> to <strong style="color: var(--text-main);">{{ page_obj.end_index }}</strong> of <strong style="color: var(--text-main);">{{ paginator.count }}</strong> results
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" class="btn-pagination">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+                    </a>
+                {% endif %}
+
+                <div style="display: flex; gap: 0.35rem;">
+                    {% for num in paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <span class="page-current">{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <a href="?page={{ num }}" class="page-link">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="btn-pagination">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    /* Reuse standard chip styles */
+    .status-chip {
+        display: inline-flex; 
+        align-items: center; 
+        gap: 0.5rem; 
+        padding: 0.3rem 0.75rem; 
+        border-radius: 2rem; 
+        font-size: 0.75rem; 
+        font-weight: 600;
+        background: rgba(100, 116, 139, 0.1);
+        color: var(--text-muted);
+    }
+    .status-active {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    .status-inactive {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+    .status-dot {
+        width: 6px; 
+        height: 6px; 
+        border-radius: 50%; 
+        background: currentColor;
+    }
+
+    /* Type Pills */
+    .type-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .type-in {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--primary-light);
+    }
+    .type-out {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+    }
+
+    .btn-icon {
+        padding: 0.6rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 0.75rem;
+        color: var(--text-dim);
+        transition: var(--transition);
+        display: inline-flex;
+        cursor: pointer;
+    }
+    .btn-icon:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--primary-light);
+        border-color: var(--primary-light);
+        transform: translateY(-2px);
+    }
+
+    /* New Pagination Styles */
+    .btn-pagination {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-main);
+        transition: var(--transition);
+        text-decoration: none;
+    }
+    .btn-pagination:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--primary-light);
+        color: var(--primary-light);
+    }
+
+    .page-link {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 0.5rem;
+        color: var(--text-dim);
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+    .page-link:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-main);
+    }
+
+    .page-current {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        background: var(--primary-light);
+        color: var(--bg-main);
+        font-size: 0.85rem;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+</style>
+{% endblock %}

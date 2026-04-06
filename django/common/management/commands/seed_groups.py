@@ -46,6 +46,11 @@ ROLE_PERMISSIONS = {
         'inventory.change_warehouse',
         'inventory.delete_warehouse',
         'inventory.view_warehouse',
+        # Inventory Movement Permissions
+        'inventory.add_inventorymovement',
+        'inventory.change_inventorymovement',
+        'inventory.delete_inventorymovement',
+        'inventory.view_inventorymovement',
     ],
 
     'stock_controller': [
@@ -55,6 +60,7 @@ ROLE_PERMISSIONS = {
         'catalog.view_itemimage',
         # View Inventory
         'inventory.view_warehouse',
+        'inventory.view_inventorymovement',
     ],
 
     'sales_rep': [
@@ -64,6 +70,7 @@ ROLE_PERMISSIONS = {
         'catalog.view_itemimage',
         # View Inventory
         'inventory.view_warehouse',
+        'inventory.view_inventorymovement',
     ],
 
     'warehouse_admin': [
@@ -76,6 +83,10 @@ ROLE_PERMISSIONS = {
         'inventory.change_warehouse',
         'inventory.delete_warehouse',
         'inventory.view_warehouse',
+        'inventory.add_inventorymovement',
+        'inventory.change_inventorymovement',
+        'inventory.delete_inventorymovement',
+        'inventory.view_inventorymovement',
     ],
 }
 

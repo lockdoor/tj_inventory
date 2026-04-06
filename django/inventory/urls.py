@@ -14,4 +14,7 @@ urlpatterns = [
     path('warehouses/<str:code>/update/', views.WarehouseUpdateView.as_view(), name='warehouse-update'),
     path('warehouses/<str:code>/delete/', views.WarehouseDeleteView.as_view(), name='warehouse-delete'),
     path('warehouses/<str:code>/restore/', views.WarehouseRestoreView.as_view(), name='warehouse-restore'),
+
+    # Movements
+    path('movements/', views.MovementListView.as_view(), name='movement-list'),
 ]

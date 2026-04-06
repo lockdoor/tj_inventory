@@ -63,17 +63,17 @@ class TestPermissionAssignment:
             for action in ['add', 'change', 'delete', 'view']:
                 assert f'{action}_{model}' in codenames
 
-    def test_executive_has_16_permissions(self):
+    def test_executive_has_20_permissions(self):
         group = Group.objects.get(name='executive')
         # 12 (catalog) + 4 (inventory)
-        assert group.permissions.count() == 16
+        assert group.permissions.count() == 20
 
     def test_stock_controller_permissions(self):
         group = Group.objects.get(name='stock_controller')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
             'view_category', 'view_item', 'view_itemimage',
-            'view_warehouse'
+            'view_warehouse', 'view_inventorymovement'
         }
 
     def test_sales_rep_permissions(self):
@@ -81,7 +81,7 @@ class TestPermissionAssignment:
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
             'view_category', 'view_item', 'view_itemimage',
-            'view_warehouse'
+            'view_warehouse', 'view_inventorymovement'
         }
 
     def test_warehouse_admin_permissions(self):
@@ -89,7 +89,8 @@ class TestPermissionAssignment:
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
             'view_category', 'view_item', 'view_itemimage',
-            'add_warehouse', 'change_warehouse', 'delete_warehouse', 'view_warehouse'
+            'add_warehouse', 'change_warehouse', 'delete_warehouse', 'view_warehouse',
+            'view_inventorymovement', 'add_inventorymovement', 'change_inventorymovement', 'delete_inventorymovement'
         }
 
 
@@ -105,7 +106,7 @@ class TestIdempotent:
     def test_running_twice_does_not_duplicate_permissions(self):
         call_command('seed_groups')
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 16
+        assert group.permissions.count() == 20
 
 
 # ============================================================
