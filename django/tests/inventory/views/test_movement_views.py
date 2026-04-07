@@ -79,3 +79,93 @@ class TestMovementListView:
         response = client.get(url + '?page=2')
         assert response.status_code == 200
         assert len(response.context['movements']) == 5
+
+from django.utils import timezone
+
+@pytest.mark.django_db
+class TestMovementDetailView:
+    """
+    Tests for the Movement Detail view:
+    - Security: Permission gating
+    - Logic: Correct object retrieval via document_no
+    """
+
+    def test_movement_detail_permission_denied(self, client, user_no_perms, warehouse):
+        """Verify that users without permission get 403."""
+        movement = InventoryMovement.objects.create(
+            document_no="MOV-DET-001",
+            type=InventoryMovement.MovementType.INBOUND,
+            date=timezone.now().date(),
+            warehouse=warehouse,
+            created_by=user_no_perms
+        )
+        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        client.login(username='guest', password='password123')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_movement_detail_permission_granted(self, client, user_view_only, warehouse):
+        """Verify that users with permission get 200."""
+        movement = InventoryMovement.objects.create(
+            document_no="MOV-DET-002",
+            type=InventoryMovement.MovementType.INBOUND,
+            date=timezone.now().date(),
+            warehouse=warehouse,
+            created_by=user_view_only
+        )
+        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        client.login(username='viewer', password='password123')
+        response = client.get(url)
+        assert response.status_code == 200
+        assert response.context['movement'].document_no == "MOV-DET-002"
+
+    def test_movement_detail_404(self, client, user_view_only):
+        """Verify that missing documents return 404."""
+        url = reverse('inventory:movement-detail', kwargs={'document_no': 'NON-EXISTENT'})
+        client.login(username='viewer', password='password123')
+        response = client.get(url)
+        assert response.status_code == 404
+
+    def test_movement_detail_completed_with_audit(self, client, user_view_only, warehouse):
+        """Verify that completed movements show their audit trail."""
+        from catalog.models import Item
+        from inventory.models import InventoryMovementItem, Stock, StockCard
+        
+        # 1. Setup Data
+        item = Item.objects.create(sku="SKU-AUDIT", name="Audit Item", created_by=user_view_only)
+        movement = InventoryMovement.objects.create(
+            document_no="MOV-COMPLETED",
+            type=InventoryMovement.MovementType.INBOUND,
+            status=InventoryMovement.Status.COMPLETED,
+            date=timezone.now().date(),
+            warehouse=warehouse,
+            created_by=user_view_only
+        )
+        mov_item = InventoryMovementItem.objects.create(
+            movement=movement,
+            item=item,
+            lot_number="LOT-001",
+            quantity=10
+        )
+        stock = Stock.objects.create(warehouse=warehouse, item=item, lot_number="LOT-001", balance=10, created_by=user_view_only)
+        StockCard.objects.create(
+            stock=stock,
+            warehouse=warehouse,
+            item=item,
+            lot_number="LOT-001",
+            movement_item=mov_item,
+            quantity=10,
+            type=StockCard.StockCardType.IN,
+            created_by=user_view_only
+        )
+
+        # 2. Verify View
+        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        client.login(username='viewer', password='password123')
+        response = client.get(url)
+        
+        assert response.status_code == 200
+        assert 'audit_trail' in response.context
+        assert len(response.context['audit_trail']) == 1
+        assert response.context['audit_trail'][0].movement_item.movement == movement
+        
