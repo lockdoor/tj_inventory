@@ -167,5 +167,99 @@ class TestMovementDetailView:
         assert response.status_code == 200
         assert 'audit_trail' in response.context
         assert len(response.context['audit_trail']) == 1
+        assert len(response.context['audit_trail']) == 1
         assert response.context['audit_trail'][0].movement_item.movement == movement
+
+@pytest.fixture
+def user_add_perm(db):
+    """User with add_inventorymovement permission."""
+    user = User.objects.create_user(username='creator', password='password123')
+    perm = Permission.objects.get(codename='add_inventorymovement')
+    user.user_permissions.add(perm)
+    return user
+
+@pytest.mark.django_db
+class TestMovementCreateView:
+    """
+    Tests for the Movement Create view:
+    - Security: Permission gating (add_inventorymovement)
+    - Logic: Atomic creation of Header + Items
+    - Validation: Mandatory items rule
+    """
+
+    def test_movement_create_permission_denied(self, client, user_view_only):
+        """Verify that users without 'add' permission get 403."""
+        url = reverse('inventory:movement-create')
+        client.login(username='viewer', password='password123')
+        response = client.get(url)
+        assert response.status_code == 403
+
+    def test_movement_create_permission_granted(self, client, user_add_perm):
+        """Verify that users with 'add' permission get 200."""
+        url = reverse('inventory:movement-create')
+        client.login(username='creator', password='password123')
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_movement_create_success(self, client, user_add_perm, warehouse):
+        """Verify successful creation of movement with items."""
+        from catalog.models import Item
+        item = Item.objects.create(sku="SKU-CREATE-1", name="Create Item", created_by=user_add_perm)
+        
+        url = reverse('inventory:movement-create')
+        client.login(username='creator', password='password123')
+        
+        post_data = {
+            'document_no': 'MOV-SUCCESS-001',
+            'type': 'inbound',
+            'date': timezone.now().date(),
+            'warehouse': warehouse.id,
+            'note': 'Test success',
+            # FormSet Management Form
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '1',
+            'items-MAX_NUM_FORMS': '1000',
+            # FormSet Data
+            'items-0-item': item.id,
+            'items-0-lot_number': 'LOT-X',
+            'items-0-quantity': '50',
+        }
+        
+        response = client.post(url, post_data)
+        
+        # Verify redirect to detail view
+        assert response.status_code == 302
+        assert response.url == reverse('inventory:movement-detail', kwargs={'document_no': 'MOV-SUCCESS-001'})
+        
+        # Verify database records
+        movement = InventoryMovement.objects.get(document_no='MOV-SUCCESS-001')
+        assert movement.items.count() == 1
+        assert movement.items.first().quantity == 50
+        assert movement.status == 'draft'
+
+    def test_movement_create_no_items_fail(self, client, user_add_perm, warehouse):
+        """Verify that creating a movement without items fails validation."""
+        url = reverse('inventory:movement-create')
+        client.login(username='creator', password='password123')
+        
+        post_data = {
+            'document_no': 'MOV-FAIL-001',
+            'type': 'inbound',
+            'date': timezone.now().date(),
+            'warehouse': warehouse.id,
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '0',
+            # We provide the form but leave item empty
+            'items-0-item': '',
+            'items-0-quantity': '',
+        }
+        
+        response = client.post(url, post_data)
+        
+        # Should stay on page and show error
+        assert response.status_code == 200
+        assert not InventoryMovement.objects.filter(document_no='MOV-FAIL-001').exists()
+        # Formset error should be in context
+        assert response.context['items'].errors
         

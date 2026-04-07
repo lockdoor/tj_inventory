@@ -1,6 +1,47 @@
+from django.db import transaction
+from django.shortcuts import redirect
+from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.views.generic import ListView, DetailView
+from django.urls import reverse_lazy
 from inventory.models import InventoryMovement, InventoryMovementItem, StockCard
+from inventory.forms import MovementCreateForm, MovementItemFormSet
+
+class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+    """
+    Unified creation engine for Inventory Movements.
+    Handles Header + Inline Item FormSet within a single atomic transaction.
+    """
+    model = InventoryMovement
+    form_class = MovementCreateForm
+    template_name = 'inventory/movement_create.html'
+    permission_required = 'inventory.add_inventorymovement'
+    raise_exception = True
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.POST:
+            context['items'] = MovementItemFormSet(self.request.POST)
+        else:
+            context['items'] = MovementItemFormSet()
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        items = context['items']
+        
+        if items.is_valid():
+            with transaction.atomic():
+                form.instance.created_by = self.request.user
+                self.object = form.save()
+                items.instance = self.object
+                items.save()
+            return redirect('inventory:movement-detail', document_no=self.object.document_no)
+        else:
+            return self.form_invalid(form)
+
+    def form_invalid(self, form):
+        """Ensure formset errors are passed back to the context."""
+        return self.render_to_response(self.get_context_data(form=form))
 
 class MovementListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """

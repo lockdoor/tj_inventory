@@ -8,4 +8,8 @@ from .warehouse_views import (
     WarehouseDeleteView, 
     WarehouseRestoreView
 )
-from .movement_views import MovementListView, MovementDetailView
+from .movement_views import (
+    MovementListView, 
+    MovementDetailView,
+    MovementCreateView
+)

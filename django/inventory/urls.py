@@ -17,5 +17,6 @@ urlpatterns = [
 
     # Movements
     path('movements/', views.MovementListView.as_view(), name='movement-list'),
+    path('movements/create/', views.MovementCreateView.as_view(), name='movement-create'),
     path('movements/<str:document_no>/', views.MovementDetailView.as_view(), name='movement-detail'),
 ]
