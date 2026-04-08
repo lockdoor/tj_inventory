@@ -26,4 +26,7 @@ urlpatterns = [
     # Stock Ledger
     path('ledger/', views.StockCardListView.as_view(), name='stockcard-list'),
     path('ledger/<int:pk>/', views.StockCardDetailView.as_view(), name='stockcard-detail'),
+
+    # Balances
+    path('balances/', views.StockBalanceListView.as_view(), name='stock-balance-list'),
 ]

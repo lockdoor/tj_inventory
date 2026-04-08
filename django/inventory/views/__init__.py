@@ -20,3 +20,4 @@ from .stockcard_views import (
     StockCardListView,
     StockCardDetailView
 )
+from .stock_views import StockBalanceListView
