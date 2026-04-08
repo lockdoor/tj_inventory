@@ -13,6 +13,12 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         DRAFT = 'draft', 'Draft'
         COMPLETED = 'completed', 'Completed'
 
+    class ReferenceType(models.TextChoices):
+        NONE = 'none', 'None'
+        PRODUCTION = 'production', 'Production Order'
+        STOCK_ARRIVAL = 'stock_arrival', 'Stock Arrival Schedule'
+        OTHER = 'other', 'Other'
+
     document_no = models.CharField(
         max_length=50, 
         unique=True, 
@@ -51,6 +57,19 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         blank=True, 
         default='', 
         help_text="General notes about this document"
+    )
+    reference_type = models.CharField(
+        max_length=50,
+        choices=ReferenceType.choices,
+        default=ReferenceType.NONE,
+        blank=True,
+        help_text="External document category"
+    )
+    reference_no = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="ID/Number of the source document"
     )
 
     class Meta:

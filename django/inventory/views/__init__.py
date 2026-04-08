@@ -11,5 +11,8 @@ from .warehouse_views import (
 from .movement_views import (
     MovementListView, 
     MovementDetailView,
-    MovementCreateView
+    MovementCreateView,
+    MovementCompleteView,
+    MovementRevertView,
+    MovementDeleteView
 )

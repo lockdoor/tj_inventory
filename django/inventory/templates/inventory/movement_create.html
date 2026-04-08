@@ -11,161 +11,294 @@
 {% endblock %}
 
 {% block content %}
-<div class="container animate-fade-in" style="max-width: 1100px;">
-    <div style="margin-bottom: 2rem;">
-        <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin: 0 0 0.5rem 0;">Create Movement</h1>
-        <p style="color: var(--text-dim); font-size: 1rem;">Record a new inbound or outbound warehouse transaction.</p>
+<div class="container animate-fade-in" style="max-width: 1200px;">
+    <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 800; margin: 0 0 0.5rem 0;">Create Movement</h1>
+            <p style="color: var(--text-dim); font-size: 1rem;">Record a new inbound or outbound transaction document.</p>
+        </div>
+        <div id="type-indicator" class="status-badge status-draft" style="font-size: 0.9rem; padding: 0.5rem 1.25rem; border-radius: 2rem;">
+            DRAFT MODE
+        </div>
     </div>
-
+    
+    {% if form.errors or items.errors or items.non_form_errors %}
+    <div class="glass-card error-card animate-shake" style="margin-bottom: 2rem; border-left: 4px solid #f87171; background: rgba(248, 113, 113, 0.05);">
+        <div style="display: flex; align-items: flex-start; gap: 1rem; padding: 1.25rem;">
+            <div style="color: #f87171; margin-top: 0.1rem;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 0.5rem 0; color: #f87171; font-weight: 700;">Validation Failed</h4>
+                <ul style="margin: 0; padding-left: 1.25rem; color: var(--text-dim); font-size: 0.9rem; line-height: 1.5;">
+                    {% if form.non_field_errors %}
+                        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                    {% endif %}
+                    {% if items.non_form_errors %}
+                        {% for error in items.non_form_errors %}<li>{{ error }}</li>{% endfor %}
+                    {% endif %}
+                    {% if form.errors %}<li>Please correct the highlighted fields in the Document Info.</li>{% endif %}
+                    {% if items.errors %}<li>Please correct the highlighted items in the transaction list below.</li>{% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+ 
     <form method="post" id="movement-form">
         {% csrf_token %}
         
-        <div style="display: grid; grid-template-columns: 1fr 320px; gap: 2rem; align-items: start;">
-            <!-- Main Content: Header + Items -->
-            <div style="display: flex; flex-direction: column; gap: 2rem;">
-                <!-- Header Card -->
-                <div class="glass-card" style="padding: 2rem; border: 1px solid rgba(255,255,255,0.05);">
-                    <h3 style="margin: 0 0 1.5rem 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Document Header</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                        <div class="form-group">
-                            <label style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Document Number</label>
-                            {{ form.document_no }}
-                            {% if form.document_no.errors %}<div class="error-msg">{{ form.document_no.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="form-group">
-                            <label style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Transaction Date</label>
-                            {{ form.date }}
-                            {% if form.date.errors %}<div class="error-msg">{{ form.date.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="form-group">
-                            <label style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Movement Type</label>
-                            {{ form.type }}
-                            {% if form.type.errors %}<div class="error-msg">{{ form.type.errors.0 }}</div>{% endif %}
-                        </div>
-                        <div class="form-group">
-                            <label style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Warehouse</label>
-                            {{ form.warehouse }}
-                            {% if form.warehouse.errors %}<div class="error-msg">{{ form.warehouse.errors.0 }}</div>{% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Items Card -->
-                <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
-                    <div style="padding: 1.25rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Transaction Items</h3>
-                        <button type="button" id="add-item-btn" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 0.5rem;">
-                            + Add Item
-                        </button>
-                    </div>
-
-                    {{ items.management_form }}
-                    <div id="item-list">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.01);">
-                                    <th style="padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em;">Item</th>
-                                    <th style="padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px;">Lot No.</th>
-                                    <th style="padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 100px;">Qty</th>
-                                    <th style="padding: 1rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 40px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="formset-tbody">
-                                {% for item_form in items %}
-                                    <tr class="item-form-row" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                                        {{ item_form.id }}
-                                        <td style="padding: 1rem 1.5rem;">
-                                            {{ item_form.item }}
-                                            {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
-                                        </td>
-                                        <td style="padding: 1rem 1.5rem;">
-                                            {{ item_form.lot_number }}
-                                            {% if item_form.lot_number.errors %}<div class="error-msg">{{ item_form.lot_number.errors.0 }}</div>{% endif %}
-                                        </td>
-                                        <td style="padding: 1rem 1.5rem;">
-                                            {{ item_form.quantity }}
-                                            {% if item_form.quantity.errors %}<div class="error-msg">{{ item_form.quantity.errors.0 }}</div>{% endif %}
-                                        </td>
-                                        <td style="padding: 1rem 1.5rem; text-align: right;">
-                                            {% if items.can_delete %}
-                                                <div style="display: none;">{{ item_form.DELETE }}</div>
-                                                <button type="button" class="remove-item-btn" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem;">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                </button>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% if items.non_form_errors %}
-                        <div style="padding: 1rem 2rem; background: rgba(248, 113, 113, 0.1); color: #f87171; font-size: 0.9rem;">
-                            {{ items.non_form_errors.0 }}
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Sidebar: Metadata & Actions -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                <!-- Meta Details -->
+        <div style="display: grid; grid-template-columns: 320px 1fr; gap: 2rem; align-items: start;">
+            <!-- Sidebar: Header Info -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 1rem;">
                 <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
-                    <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase;">Partner Info</h4>
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Partner / Supplier</label>
+                    <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em;">Document Info</h4>
+                    
+                    <div class="form-group">
+                        <label class="field-label">Document No.</label>
+                        {{ form.document_no }}
+                        {% if form.document_no.errors %}<div class="error-msg">{{ form.document_no.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="field-label">Movement Type</label>
+                        {{ form.type }}
+                        {% if form.type.errors %}<div class="error-msg">{{ form.type.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="field-label">Transaction Date</label>
+                        {{ form.date }}
+                        {% if form.date.errors %}<div class="error-msg">{{ form.date.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="field-label">Warehouse</label>
+                        {{ form.warehouse }}
+                        {% if form.warehouse.errors %}<div class="error-msg">{{ form.warehouse.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px dashed rgba(255,255,255,0.05);">
+                        <div class="form-group">
+                            <label class="field-label">Ref. Type</label>
+                            {{ form.reference_type }}
+                        </div>
+                        <div class="form-group">
+                            <label class="field-label">Ref. Number</label>
+                            {{ form.reference_no }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                    <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase;">Partner & Notes</h4>
+                    <div class="form-group">
+                        <label class="field-label">Partner / Supplier</label>
                         {{ form.partner }}
                     </div>
                     <div class="form-group">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Document Note</label>
+                        <label class="field-label">Internal Note</label>
                         {{ form.note }}
                     </div>
                 </div>
 
-                <!-- Submit Action -->
                 <div class="glass-card" style="padding: 1.5rem; border: 1px solid var(--primary-light); background: rgba(16, 185, 129, 0.05);">
-                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1.25rem;">
-                        This movement will be saved as a <strong>Draft</strong>. You can review and complete it later from the details page.
-                    </p>
                     <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; border-radius: 0.75rem; font-weight: 700; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                        Create Document
+                        Save Document
                     </button>
-                    <a href="{% url 'inventory:movement-list' %}" style="display: block; text-align: center; margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted); text-decoration: none;">Cancel</a>
+                    <a href="{% url 'inventory:movement-list' %}" style="display: block; text-align: center; margin-top: 1rem; font-size: 0.9rem; color: var(--text-muted); text-decoration: none; font-weight: 500;">Discard Changes</a>
+                </div>
+            </div>
+
+            <!-- Main Content: Shopping Cart Cards -->
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-main);">Transaction Items</h3>
+                    <button type="button" id="add-item-btn" class="btn" style="background: rgba(16, 185, 129, 0.1); color: var(--primary-light); border: 1px solid rgba(16, 185, 129, 0.2); padding: 0.5rem 1.25rem; border-radius: 0.6rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: var(--transition);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Add to Document
+                    </button>
+                </div>
+
+                {{ items.management_form }}
+                <div id="item-cards-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                    {% for item_form in items %}
+                        <div class="item-card glass-card animate-fade-in {% if item_form.errors %}has-errors expanded{% endif %}" data-form-index="{{ forloop.counter0 }}">
+                            {{ item_form.id }}
+                            
+                            <!-- Card Summary (Click to expand) -->
+                            <div class="card-summary" style="padding: 1.25rem 1.5rem; cursor: pointer; display: flex; align-items: center; gap: 1.5rem;">
+                                <div class="item-icon-box" style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--primary-light); border: 1px solid rgba(255,255,255,0.05); transition: border-color 0.3s ease;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                                </div>
+                                
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <span class="card-item-title" style="font-size: 1rem; font-weight: 700; color: var(--text-main);">
+                                                {% if item_form.instance.item %}{{ item_form.instance.item.name }}{% else %}Select Item...{% endif %}
+                                            </span>
+                                            {% if item_form.errors %}
+                                                <span class="error-badge" style="font-size: 0.7rem; font-weight: 700; color: #fff; background: #ef4444; padding: 0.1rem 0.4rem; border-radius: 0.3rem; text-transform: uppercase;">Needs Attention</span>
+                                            {% endif %}
+                                        </div>
+                                        <span class="qty-badge" style="font-size: 0.85rem; font-weight: 700; color: var(--primary-light); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.75rem; border-radius: 0.5rem;">
+                                            Qty: <span class="qty-display">0</span>
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 1rem;">
+                                        <span>Lot: <span class="lot-display">N/A</span></span>
+                                        <span class="inbound-only-sm">EXP: <span class="exp-display">N/A</span></span>
+                                    </div>
+                                </div>
+ 
+                                <div class="card-actions" style="display: flex; align-items: center; gap: 1rem;">
+                                    {% if items.can_delete %}
+                                        <div style="display: none;">{{ item_form.DELETE }}</div>
+                                        <button type="button" class="remove-card-btn" style="background: none; border: none; color: #f87171; opacity: 0.5; transition: 0.2s; cursor: pointer;">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        </button>
+                                    {% endif %}
+                                    <div class="expand-icon" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--text-muted);">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                </div>
+                            </div>
+ 
+                            <!-- Card Details (Visible if expanded/has errors) -->
+                            <div class="card-details" style="display: {% if item_form.errors %}block{% else %}none{% endif %}; padding: 0 1.5rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.015);">
+                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">Product Item</label>
+                                        {{ item_form.item }}
+                                        {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">Lot / Batch Number</label>
+                                        {{ item_form.lot_number }}
+                                        {% if item_form.lot_number.errors %}<div class="error-msg">{{ item_form.lot_number.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">Quantity</label>
+                                        {{ item_form.quantity }}
+                                        {% if item_form.quantity.errors %}<div class="error-msg">{{ item_form.quantity.errors.0 }}</div>{% endif %}
+                                    </div>
+                                </div>
+ 
+                                <div class="inbound-section" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.05);">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">Unit Cost</label>
+                                        {{ item_form.unit_cost }}
+                                        {% if item_form.unit_cost.errors %}<div class="error-msg">{{ item_form.unit_cost.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">MFG Date</label>
+                                        {{ item_form.mfg_date }}
+                                        {% if item_form.mfg_date.errors %}<div class="error-msg">{{ item_form.mfg_date.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="field-label-sm">EXP Date</label>
+                                        {{ item_form.exp_date }}
+                                        {% if item_form.exp_date.errors %}<div class="error-msg">{{ item_form.exp_date.errors.0 }}</div>{% endif %}
+                                    </div>
+                                </div>
+ 
+                                <div style="margin-top: 1.25rem;">
+                                    <label class="field-label-sm">Line Item Note</label>
+                                    {{ item_form.note }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </form>
 </div>
 
-<template id="item-row-template">
-    <tr class="item-form-row" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-        <td style="padding: 1rem 1.5rem;">
-            __ITEM_FIELD__
-        </td>
-        <td style="padding: 1rem 1.5rem;">
-            __LOT_FIELD__
-        </td>
-        <td style="padding: 1rem 1.5rem;">
-            __QTY_FIELD__
-        </td>
-        <td style="padding: 1rem 1.5rem; text-align: right;">
-            <button type="button" class="remove-item-btn" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-        </td>
-    </tr>
+<!-- Reusable Template for Dynamic Addition -->
+<template id="item-card-template">
+    <div class="item-card glass-card animate-fade-in" data-form-index="__INDEX__">
+        <div class="card-summary" style="padding: 1.25rem 1.5rem; cursor: pointer; display: flex; align-items: center; gap: 1.5rem;">
+            <div class="item-icon-box" style="width: 48px; height: 48px; border-radius: 0.75rem; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; color: var(--primary-light); border: 1px solid rgba(255,255,255,0.05);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            </div>
+            
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <span class="card-item-title" style="font-size: 1rem; font-weight: 700; color: var(--text-main);">Select Item...</span>
+                    <span class="qty-badge" style="font-size: 0.85rem; font-weight: 700; color: var(--primary-light); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.75rem; border-radius: 0.5rem;">
+                        Qty: <span class="qty-display">0</span>
+                    </span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 1rem;">
+                    <span>Lot: <span class="lot-display">N/A</span></span>
+                    <span class="inbound-only-sm">EXP: <span class="exp-display">N/A</span></span>
+                </div>
+            </div>
+
+            <div class="card-actions" style="display: flex; align-items: center; gap: 1rem;">
+                <button type="button" class="remove-card-btn" style="background: none; border: none; color: #f87171; opacity: 0.5; transition: 0.2s; cursor: pointer;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+                <div class="expand-icon" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--text-muted);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-details" style="display: none; padding: 0 1.5rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.015);">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">Product Item</label>
+                    __ITEM_FIELD__
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">Lot / Batch Number</label>
+                    __LOT_FIELD__
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">Quantity</label>
+                    __QTY_FIELD__
+                </div>
+            </div>
+
+            <div class="inbound-section" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.05);">
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">Unit Cost</label>
+                    __COST_FIELD__
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">MFG Date</label>
+                    __MFG_FIELD__
+                </div>
+                <div class="form-group" style="margin: 0;">
+                    <label class="field-label-sm">EXP Date</label>
+                    __EXP_FIELD__
+                </div>
+            </div>
+
+            <div style="margin-top: 1.25rem;">
+                <label class="field-label-sm">Line Item Note</label>
+                __NOTE_FIELD__
+            </div>
+        </div>
+    </div>
 </template>
 
 <style>
+    .field-label { display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600; }
+    .field-label-sm { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 500; }
+    
     .form-group { margin-bottom: 1.25rem; }
     .glass-input {
         width: 100%;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 0.6rem;
-        padding: 0.65rem 1rem;
+        padding: 0.6rem 0.85rem;
         color: var(--text-main);
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         transition: var(--transition);
         outline: none;
         box-sizing: border-box;
@@ -179,70 +312,151 @@
         appearance: none;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right 1rem center;
-        padding-right: 2.5rem;
+        background-position: right 0.85rem center;
+        padding-right: 2.25rem;
     }
+
+    .item-card {
+        border: 1px solid rgba(255,255,255,0.03);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+    .item-card:hover { border-color: rgba(16, 185, 129, 0.2); background: rgba(255,255,255,0.02); }
+    .item-card.expanded { border-color: var(--primary-light); background: rgba(16, 185, 129, 0.02); box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+    .item-card.expanded .expand-icon { transform: rotate(180deg); color: var(--primary-light); }
+    
+    /* Error States */
+    .item-card.has-errors { border-color: #f87171 !important; background: rgba(248, 113, 113, 0.02); }
+    .item-card.has-errors .item-icon-box { border-color: #f87171 !important; color: #f87171 !important; }
+    .item-card.has-errors .qty-badge { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+    
+    .remove-card-btn:hover { opacity: 1 !important; transform: scale(1.1); }
+    
     .error-msg { color: #f87171; font-size: 0.75rem; margin-top: 0.25rem; font-weight: 500; }
     
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .animate-shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+    
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const addButton = document.getElementById('add-item-btn');
-    const tbody = document.getElementById('formset-tbody');
+    const container = document.getElementById('item-cards-container');
     const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-    
-    addButton.addEventListener('click', function() {
-        const rowCount = parseInt(totalFormsInput.value);
-        const lastRow = tbody.querySelector('.item-form-row:last-child');
-        const newRow = lastRow.cloneNode(true);
+    const typeSelect = document.getElementById('id_type');
+    const indicator = document.getElementById('type-indicator');
+
+    // 1. Inbound Logic: Toggle fields based on movement type
+    function toggleMovementType() {
+        const type = typeSelect.value;
+        const isInbound = type === 'inbound';
         
-        // Update input names and IDs
-        const newRowInputs = newRow.querySelectorAll('input, select, textarea');
-        newRowInputs.forEach(input => {
-            const name = input.getAttribute('name');
-            if (name) {
-                input.setAttribute('name', name.replace('-' + (rowCount - 1) + '-', '-' + rowCount + '-'));
-            }
-            const id = input.getAttribute('id');
-            if (id) {
-                input.setAttribute('id', id.replace('-' + (rowCount - 1) + '-', '-' + rowCount + '-'));
-            }
-            // Clear values
-            if (input.type !== 'hidden') {
-                input.value = '';
-            }
+        container.querySelectorAll('.inbound-section').forEach(section => {
+            section.style.display = isInbound ? 'grid' : 'none';
+        });
+        container.querySelectorAll('.inbound-only-sm').forEach(span => {
+            span.style.display = isInbound ? 'inline' : 'none';
         });
 
-        // Clear error messages in new row
-        newRow.querySelectorAll('.error-msg').forEach(el => el.remove());
-        
-        tbody.appendChild(newRow);
-        totalFormsInput.value = rowCount + 1;
-        
-        // Re-attach delete listeners
-        attachDeleteListeners();
-    });
+        // Update indicator
+        indicator.textContent = isInbound ? 'INBOUND DOCUMENT' : 'OUTBOUND DOCUMENT';
+        indicator.style.color = isInbound ? 'var(--primary-light)' : '#60a5fa';
+        indicator.style.background = isInbound ? 'rgba(16, 185, 129, 0.1)' : 'rgba(96, 165, 250, 0.1)';
+    }
 
-    function attachDeleteListeners() {
-        document.querySelectorAll('.remove-item-btn').forEach(btn => {
-            btn.onclick = function() {
-                const row = this.closest('.item-form-row');
-                const rows = tbody.querySelectorAll('.item-form-row');
-                
-                if (rows.length > 1) {
-                    row.remove();
-                    // Optional: Resequence indices if needed for strict Django validation on some setups
-                    // But simpler is to just delete if it's a new row. 
-                    // If it were an existing row, we'd check the DELETE checkbox.
+    typeSelect.addEventListener('change', toggleMovementType);
+    toggleMovementType(); // Initial check
+
+    // 2. Expand/Collapse Logic
+    function setupCardListeners(card) {
+        const summary = card.querySelector('.card-summary');
+        const details = card.querySelector('.card-details');
+        const removeBtn = card.querySelector('.remove-card-btn');
+
+        summary.addEventListener('click', (e) => {
+            // Don't expand if clicking the delete button
+            if (e.target.closest('.remove-card-btn')) return;
+            
+            const isExpanded = card.classList.contains('expanded');
+            // Collapse others if wanted (optional)
+            // container.querySelectorAll('.item-card').forEach(c => { c.classList.remove('expanded'); c.querySelector('.card-details').style.display = 'none'; });
+            
+            card.classList.toggle('expanded');
+            details.style.display = isExpanded ? 'none' : 'block';
+        });
+
+        // Delete Logic
+        if (removeBtn) {
+            removeBtn.onclick = function() {
+                const rowCount = container.querySelectorAll('.item-card').length;
+                if (rowCount > 1) {
+                    card.classList.add('animate-fade-out');
+                    setTimeout(() => card.remove(), 200);
                 }
             };
-        });
+        }
+
+        // Live Summary Updates
+        const itemSelect = card.querySelector('select[name*="item"]');
+        const qtyInput = card.querySelector('input[name*="quantity"]');
+        const lotInput = card.querySelector('input[name*="lot_number"]');
+        const expInput = card.querySelector('input[name*="exp_date"]');
+
+        function updateSummary() {
+            if (itemSelect.selectedOptions[0]) {
+                card.querySelector('.card-item-title').textContent = itemSelect.selectedOptions[0].text;
+            }
+            card.querySelector('.qty-display').textContent = qtyInput.value || '0';
+            card.querySelector('.lot-display').textContent = lotInput.value || 'N/A';
+            card.querySelector('.exp-display').textContent = expInput.value || 'N/A';
+        }
+
+        itemSelect.addEventListener('change', updateSummary);
+        qtyInput.addEventListener('input', updateSummary);
+        lotInput.addEventListener('input', updateSummary);
+        expInput.addEventListener('input', updateSummary);
+        updateSummary();
     }
-    
-    attachDeleteListeners();
+
+    // 3. Dynamic Addition Logic
+    addButton.addEventListener('click', function() {
+        const rowCount = parseInt(totalFormsInput.value);
+        const template = document.getElementById('item-card-template').innerHTML;
+        
+        // This is a bit tricky with raw HTML strings. 
+        // We'll use a hidden row as a source or pre-render components.
+        // For simplicity with Django FormSets, we clone the first card.
+        const firstCard = container.querySelector('.item-card');
+        const newCard = firstCard.cloneNode(true);
+        
+        // Update indices
+        newCard.setAttribute('data-form-index', rowCount);
+        const inputs = newCard.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) input.setAttribute('name', name.replace('-0-', '-' + rowCount + '-'));
+            const id = input.getAttribute('id');
+            if (id) input.setAttribute('id', id.replace('-0-', '-' + rowCount + '-'));
+            if (input.type !== 'hidden') input.value = '';
+        });
+
+        // Reset state
+        newCard.classList.remove('expanded');
+        newCard.querySelector('.card-details').style.display = 'none';
+        newCard.querySelectorAll('.error-msg').forEach(e => e.remove());
+        
+        container.appendChild(newCard);
+        totalFormsInput.value = rowCount + 1;
+        
+        setupCardListeners(newCard);
+        toggleMovementType(); // Ensure correct field visibility
+    });
+
+    // Initial setup for existing cards
+    container.querySelectorAll('.item-card').forEach(setupCardListeners);
 });
 </script>
 {% endblock %}

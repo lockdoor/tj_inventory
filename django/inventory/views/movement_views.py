@@ -3,8 +3,59 @@ from django.shortcuts import redirect
 from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
+from django.contrib import messages
 from inventory.models import InventoryMovement, InventoryMovementItem, StockCard
 from inventory.forms import MovementCreateForm, MovementItemFormSet
+from inventory.services.movement_service import MovementService
+class MovementCompleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """View to trigger document fulfillment."""
+    model = InventoryMovement
+    permission_required = 'inventory.add_inventorymovement'
+    slug_field = 'document_no'
+    slug_url_kwarg = 'document_no'
+
+    def post(self, request, *args, **kwargs):
+        movement = self.get_object()
+        try:
+            MovementService.complete_movement(movement, user=request.user)
+            messages.success(request, f"Document {movement.document_no} completed successfully.")
+        except Exception as e:
+            messages.error(request, f"Error completing document: {str(e)}")
+        return redirect('inventory:movement-detail', document_no=movement.document_no)
+
+class MovementRevertView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """View to trigger fulfillment reversal."""
+    model = InventoryMovement
+    permission_required = 'inventory.add_inventorymovement' # Requires high level permission
+    slug_field = 'document_no'
+    slug_url_kwarg = 'document_no'
+
+    def post(self, request, *args, **kwargs):
+        movement = self.get_object()
+        try:
+            MovementService.revert_to_draft(movement, user=request.user)
+            messages.warning(request, f"Document {movement.document_no} reverted to Draft. Stock ledger updated.")
+        except Exception as e:
+            messages.error(request, f"Error reverting document: {str(e)}")
+        return redirect('inventory:movement-detail', document_no=movement.document_no)
+
+class MovementDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """View to trigger document discard (deletion)."""
+    model = InventoryMovement
+    permission_required = 'inventory.add_inventorymovement'
+    slug_field = 'document_no'
+    slug_url_kwarg = 'document_no'
+
+    def post(self, request, *args, **kwargs):
+        movement = self.get_object()
+        try:
+            doc_no = movement.document_no
+            MovementService.delete_draft(movement, user=request.user)
+            messages.info(request, f"Document {doc_no} has been discarded.")
+            return redirect('inventory:movement-list')
+        except Exception as e:
+            messages.error(request, f"Error discarding document: {str(e)}")
+            return redirect('inventory:movement-detail', document_no=movement.document_no)
 
 class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
@@ -19,21 +70,42 @@ class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        form = kwargs.get('form', self.get_form())
+        
+        # Prepare kwargs for the formset forms
+        formset_kwargs = {}
+        if form.is_bound:
+            # Try to get warehouse and type from bound form
+            warehouse_id = form.data.get('warehouse')
+            m_type = form.data.get('type')
+            if warehouse_id:
+                try:
+                    from inventory.models import Warehouse
+                    formset_kwargs['warehouse'] = Warehouse.objects.get(id=warehouse_id)
+                except: pass
+            formset_kwargs['movement_type'] = m_type
+
         if self.request.POST:
-            context['items'] = MovementItemFormSet(self.request.POST)
+            context['items'] = MovementItemFormSet(
+                self.request.POST, 
+                form_kwargs=formset_kwargs
+            )
         else:
             context['items'] = MovementItemFormSet()
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        # Re-fetch context to ensure formset has access to bound header data
+        context = self.get_context_data(form=form)
         items = context['items']
+        
+        # Link items to the unsaved header instance for Django's internal logic
+        items.instance = form.instance
         
         if items.is_valid():
             with transaction.atomic():
                 form.instance.created_by = self.request.user
                 self.object = form.save()
-                items.instance = self.object
                 items.save()
             return redirect('inventory:movement-detail', document_no=self.object.document_no)
         else:
@@ -55,8 +127,10 @@ class MovementListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
+        """Select non soft delete"""
         """Optimize with select_related for performance."""
-        return InventoryMovement.objects.select_related('warehouse', 'partner').all().order_by('-date', '-created_at')
+        return InventoryMovement.objects.select_related('warehouse', 'partner').filter(is_deleted=False).order_by('-date', '-created_at')
+        #return InventoryMovement.objects.select_related('warehouse', 'partner').all().order_by('-date', '-created_at')
 
 class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """

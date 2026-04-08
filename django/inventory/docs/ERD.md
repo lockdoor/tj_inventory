@@ -57,6 +57,8 @@
         datetime date
         int warehouse_id FK
         int partner_id FK "Outer Domain Reference"
+        string reference_type "PRODUCTION, STOCK_ARRIVAL, etc."
+        string reference_no UK "External source document ID"
         string note
         string status "draft, completed"
     }
