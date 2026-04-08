@@ -16,3 +16,7 @@ from .movement_views import (
     MovementRevertView,
     MovementDeleteView
 )
+from .stockcard_views import (
+    StockCardListView,
+    StockCardDetailView
+)

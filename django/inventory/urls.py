@@ -22,4 +22,8 @@ urlpatterns = [
     path('movements/<str:document_no>/complete/', views.MovementCompleteView.as_view(), name='movement-complete'),
     path('movements/<str:document_no>/revert/', views.MovementRevertView.as_view(), name='movement-revert'),
     path('movements/<str:document_no>/delete/', views.MovementDeleteView.as_view(), name='movement-delete'),
+    
+    # Stock Ledger
+    path('ledger/', views.StockCardListView.as_view(), name='stockcard-list'),
+    path('ledger/<int:pk>/', views.StockCardDetailView.as_view(), name='stockcard-detail'),
 ]

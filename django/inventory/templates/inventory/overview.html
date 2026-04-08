@@ -79,7 +79,7 @@
         </div>
 
         <!-- StockCard Card -->
-        <div class="glass-card inventory-card">
+        <a href="{% url 'inventory:stockcard-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
             <div class="card-icon ledger-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -96,7 +96,7 @@
             <div class="card-footer">
                 <span class="status-pill">Audit Ledger</span>
             </div>
-        </div>
+        </a>
 
     </div>
 </div>
