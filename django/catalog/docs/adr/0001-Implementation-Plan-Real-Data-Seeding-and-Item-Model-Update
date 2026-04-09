@@ -1,0 +1,53 @@
+# Implementation Plan - Real Data Seeding and Item Model Update
+
+The goal is to update the `Item` model to support a secondary name (`name2`) from the Express database (`STKDES2`) and provide a new management command to seed real items from a gitignored data source.
+
+## User Review Required
+
+> [!IMPORTANT]
+> - The new `name2` field will be added to the `Item` model.
+> - A new management command `seed_items_real` will be created.
+> - You will need to export your notebook data to `private/data/items.json` for the seeder to work.
+
+## Proposed Changes
+
+### Catalog Model Updates
+
+#### [MODIFY] [item.py](file:///Users/pitsanunamnil/Desktop/work/tj/tj_inventory/django/catalog/models/item.py)
+- Add `name2` field (CharField, max_length=200, blank=True).
+- Update `save()` method to strip whitespace from `name2`.
+
+### Seeding Logic
+
+#### [NEW] [seed_items_real.py](file:///Users/pitsanunamnil/Desktop/work/tj/tj_inventory/django/catalog/management/commands/seed_items_real.py)
+- A new Django management command that reads from `private/data/tj_items.json`.
+- It will map:
+    - `STKCOD` -> `sku` and `express_sku`
+    - `STKDES` -> `name`
+    - `STKDES2` -> `name2`
+    - `QUCOD` -> `unit`
+- It will use `ItemService.create` or `ItemService.update` (if exists) to ensure data integrity.
+
+### Data Export (Instructional)
+I will provide a snippet for you to run in your Jupyter notebook to export the data:
+```python
+import os
+import json
+
+# Create directory if not exists
+os.makedirs('../../private/data', exist_ok=True)
+
+# Export selected_df to JSON
+selected_df.to_json('../../private/data/items.json', orient='records', force_ascii=False)
+```
+
+## Verification Plan
+
+### Automated Tests
+- Run `python manage.py makemigrations` and `python manage.py migrate`.
+- Create a mock `private/data/items.json` and run `python manage.py seed_items_real`.
+- Verify the items exist in the database with the new `name2` field.
+
+### Manual Verification
+- Check the Django Admin (if available) to see the new field.
+- Verify that stripping whitespace works for `name2`.

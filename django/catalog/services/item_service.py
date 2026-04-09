@@ -38,7 +38,7 @@ class ItemService:
         return Item.objects.filter(is_deleted=True).select_related('category', 'deleted_by').prefetch_related('images').order_by('sku')
 
     @staticmethod
-    def create(*, sku, name, unit, user, category=None, express_sku='', note='', status=Item.Status.ACTIVE, image=None):
+    def create(*, sku, name, unit, user, name2='', category=None, express_sku='', note='', status=Item.Status.ACTIVE, image=None):
         """
         Create a new item.
         If an image is provided, process it and set as the main image.
@@ -46,6 +46,7 @@ class ItemService:
         item = Item(
             sku=sku,
             name=name,
+            name2=name2,
             unit=unit,
             category=category,
             express_sku=express_sku,
@@ -112,7 +113,7 @@ class ItemService:
         """
         Update an existing item.
         """
-        allowed_fields = {'name', 'sku', 'express_sku', 'unit', 'category', 'note', 'status'}
+        allowed_fields = {'name', 'name2', 'sku', 'express_sku', 'unit', 'category', 'note', 'status'}
         for field, value in fields.items():
             if field in allowed_fields:
                 setattr(item, field, value)

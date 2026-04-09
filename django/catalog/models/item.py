@@ -40,6 +40,12 @@ class Item(AuditableMixin, StatusMixin):
         max_length=200,
         help_text="Item display name"
     )
+    name2 = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text="Secondary display name (e.g. English name from STKDES2)"
+    )
     unit = models.CharField(
         max_length=50,
         help_text="Unit of measurement (e.g. pcs, kg, box)"
@@ -55,6 +61,7 @@ class Item(AuditableMixin, StatusMixin):
         ordering = ['sku']
         indexes = [
             models.Index(fields=['name']),
+            models.Index(fields=['name2']),
         ]
 
     def __str__(self):
@@ -66,6 +73,8 @@ class Item(AuditableMixin, StatusMixin):
             self.sku = self.sku.strip()
         if self.name:
             self.name = self.name.strip()
+        if self.name2:
+            self.name2 = self.name2.strip()
         if self.unit:
             self.unit = self.unit.strip()
         super().save(*args, **kwargs)
