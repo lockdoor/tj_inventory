@@ -79,7 +79,7 @@ class Command(BaseCommand):
             # ('seed_catalog', 'Product Categories (catalog)'),
             ('seed_items_real', 'Real Product Items (catalog)'),
             # ('seed_partners', 'Suppliers & Customers (partners)'),
-            # ('seed_warehouses', 'Warehouse Structure (inventory)'),
+            ('seed_warehouses_real', 'Warehouse Structure (inventory)'),
             # ('seed_inventory_data', 'Sample stock records (inventory)'),
         ]
 
