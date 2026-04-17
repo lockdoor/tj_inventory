@@ -31,7 +31,7 @@ class MovementService:
             )
 
     @staticmethod
-    def create_movement(*, document_no, type, date, warehouse, user, partner=None, note=''):
+    def create_movement(*, document_no, type, date, warehouse, user, partner=None, recipient='', note=''):
         """Create a new inventory movement document in Draft status."""
         movement = InventoryMovement(
             document_no=document_no,
@@ -39,6 +39,7 @@ class MovementService:
             date=date,
             warehouse=warehouse,
             partner=partner,
+            recipient=recipient,
             note=note,
             created_by=user,
             status=InventoryMovement.Status.DRAFT
@@ -51,7 +52,7 @@ class MovementService:
     def update_header(movement, *, user, **fields):
         """Update header fields of a draft movement."""
         MovementService._ensure_draft(movement)
-        allowed_fields = {'date', 'warehouse', 'partner', 'note'}
+        allowed_fields = {'date', 'warehouse', 'partner', 'recipient', 'note'}
         for field, value in fields.items():
             if field in allowed_fields:
                 setattr(movement, field, value)
@@ -59,6 +60,7 @@ class MovementService:
         movement.full_clean()
         movement.save()
         return movement
+
 
     @staticmethod
     def add_item(movement, *, item, lot_number, quantity, user, unit_cost=None, mfg_date=None, exp_date=None, note=''):

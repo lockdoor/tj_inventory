@@ -59,7 +59,8 @@
         </a>
 
         <!-- Stock Balance Card -->
-        <div class="glass-card inventory-card">
+        <a href="{% url 'inventory:stock-balance-list' %}" class="glass-card inventory-card"
+            style="text-decoration: none;">
             <div class="card-icon stock-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -76,7 +77,7 @@
             <div class="card-footer">
                 <span class="status-pill">Inventory</span>
             </div>
-        </div>
+        </a>
 
         <!-- StockCard Card -->
         <a href="{% url 'inventory:stockcard-list' %}" class="glass-card inventory-card" style="text-decoration: none;">

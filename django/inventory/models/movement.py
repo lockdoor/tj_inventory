@@ -58,6 +58,13 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         default='', 
         help_text="General notes about this document"
     )
+    recipient = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Recipient name (fallback for missing Partner records)"
+    )
+
     reference_type = models.CharField(
         max_length=50,
         choices=ReferenceType.choices,

@@ -80,6 +80,7 @@ class Command(BaseCommand):
             ('seed_items_real', 'Real Product Items (catalog)'),
             # ('seed_partners', 'Suppliers & Customers (partners)'),
             ('seed_warehouses_real', 'Warehouse Structure (inventory)'),
+            ('seed_stock_migration', 'Stock Migration (inventory)'),
             # ('seed_inventory_data', 'Sample stock records (inventory)'),
         ]
 
