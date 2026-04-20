@@ -1,8 +1,15 @@
+PYTHON = ./django/venv/bin/python
+MANAGE = ./django/srcs/manage.py
+
 all:
-	source venv/bin/activate && python ./django/manage.py runserver 0.0.0.0:8000
+	$(PYTHON) $(MANAGE) runserver 0.0.0.0:8000
 
 migrate_fresh:
-	rm django/db.sqlite3
-	source venv/bin/activate && python ./django/manage.py makemigrations
-	source venv/bin/activate && python ./django/manage.py migrate
-	source venv/bin/activate && python ./django/manage.py setup_system
+	rm -f ./django/srcs/db.sqlite3
+	$(PYTHON) $(MANAGE) makemigrations
+	$(PYTHON) $(MANAGE) migrate
+	$(PYTHON) $(MANAGE) setup_system
+
+venv:
+	@echo "To activate the virtual environment, run:"
+	@echo "source ./django/venv/bin/activate"

@@ -5,6 +5,7 @@ Business logic for Item operations in the catalog.
 Handles rules for product management, filtering, and soft-deletion.
 """
 
+import os
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -104,7 +105,6 @@ class ItemService:
         # Return as Django ContentFile
         # The filename will be SKU-UUID.jpg (handled by item_image_upload_path)
         # But we pass the original basename with .jpg extension to pilot the extension
-        import os
         base_name = os.path.splitext(image_file.name)[0]
         return ContentFile(buffer.getvalue(), name=f"{base_name}.jpg")
 
@@ -114,6 +114,8 @@ class ItemService:
         Update an existing item.
         """
         allowed_fields = {'name', 'name2', 'sku', 'express_sku', 'unit', 'category', 'note', 'status'}
+        image = fields.pop('image', None)
+
         for field, value in fields.items():
             if field in allowed_fields:
                 setattr(item, field, value)
@@ -121,6 +123,23 @@ class ItemService:
         item.updated_by = user
         item.full_clean()
         item.save()
+
+        if image:
+            # If a new image is provided, process it and set as the new main image
+            processed_image = ItemService._process_item_image(image)
+            
+            # Deactivate previous main images
+            item.images.filter(is_main=True).update(is_main=False)
+            
+            # Create new main image record
+            ItemImage.objects.create(
+                item=item,
+                image=processed_image,
+                is_main=True,
+                created_by=user,
+                status=ItemImage.Status.ACTIVE
+            )
+
         return item
 
     @staticmethod

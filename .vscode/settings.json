@@ -1,6 +1,6 @@
 {
     "python.testing.pytestArgs": [
-        "django"
+        "django/srcs"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

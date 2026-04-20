@@ -1,0 +1,9 @@
+.DS_Store
+.env
+__pycache__
+.pytest_cache
+*.sqlite3
+srcs/media/item_images/*
+!srcs/media/item_images/.gitkeep
+srcs/media/inventory/attachments/*
+!srcs/media/inventory/attachments/.gitkeep
