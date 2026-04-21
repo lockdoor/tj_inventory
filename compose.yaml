@@ -1,0 +1,52 @@
+services:
+  django:
+    build: ./django
+    container_name: django
+    restart: always
+    env_file:
+      - ./secrets/django.env
+      - ./secrets/db.env
+    environment:
+      - DATABASE_TYPE=postgres
+    volumes:
+      - ./django/srcs:/app
+      - ./django/migrate:/migrate
+      - ./django/srcs/media:/app/media
+    ports:
+      - "8000:8000"
+    networks:
+      - tj_inventory
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15.17-alpine3.22
+    container_name: postgres
+    restart: always
+    shm_size: 128m
+    env_file:
+      - ./secrets/db.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - tj_inventory
+
+  adminer:
+    image: adminer:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - tj_inventory
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+
+
+networks:
+  tj_inventory:
+    driver: bridge

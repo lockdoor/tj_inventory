@@ -24,7 +24,7 @@ The goal is to migrate stock data from `stock_migration.json` into the Django in
 ### Management Command
 
 #### [NEW] [seed_stock_migration.py](file:///Users/pitsanunamnil/Desktop/work/tj/tj_inventory/django/inventory/management/commands/seed_stock_migration.py)
-- Load JSON from `private/data/stock_migration.json`.
+- Load JSON from `migrate/stock_migration.json`.
 - Logic:
     - **Transaction Safety**: Wrap the entire operation in `transaction.atomic()`.
     - **User Attribution**: Attribute actions to the first found executive or system user.

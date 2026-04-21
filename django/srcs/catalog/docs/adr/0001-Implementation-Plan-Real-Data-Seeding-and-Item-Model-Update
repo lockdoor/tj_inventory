@@ -7,7 +7,7 @@ The goal is to update the `Item` model to support a secondary name (`name2`) fro
 > [!IMPORTANT]
 > - The new `name2` field will be added to the `Item` model.
 > - A new management command `seed_items_real` will be created.
-> - You will need to export your notebook data to `private/data/items.json` for the seeder to work.
+> - You will need to export your notebook data to `migrate/tj_items.json` for the seeder to work.
 
 ## Proposed Changes
 
@@ -20,7 +20,7 @@ The goal is to update the `Item` model to support a secondary name (`name2`) fro
 ### Seeding Logic
 
 #### [NEW] [seed_items_real.py](file:///Users/pitsanunamnil/Desktop/work/tj/tj_inventory/django/catalog/management/commands/seed_items_real.py)
-- A new Django management command that reads from `private/data/tj_items.json`.
+- A new Django management command that reads from `migrate/tj_items.json`.
 - It will map:
     - `STKCOD` -> `sku` and `express_sku`
     - `STKDES` -> `name`
@@ -35,17 +35,17 @@ import os
 import json
 
 # Create directory if not exists
-os.makedirs('../../private/data', exist_ok=True)
+os.makedirs('../../migrate', exist_ok=True)
 
 # Export selected_df to JSON
-selected_df.to_json('../../private/data/items.json', orient='records', force_ascii=False)
+selected_df.to_json('../../migrate/tj_items.json', orient='records', force_ascii=False)
 ```
 
 ## Verification Plan
 
 ### Automated Tests
 - Run `python manage.py makemigrations` and `python manage.py migrate`.
-- Create a mock `private/data/items.json` and run `python manage.py seed_items_real`.
+- Create a mock `migrate/tj_items.json` and run `python manage.py seed_items_real`.
 - Verify the items exist in the database with the new `name2` field.
 
 ### Manual Verification

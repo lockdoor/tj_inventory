@@ -15,7 +15,7 @@ class Command(BaseCommand):
     help = 'Seed stock movement data from migration JSON'
 
     def handle(self, *args, **options):
-        json_path = os.path.join(settings.BASE_DIR, '..', 'private', 'data', 'stock_migration.json')
+        json_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'stock_migration.json')
 
         
         if not os.path.exists(json_path):

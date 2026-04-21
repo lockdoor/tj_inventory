@@ -1,3 +1,5 @@
+secrets/*
+!secrets/.gitkeep
 private
 venv
 jupyter_env

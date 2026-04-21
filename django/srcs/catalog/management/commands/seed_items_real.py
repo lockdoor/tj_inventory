@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Path to the data file
-        data_path = os.path.join(settings.BASE_DIR, '..', 'private', 'data', 'tj_items.json')
+        data_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'tj_items.json')
         
         if not os.path.exists(data_path):
             raise CommandError(
