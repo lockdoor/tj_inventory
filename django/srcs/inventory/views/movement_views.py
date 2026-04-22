@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.shortcuts import redirect, get_object_or_404
 from django.views import View
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -114,6 +114,80 @@ class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
 
     def form_invalid(self, form):
         """Ensure formset errors are passed back to the context."""
+        return self.render_to_response(self.get_context_data(form=form))
+
+class MovementUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    """
+    Update engine for Inventory Movements.
+    Allows editing Draft documents including their line items.
+    """
+    model = InventoryMovement
+    form_class = MovementCreateForm
+    template_name = 'inventory/movement_create.html' # Reuse the same template
+    permission_required = 'inventory.change_inventorymovement'
+    slug_field = 'document_no'
+    slug_url_kwarg = 'document_no'
+    raise_exception = True
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.status != InventoryMovement.Status.DRAFT:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("Only Draft documents can be updated.")
+        return obj
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = kwargs.get('form', self.get_form())
+        
+        # Prepare kwargs for the formset forms
+        formset_kwargs = {}
+        # For update, we use the instance data
+        warehouse = self.object.warehouse
+        m_type = self.object.type
+        
+        if form.is_bound:
+            # If form is bound (validation failed), use the submitted data
+            warehouse_id = form.data.get('warehouse')
+            m_type = form.data.get('type')
+            if warehouse_id:
+                try:
+                    from inventory.models import Warehouse
+                    warehouse = Warehouse.objects.get(id=warehouse_id)
+                except: pass
+
+        formset_kwargs['warehouse'] = warehouse
+        formset_kwargs['movement_type'] = m_type
+
+        if self.request.POST:
+            context['items'] = MovementItemFormSet(
+                self.request.POST, 
+                instance=self.object,
+                form_kwargs=formset_kwargs
+            )
+        else:
+            context['items'] = MovementItemFormSet(
+                instance=self.object,
+                form_kwargs=formset_kwargs
+            )
+        context['is_update'] = True
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data(form=form)
+        items = context['items']
+        
+        if items.is_valid():
+            with transaction.atomic():
+                form.instance.updated_by = self.request.user
+                self.object = form.save()
+                items.save()
+            messages.success(self.request, f"Document {self.object.document_no} updated successfully.")
+            return redirect('inventory:movement-detail', document_no=self.object.document_no)
+        else:
+            return self.form_invalid(form)
+
+    def form_invalid(self, form):
         return self.render_to_response(self.get_context_data(form=form))
 
 class MovementListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):

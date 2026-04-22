@@ -14,6 +14,7 @@ from .movement_views import (
     MovementTrashListView,
     MovementRestoreView,
     MovementCreateView,
+    MovementUpdateView,
     MovementCompleteView,
     MovementRevertView,
     MovementDeleteView
