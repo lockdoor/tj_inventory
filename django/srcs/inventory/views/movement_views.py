@@ -238,6 +238,25 @@ class MovementRestoreView(LoginRequiredMixin, PermissionRequiredMixin, View):
             messages.error(request, f"Error restoring document: {str(e)}")
             return redirect('inventory:movement-trash')
 
+class MovementHardDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    POST view for permanently deleting a movement document.
+    Requires the user to confirm via document number verification in UI.
+    """
+    permission_required = 'inventory.delete_inventorymovement'
+    raise_exception = True
+
+    def post(self, request, document_no):
+        movement = get_object_or_404(InventoryMovement, document_no=document_no, is_deleted=True)
+        try:
+            doc_no = movement.document_no
+            # Perform hard delete
+            movement.hard_delete()
+            messages.success(request, f"Document '{doc_no}' has been permanently deleted.")
+        except Exception as e:
+            messages.error(request, f"Error during permanent deletion: {str(e)}")
+        return redirect('inventory:movement-trash')
+
 class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
     Detailed transaction view with item lists and audit trackers.

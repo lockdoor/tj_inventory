@@ -17,7 +17,8 @@ from .movement_views import (
     MovementUpdateView,
     MovementCompleteView,
     MovementRevertView,
-    MovementDeleteView
+    MovementDeleteView,
+    MovementHardDeleteView
 )
 from .stockcard_views import (
     StockCardListView,
