@@ -74,26 +74,45 @@ ROLE_PERMISSIONS = {
     ],
 
     'warehouse_admin': [
-        # View catalog (read-only)
+        # Full Catalog
+        ## Catalog Category permissions
+        'catalog.add_category',
+        'catalog.change_category',
+        'catalog.delete_category',
         'catalog.view_category',
+        ## Catalog Item permissions
+        'catalog.add_item',
+        'catalog.change_item',
+        'catalog.delete_item',
         'catalog.view_item',
+        ## Catalog Item Image permissions
+        'catalog.add_itemimage',
+        'catalog.change_itemimage',
+        'catalog.delete_itemimage',
         'catalog.view_itemimage',
         # Full Warehouse Access (operational)
+        ## Inventory Warehouse permissions
         'inventory.add_warehouse',
         'inventory.change_warehouse',
         'inventory.delete_warehouse',
         'inventory.view_warehouse',
+        ## Inventory Movement Permissions
         'inventory.add_inventorymovement',
         'inventory.change_inventorymovement',
         'inventory.delete_inventorymovement',
         'inventory.view_inventorymovement',
-        # Inventory Balances Permissions
+        ## Inventory Balances Permissions
         'inventory.view_stock',
-        # Inventory Ledger Permissions
+        ## Inventory Ledger Permissions
         'inventory.view_stockcard',
         'inventory.add_stockcard',
         'inventory.change_stockcard',
         'inventory.delete_stockcard',
+        # Full partner permissions
+        'partners.add_partner',
+        'partners.change_partner',
+        'partners.delete_partner',
+        'partners.view_partner',
     ],
 }
 

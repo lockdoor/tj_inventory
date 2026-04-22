@@ -88,9 +88,45 @@ class TestPermissionAssignment:
         group = Group.objects.get(name='warehouse_admin')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
-            'view_category', 'view_item', 'view_itemimage',
-            'add_warehouse', 'change_warehouse', 'delete_warehouse', 'view_warehouse',
-            'view_inventorymovement', 'add_inventorymovement', 'change_inventorymovement', 'delete_inventorymovement'
+            # Full Catalog
+            ## Catalog Category permissions
+            'add_category',
+            'change_category',
+            'delete_category',
+            'view_category',
+            ## Catalog Item permissions
+            'add_item',
+            'change_item',
+            'delete_item',
+            'view_item',
+            ## Catalog Item Image permissions
+            'add_itemimage',
+            'change_itemimage',
+            'delete_itemimage',
+            'view_itemimage',
+            # Full Warehouse Access (operational)
+            ## Inventory Warehouse permissions
+            'add_warehouse',
+            'change_warehouse',
+            'delete_warehouse',
+            'view_warehouse',
+            ## Inventory Movement Permissions
+            'add_inventorymovement',
+            'change_inventorymovement',
+            'delete_inventorymovement',
+            'view_inventorymovement',
+            ## Inventory Balances Permissions
+            'view_stock',
+            ## Inventory Ledger Permissions
+            'view_stockcard',
+            'add_stockcard',
+            'change_stockcard',
+            'delete_stockcard',
+            # Full partner permissions
+            'add_partner',
+            'change_partner',
+            'delete_partner',
+            'view_partner',
         }
 
 

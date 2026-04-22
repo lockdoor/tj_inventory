@@ -83,5 +83,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'icon_name': 'search',
                 'badge': 'Reference'
             },
+            {
+                'title': 'Partner Database',
+                'description': 'Manage your suppliers and customer network.',
+                'url': 'partners:partner-list',
+                'icon_name': 'users',
+                'badge': 'Network'
+            },
         ]
         return context
