@@ -156,6 +156,13 @@
                         <div style="color: var(--text-main); font-weight: 600;">{{ movement.partner.name|default:"Internal / None" }}</div>
                     </div>
 
+                    {% if movement.recipient %}
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Recipient</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ movement.recipient }}</div>
+                    </div>
+                    {% endif %}
+
                     <div>
                         <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Created By</label>
                         <div style="color: var(--text-main); font-weight: 500; font-size: 0.9rem;">{{ movement.created_by.get_full_name|default:movement.created_by.username }}</div>

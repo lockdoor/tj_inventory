@@ -17,7 +17,7 @@ class StockService:
         Returns a structured list for template rendering.
         """
         # Fetch all stock with balances, optimized
-        stocks = Stock.objects.select_related('warehouse', 'item').all().order_by(
+        stocks = Stock.objects.select_related('warehouse', 'item').exclude(balance=0).order_by(
             'warehouse__name', 'item__name', 'lot_number'
         )
         

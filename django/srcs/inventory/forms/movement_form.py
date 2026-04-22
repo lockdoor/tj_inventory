@@ -10,7 +10,7 @@ class MovementCreateForm(forms.ModelForm):
     """
     class Meta:
         model = InventoryMovement
-        fields = ['document_no', 'type', 'date', 'warehouse', 'partner', 'note', 'reference_type', 'reference_no']
+        fields = ['document_no', 'type', 'date', 'warehouse', 'partner', 'recipient', 'note', 'reference_type', 'reference_no']
         widgets = {
             'document_no': forms.TextInput(attrs={
                 'class': 'glass-input',
@@ -28,6 +28,10 @@ class MovementCreateForm(forms.ModelForm):
             }),
             'partner': forms.Select(attrs={
                 'class': 'glass-input'
+            }),
+            'recipient': forms.TextInput(attrs={
+                'class': 'glass-input',
+                'placeholder': 'Name of recipient...'
             }),
             'note': forms.Textarea(attrs={
                 'class': 'glass-input',

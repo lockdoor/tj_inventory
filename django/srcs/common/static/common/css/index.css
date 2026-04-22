@@ -99,6 +99,11 @@ input, textarea, select {
     transition: var(--transition);
 }
 
+select option {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+}
+
 input:focus, textarea:focus, select:focus {
     outline: none;
     border-color: var(--primary);

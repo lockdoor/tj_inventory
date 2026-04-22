@@ -96,6 +96,11 @@
                         <label class="field-label">Partner / Supplier</label>
                         {{ form.partner }}
                     </div>
+                    <div class="form-group outbound-only-field">
+                        <label class="field-label">Recipient Name</label>
+                        {{ form.recipient }}
+                        <small style="color: var(--text-muted); font-size: 0.7rem;">Fallback if no partner is selected</small>
+                    </div>
                     <div class="form-group">
                         <label class="field-label">Internal Note</label>
                         {{ form.note }}
@@ -316,6 +321,11 @@
         padding-right: 2.25rem;
     }
 
+    select.glass-input option {
+        background-color: #0f172a; /* Match var(--bg-main) */
+        color: var(--text-main);
+    }
+
     .item-card {
         border: 1px solid rgba(255,255,255,0.03);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -359,6 +369,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         container.querySelectorAll('.inbound-only-sm').forEach(span => {
             span.style.display = isInbound ? 'inline' : 'none';
+        });
+
+        // Toggle outbound fields (like recipient)
+        document.querySelectorAll('.outbound-only-field').forEach(field => {
+            field.style.display = isInbound ? 'none' : 'block';
         });
 
         // Update indicator
