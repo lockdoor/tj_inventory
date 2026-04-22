@@ -4,39 +4,84 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 class DashboardView(LoginRequiredMixin, TemplateView):
     """
     The main landing page of the application after logging in.
-    Provides entry points (cards) to authorized modules.
+    Automatically serves a specialized dashboard based on the user's group.
     """
-    template_name = 'dashboard/overview.html'
+
+    def get_role(self):
+        """
+        Determines the effective role of the user based on group membership.
+        Priority: Executive > Warehouse Admin > Default (Executive)
+        """
+        groups = self.request.user.groups.values_list('name', flat=True)
+        if 'executive' in groups or self.request.user.is_superuser:
+            return 'executive'
+        if 'warehouse_admin' in groups:
+            return 'warehouse_admin'
+        return 'executive' # Fallback
+
+    def get_template_names(self):
+        role = self.get_role()
+        if role == 'warehouse_admin':
+            return ['dashboard/warehouse_dashboard.html']
+        return ['dashboard/executive_dashboard.html']
 
     def get_context_data(self, **kwargs):
+        role = self.get_role()
+        if role == 'warehouse_admin':
+            return self.get_warehouse_context(**kwargs)
+        return self.get_executive_context(**kwargs)
+
+    def get_executive_context(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Define module cards with icons and descriptions
-        # In the future, this list can be dynamic based on user permissions/groups.
-        modules = [
+        context['page_title'] = "Executive Dashboard"
+        context['modules'] = [
             {
                 'title': 'Catalog Management',
                 'description': 'Manage product categories, items, and audit history.',
                 'url': 'catalog:catalog-overview',
-                'icon_svg': '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>',
+                'icon_name': 'box', # Using Lucide icon names for easier template handling if needed
                 'badge': 'Product Master'
             },
             {
                 'title': 'Partner Database',
                 'description': 'Track your global suppliers and customer network.',
                 'url': 'partners:partner-list',
-                'icon_svg': '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+                'icon_name': 'users',
                 'badge': 'External Entities'
             },
             {
                 'title': 'Inventory Engine',
-                'description': 'Manage warehouses, stock balances, and document-driven movements.',
+                'description': 'Manage warehouses, stock balances, and movements.',
                 'url': 'inventory:overview',
-                'icon_svg': '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>',
+                'icon_name': 'database',
                 'badge': 'Core Engine'
             },
         ]
+        return context
+
+    def get_warehouse_context(self, **kwargs):
+        from inventory.services.stock_service import StockService
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Warehouse Control Center"
         
-        context['modules'] = modules
-        context['page_title'] = "Executive Dashboard"
+        # Specific metrics for warehouse role
+        context['stats'] = StockService.get_dashboard_metrics()
+        
+        # Limited modules for warehouse role
+        context['modules'] = [
+            {
+                'title': 'Inventory Operations',
+                'description': 'Manage stock balances, lots, and warehouse structure.',
+                'url': 'inventory:overview',
+                'icon_name': 'package',
+                'badge': 'Operations'
+            },
+            {
+                'title': 'Product Catalog',
+                'description': 'View item specifications and media (Read-Only).',
+                'url': 'catalog:catalog-overview',
+                'icon_name': 'search',
+                'badge': 'Reference'
+            },
+        ]
         return context

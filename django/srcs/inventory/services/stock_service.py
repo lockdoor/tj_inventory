@@ -60,3 +60,19 @@ class StockService:
             result.append(wh_data)
             
         return result
+
+    @staticmethod
+    def get_dashboard_metrics():
+        """
+        Returns high-level metrics for the dashboard summary.
+        """
+        from inventory.models import InventoryMovement
+        
+        return {
+            'total_items': Item.objects.count(),
+            'total_stock': Stock.objects.aggregate(total=Sum('balance'))['total'] or 0,
+            'warehouse_count': Warehouse.objects.count(),
+            'recent_movements_count': InventoryMovement.objects.count(),
+            # Simplified low stock: items with ANY lot <= 10 units
+            'low_stock_count': Stock.objects.filter(balance__lte=10).values('item').distinct().count(),
+        }

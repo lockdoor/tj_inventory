@@ -87,6 +87,13 @@ ROLE_PERMISSIONS = {
         'inventory.change_inventorymovement',
         'inventory.delete_inventorymovement',
         'inventory.view_inventorymovement',
+        # Inventory Balances Permissions
+        'inventory.view_stock',
+        # Inventory Ledger Permissions
+        'inventory.view_stockcard',
+        'inventory.add_stockcard',
+        'inventory.change_stockcard',
+        'inventory.delete_stockcard',
     ],
 }
 
