@@ -1,6 +1,7 @@
 from django.views.generic import ListView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from inventory.models import StockCard
+from catalog.models import Item
 
 class StockCardListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """
@@ -14,12 +15,24 @@ class StockCardListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        """Optimize with select_related for performance."""
-        return StockCard.objects.select_related(
+        """Optimize with select_related for performance and apply filters."""
+        queryset = StockCard.objects.select_related(
             'item', 
             'warehouse', 
             'movement_item__movement'
         ).all().order_by('-created_at')
+
+        item_id = self.request.GET.get('item')
+        if item_id and item_id.isdigit():
+            queryset = queryset.filter(item_id=item_id)
+        
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['items'] = Item.objects.all().order_by('name')
+        context['selected_item'] = self.request.GET.get('item', '')
+        return context
 
 class StockCardDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
