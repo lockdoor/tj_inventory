@@ -138,6 +138,21 @@ class MovementService:
         MovementService._ensure_draft(movement)
         movement.delete(user=user)
 
+    @staticmethod
+    def list_deleted():
+        """Retrieve all soft-deleted movements."""
+        return InventoryMovement.objects.select_related('warehouse', 'partner').filter(is_deleted=True).order_by('-deleted_at')
+
+    @staticmethod
+    def restore(movement, *, user):
+        """Restore a soft-deleted movement."""
+        if not movement.is_deleted:
+            return movement
+        movement.restore()
+        movement.updated_by = user
+        movement.save()
+        return movement
+
     # --- Completion & Reversion Logic ---
 
     @staticmethod

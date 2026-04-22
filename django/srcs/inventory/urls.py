@@ -17,7 +17,9 @@ urlpatterns = [
 
     # Movements
     path('movements/', views.MovementListView.as_view(), name='movement-list'),
+    path('movements/trash/', views.MovementTrashListView.as_view(), name='movement-trash'),
     path('movements/create/', views.MovementCreateView.as_view(), name='movement-create'),
+    path('movements/<str:document_no>/restore/', views.MovementRestoreView.as_view(), name='movement-restore'),
     path('movements/<str:document_no>/', views.MovementDetailView.as_view(), name='movement-detail'),
     path('movements/<str:document_no>/complete/', views.MovementCompleteView.as_view(), name='movement-complete'),
     path('movements/<str:document_no>/revert/', views.MovementRevertView.as_view(), name='movement-revert'),

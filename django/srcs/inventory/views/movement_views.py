@@ -1,5 +1,6 @@
 from django.db import transaction
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
+from django.views import View
 from django.views.generic import ListView, DetailView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy
@@ -42,7 +43,7 @@ class MovementRevertView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
 class MovementDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """View to trigger document discard (deletion)."""
     model = InventoryMovement
-    permission_required = 'inventory.add_inventorymovement'
+    permission_required = 'inventory.delete_inventorymovement'
     slug_field = 'document_no'
     slug_url_kwarg = 'document_no'
 
@@ -131,6 +132,37 @@ class MovementListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         """Optimize with select_related for performance."""
         return InventoryMovement.objects.select_related('warehouse', 'partner').filter(is_deleted=False).order_by('-date', '-created_at')
         #return InventoryMovement.objects.select_related('warehouse', 'partner').all().order_by('-date', '-created_at')
+
+class MovementTrashListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    """
+    List view for soft-deleted movements (Trash).
+    """
+    model = InventoryMovement
+    template_name = 'inventory/movement_trash_list.html'
+    context_object_name = 'movements'
+    permission_required = 'inventory.delete_inventorymovement'
+    raise_exception = True
+    paginate_by = 10
+
+    def get_queryset(self):
+        return MovementService.list_deleted()
+
+class MovementRestoreView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    POST view for restoring a soft-deleted movement.
+    """
+    permission_required = 'inventory.delete_inventorymovement'
+    raise_exception = True
+
+    def post(self, request, document_no):
+        movement = get_object_or_404(InventoryMovement, document_no=document_no, is_deleted=True)
+        try:
+            MovementService.restore(movement, user=request.user)
+            messages.success(request, f"Document '{movement.document_no}' restored successfully.")
+            return redirect('inventory:movement-list')
+        except Exception as e:
+            messages.error(request, f"Error restoring document: {str(e)}")
+            return redirect('inventory:movement-trash')
 
 class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """
