@@ -178,6 +178,14 @@ def user_add_perm(db):
     user.user_permissions.add(perm)
     return user
 
+@pytest.fixture
+def user_delete_perm(db):
+    """User with delete_inventorymovement permission."""
+    user = User.objects.create_user(username='creator', password='password123')
+    perm = Permission.objects.get(codename='delete_inventorymovement')
+    user.user_permissions.add(perm)
+    return user
+
 @pytest.mark.django_db
 class TestMovementCreateView:
     """
@@ -402,10 +410,10 @@ class TestMovementLifecycleActions:
         # Actually in revert_to_draft it creates a StockCard
         assert StockCard.objects.filter(note__contains="REVERSION").count() == 1
 
-    def test_movement_delete_draft_success(self, client, user_add_perm, warehouse):
+    def test_movement_delete_draft_success(self, client, user_delete_perm, warehouse):
         movement = InventoryMovement.objects.create(
             document_no="MOV-DELETE-ME", type='inbound', date=timezone.now().date(),
-            warehouse=warehouse, created_by=user_add_perm, status='draft'
+            warehouse=warehouse, created_by=user_delete_perm, status='draft'
         )
         client.login(username='creator', password='password123')
         url = reverse('inventory:movement-delete', kwargs={'document_no': movement.document_no})
