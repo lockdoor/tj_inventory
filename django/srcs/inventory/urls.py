@@ -27,6 +27,10 @@ urlpatterns = [
     path('movements/<str:document_no>/delete/', views.MovementDeleteView.as_view(), name='movement-delete'),
     path('movements/<str:document_no>/hard-delete/', views.MovementHardDeleteView.as_view(), name='movement-hard-delete'),
     
+    # Movement Attachments
+    path('movements/<str:document_no>/attach/', views.MovementAttachmentUploadView.as_view(), name='movement-attachment-upload'),
+    path('attachments/<int:pk>/delete/', views.MovementAttachmentDeleteView.as_view(), name='movement-attachment-delete'),
+    
     # Stock Ledger
     path('ledger/', views.StockCardListView.as_view(), name='stockcard-list'),
     path('ledger/<int:pk>/', views.StockCardDetailView.as_view(), name='stockcard-detail'),

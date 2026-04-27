@@ -279,5 +279,11 @@ class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             context['audit_trail'] = StockCard.objects.filter(
                 movement_item__movement=self.object
             ).select_related('item', 'warehouse')
+
+        # Fetch attachments (excluding soft-deleted ones)
+        context['attachments'] = self.object.attachments.filter(is_deleted=False)
+        # Add empty form for new upload
+        from inventory.forms.attachment_form import MovementAttachmentForm
+        context['attachment_form'] = MovementAttachmentForm()
             
         return context
