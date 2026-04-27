@@ -105,8 +105,14 @@
                     Metadata
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.85rem;">
+                    {% if stockcard.movement_item %}
                     <div>
-                        <span style="color: var(--text-dim);">Created At:</span>
+                        <span style="color: var(--text-dim);">Movement Date:</span>
+                        <div style="color: var(--primary-light); font-weight: 700; font-size: 1rem;">{{ stockcard.movement_item.movement.date|date:"Y-m-d" }}</div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <span style="color: var(--text-dim);">Recorded At:</span>
                         <div style="color: var(--text-main); font-weight: 500;">{{ stockcard.created_at|date:"Y-m-d H:i:s" }}</div>
                     </div>
                     <div>

@@ -60,8 +60,8 @@
                 {% for sc in stockcards %}
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);" onmouseover="this.style.background='rgba(255,255,255,0.015)'" onmouseout="this.style.background='transparent'">
                         <td style="padding: 1.25rem 1.5rem; font-size: 0.85rem; color: var(--text-dim);">
-                            <div style="color: var(--text-main); font-weight: 500;">{{ sc.created_at|date:"d M Y" }}</div>
-                            <div style="font-size: 0.75rem; opacity: 0.7;">{{ sc.created_at|date:"H:i:s" }}</div>
+                            <div style="color: var(--text-main); font-weight: 500;">{{ sc.movement_item.movement.date|default:sc.created_at|date:"d M Y" }}</div>
+                            <div style="font-size: 0.75rem; opacity: 0.7;">Recorded: {{ sc.created_at|date:"H:i:s" }}</div>
                         </td>
                         <td style="padding: 1.25rem 1.5rem;">
                             <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">{{ sc.item.name }}</div>
