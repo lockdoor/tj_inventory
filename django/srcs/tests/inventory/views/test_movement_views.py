@@ -174,8 +174,13 @@ class TestMovementDetailView:
 def user_add_perm(db):
     """User with add_inventorymovement permission."""
     user = User.objects.create_user(username='creator', password='password123')
-    perm = Permission.objects.get(codename='add_inventorymovement')
-    user.user_permissions.add(perm)
+    perm_add = Permission.objects.get(codename='add_inventorymovement')
+    perm_edit = Permission.objects.get(codename='change_inventorymovement')
+    perm_delete = Permission.objects.get(codename='delete_inventorymovement')
+    
+    user.user_permissions.add(perm_add)
+    user.user_permissions.add(perm_edit)
+    user.user_permissions.add(perm_delete)
     return user
 
 @pytest.fixture

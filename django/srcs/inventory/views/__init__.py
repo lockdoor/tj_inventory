@@ -14,9 +14,11 @@ from .movement_views import (
     MovementTrashListView,
     MovementRestoreView,
     MovementCreateView,
+    MovementUpdateView,
     MovementCompleteView,
     MovementRevertView,
-    MovementDeleteView
+    MovementDeleteView,
+    MovementHardDeleteView
 )
 from .stockcard_views import (
     StockCardListView,
