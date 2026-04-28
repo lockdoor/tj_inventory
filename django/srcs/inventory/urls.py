@@ -37,4 +37,5 @@ urlpatterns = [
 
     # Balances
     path('balances/', views.StockBalanceListView.as_view(), name='stock-balance-list'),
+    path('compare-express/', views.StockComparisonListView.as_view(), name='stock-comparison'),
 ]

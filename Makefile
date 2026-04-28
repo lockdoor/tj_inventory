@@ -6,6 +6,9 @@ REQS = ./django/requirements.txt
 all:
 	$(PYTHON) $(MANAGE) runserver 0.0.0.0:8000
 
+express_run:
+	./express/venv/bin/python ./express/main.py
+
 install:
 	$(PIP) install -r $(REQS)
 

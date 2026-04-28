@@ -15,4 +15,9 @@ class StockBalanceListView(LoginRequiredMixin, PermissionRequiredMixin, Template
         context = super().get_context_data(**kwargs)
         # Fetch structured data from service
         context['hierarchy'] = StockService.get_hierarchical_stock_balances()
+        
+        # Add express companies for the balance comparison feature
+        from inventory.services.express_service import ExpressService
+        context['express_companies'] = ExpressService.get_companies() if ExpressService.is_alive() else []
+        
         return context

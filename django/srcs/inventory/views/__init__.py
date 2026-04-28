@@ -29,3 +29,4 @@ from .attachment_views import (
     MovementAttachmentUploadView,
     MovementAttachmentDeleteView
 )
+from .comparison_views import StockComparisonListView

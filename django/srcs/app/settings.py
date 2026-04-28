@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import json
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -162,3 +163,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'dashboard:home'
 LOGOUT_REDIRECT_URL = 'common:login'
 LOGIN_URL = 'common:login'
+
+# External Integrations
+# Locations of Express ERP data directory (contains .DBF files)
+EXPRESS_LOCATION = os.environ.get('EXPRESS_LOCATION', None)
+COMPANY_WAREHOUSE_CODES = json.loads(os.environ.get('COMPANY_WAREHOUSE_CODES', '{}'))
