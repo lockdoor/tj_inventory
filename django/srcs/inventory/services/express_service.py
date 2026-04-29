@@ -109,9 +109,8 @@ class ExpressService:
         all_items = all_items.order_by('sku')
         
         for item in all_items:
-            sku = item.sku
-            django_qty = django_balances.get(sku, 0)
-            express_qty = express_balances.get(sku, 0)
+            django_qty = django_balances.get(item.sku, 0)
+            express_qty = express_balances.get(item.express_sku, 0)
             
             # Only include if there's stock in either system or they mismatch
             if django_qty != 0 or express_qty != 0:
