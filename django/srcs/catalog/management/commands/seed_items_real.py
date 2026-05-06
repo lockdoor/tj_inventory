@@ -8,29 +8,28 @@ from catalog.models import Category, Item
 from catalog.services.item_service import ItemService
 
 class Command(BaseCommand):
-    help = 'Seed real items from private/data/tj_items.json'
+    help = 'Seed real items from migrate/data/migration_config.json'
 
     def handle(self, *args, **options):
         # Path to the data file
-        data_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'data', 'stock_migration.json')
+        data_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'data', 'migration_config.json')
         
         if not os.path.exists(data_path):
             raise CommandError(
-                f'Real item data not found at: {data_path}\n'
-                'Please export your business data to this path before seeding.'
+                f'Config data not found at: {data_path}\n'
             )
 
         self.stdout.write(self.style.NOTICE(f'Reading data from {data_path}...'))
         
         try:
             with open(data_path, 'r', encoding='utf-8') as f:
-                items_data = json.load(f)
+                config_data = json.load(f)
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Error reading JSON: {str(e)}'))
             return
 
-        if not isinstance(items_data, list):
-            self.stdout.write(self.style.ERROR('JSON data must be a list of items.'))
+        if not isinstance(config_data, dict):
+            self.stdout.write(self.style.ERROR('JSON data must be a dictionary.'))
             return
 
         # Get or create an executive user for auditing
@@ -61,49 +60,61 @@ class Command(BaseCommand):
         
         with transaction.atomic():
             processed_skus = set()
-            for entry in items_data:
-                warehouse = entry.get('warehouse')
-                express_sku = entry.get('sku')
-                name = entry.get('metadata', {}).get('source_sheet', '')
+            for group_key, group_data in config_data.items():
+                warehouse = group_data.get('warehouse')
+                items = group_data.get('items', {})
                 
-                if not warehouse or not express_sku or not name:
+                if not warehouse or not items:
                     continue
-                
-                # Clean data
-                express_sku = str(express_sku).strip()
-                name = str(name).strip()
-                
-                # Determine prefix based on warehouse
-                prefix = 'tj' if 'TJ' in warehouse.upper() else 'tg'
-                system_sku = f"{prefix}_{express_sku}"
-                
-                # Skip if we already processed this SKU in this run
-                if system_sku in processed_skus:
-                    continue
-                processed_skus.add(system_sku)
+                    
+                for item_key, item_data in items.items():
+                    express_sku = item_data.get('sku')
+                    name = item_data.get('name')
+                    name2 = item_data.get('name2', '')
+                    unit = item_data.get('unit', 'Unit')
+                    
+                    if not express_sku or not name:
+                        continue
+                    
+                    # Clean data
+                    express_sku = str(express_sku).strip()
+                    name = str(name).strip()
+                    name2 = str(name2).strip()
+                    unit = str(unit).strip()
+                    
+                    # Determine prefix based on warehouse
+                    prefix = 'tj' if 'TJ' in warehouse.upper() else 'tg'
+                    system_sku = f"{prefix}_{express_sku}"
+                    
+                    # Skip if we already processed this SKU in this run
+                    if system_sku in processed_skus:
+                        continue
+                    processed_skus.add(system_sku)
 
-                # Check if item exists
-                item = Item.objects.filter(sku=system_sku).first()
-                
-                if item:
-                    # Update existing item
-                    item.name = name
-                    item.express_sku = express_sku
-                    item.updated_by = admin_user
-                    item.save()
-                    updated_count += 1
-                else:
-                    # Create new item
-                    ItemService.create(
-                        sku=system_sku,
-                        name=name,
-                        name2='',
-                        unit='Unit',
-                        express_sku=express_sku,
-                        category=category,
-                        user=admin_user
-                    )
-                    created_count += 1
+                    # Check if item exists
+                    item = Item.objects.filter(sku=system_sku).first()
+                    
+                    if item:
+                        # Update existing item
+                        item.name = name
+                        item.name2 = name2
+                        item.unit = unit
+                        item.express_sku = express_sku
+                        item.updated_by = admin_user
+                        item.save()
+                        updated_count += 1
+                    else:
+                        # Create new item
+                        ItemService.create(
+                            sku=system_sku,
+                            name=name,
+                            name2=name2,
+                            unit=unit,
+                            express_sku=express_sku,
+                            category=category,
+                            user=admin_user
+                        )
+                        created_count += 1
 
         self.stdout.write(self.style.SUCCESS(
             f'Successfully processed unique items.\n'

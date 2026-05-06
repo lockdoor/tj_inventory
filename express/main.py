@@ -2,8 +2,12 @@ import os
 import json
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
-from dbfread import DBF
+from dbfread import DBF, FieldParser
 from dotenv import load_dotenv
+import pandas as pd
+import datetime
+
+pd.set_option('display.float_format', '{:.2f}'.format)
 
 ENV_PATH = Path(__file__).resolve().parent.parent / "secrets" / "express.env"
 
@@ -20,6 +24,13 @@ try:
     COMPANIES = json.loads(os.getenv("COMPANIES", "{}"))
 except Exception:
     COMPANIES = {}
+
+class SafeFieldParser(FieldParser):
+    def parseD(self, field, data):
+        try:
+            return datetime.date(int(data[:4]), int(data[4:6]), int(data[6:8]))
+        except ValueError:
+            return None
 
 @app.get("/")
 def read_root():
@@ -41,18 +52,41 @@ def get_stock(company_id: str):
 
     balances = []
     try:
-        with DBF(path, encoding='cp874', char_decode_errors='ignore', ignore_missing_memofile=True) as table:
-            for record in table:
-                if 'LOCCOD' in record and record.get('LOCCOD', '').strip() != '01':
-                    continue
-                
-                sku = record.get('STKCOD', '').strip()
-                # STLOC uses LOCBAL, STMAS uses BALQTY
-                balance = record.get('LOCBAL') or record.get('BALQTY', 0)
-                
-                if sku:
-                    balance_dict = {'sku': sku, 'balance': float(balance)}
-                    balances.append(balance_dict)
+        with DBF(f"{data_path}/STMAS.DBF", parserclass=SafeFieldParser, load=True, ignore_missing_memofile=True, encoding="cp874", char_decode_errors="ignore") as table:
+            stmas_df = pd.DataFrame(table)
+        with DBF(f"{data_path}/STLOC.DBF", parserclass=SafeFieldParser, load=True, ignore_missing_memofile=True, encoding="cp874", char_decode_errors="ignore") as table:
+            stloc_df = pd.DataFrame(table)
+            
+        merge_df: pd.DataFrame = pd.merge(stmas_df, stloc_df, how='left', on='STKCOD')
+        selected_columns: list[str] = ['STKCOD', 'STKDES', 'STKDES2', 'LOCBAL', 'QUCOD', 'LOCCOD']
+        selected_df: pd.DataFrame = merge_df[selected_columns]
+        selected_df: pd.DataFrame = selected_df[selected_df['LOCCOD'] == '01']
+        
+        # Clean up any NaN values before converting to dict
+        selected_df = selected_df.fillna(0)
+
+        # Change column name
+        selected_df = selected_df.rename(columns={
+            'STKCOD': 'sku', 
+            'LOCBAL': 'balance',
+            'STKDES': 'name',
+            'STKDES2': 'name2',
+            'QUCOD': 'unit'})
+
+        # remove LOCCOD column
+        selected_df.drop(columns=['LOCCOD'], inplace=True)
+
+        # final json look like this:
+        # {
+        #   "sku": "20-000001",
+        #   "name": "Test Product 1",
+        #   "name2": "Test Product 1 English",
+        #   "balance": 100,
+        #   "unit": "EA"
+        # }
+        
+        # Convert to list of dicts; FastAPI will automatically serialize this to JSON
+        return selected_df.to_dict(orient='records')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
