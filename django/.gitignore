@@ -9,3 +9,4 @@ srcs/media/inventory/attachments/*
 !srcs/media/inventory/attachments/.gitkeep
 migrate/data/*
 !migrate/data/.gitkeep
+migrate/notebook/*

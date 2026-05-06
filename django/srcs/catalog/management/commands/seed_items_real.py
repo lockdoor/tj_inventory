@@ -1,7 +1,7 @@
 import os
 import json
 from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.db import transaction
 from django.conf import settings
 from catalog.models import Category, Item
@@ -12,7 +12,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Path to the data file
-        data_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'tj_items.json')
+        data_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'data', 'stock_migration.json')
         
         if not os.path.exists(data_path):
             raise CommandError(
@@ -38,6 +38,11 @@ class Command(BaseCommand):
         if not admin_user:
             admin_user = User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
 
+        wh_admin_user = User.objects.filter(username='whadmin').first()
+        if not wh_admin_user:
+            wh_admin_user = User.objects.create_user('whadmin', 'whadmin@example.com', 'tj123456')
+            wh_admin_user.groups.add(Group.objects.get(name='warehouse_admin'))
+
         # Get default category
         category = Category.objects.first()
         if not category:
@@ -55,47 +60,52 @@ class Command(BaseCommand):
         updated_count = 0
         
         with transaction.atomic():
+            processed_skus = set()
             for entry in items_data:
-                sku = entry.get('STKCOD')
-                name = entry.get('STKDES')
-                name2 = entry.get('STKDES2', '')
-                unit = entry.get('QUCOD', 'Unit')
+                warehouse = entry.get('warehouse')
+                express_sku = entry.get('sku')
+                name = entry.get('metadata', {}).get('source_sheet', '')
                 
-                if not sku or not name:
+                if not warehouse or not express_sku or not name:
                     continue
                 
                 # Clean data
-                sku = str(sku).strip()
+                express_sku = str(express_sku).strip()
                 name = str(name).strip()
-                name2 = str(name2).strip()
-                unit = str(unit).strip()
+                
+                # Determine prefix based on warehouse
+                prefix = 'tj' if 'TJ' in warehouse.upper() else 'tg'
+                system_sku = f"{prefix}_{express_sku}"
+                
+                # Skip if we already processed this SKU in this run
+                if system_sku in processed_skus:
+                    continue
+                processed_skus.add(system_sku)
 
                 # Check if item exists
-                item = Item.objects.filter(sku=sku).first()
+                item = Item.objects.filter(sku=system_sku).first()
                 
                 if item:
                     # Update existing item
                     item.name = name
-                    item.name2 = name2
-                    item.unit = unit
-                    item.express_sku = sku
+                    item.express_sku = express_sku
                     item.updated_by = admin_user
                     item.save()
                     updated_count += 1
                 else:
                     # Create new item
                     ItemService.create(
-                        sku=sku,
+                        sku=system_sku,
                         name=name,
-                        name2=name2,
-                        unit=unit,
-                        express_sku=sku,
+                        name2='',
+                        unit='Unit',
+                        express_sku=express_sku,
                         category=category,
                         user=admin_user
                     )
                     created_count += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f'Successfully processed {len(items_data)} items.\n'
+            f'Successfully processed unique items.\n'
             f'Created: {created_count}, Updated: {updated_count}'
         ))

@@ -17,6 +17,9 @@ setup:
 	python3.11 -m venv ./django/venv
 	$(MAKE) install
 
+excel_migration:
+	$(PYTHON) ./django/migrate/scripts/excel_migration.py
+
 migrate_fresh:
 	rm -f ./django/srcs/db.sqlite3
 	$(PYTHON) $(MANAGE) makemigrations

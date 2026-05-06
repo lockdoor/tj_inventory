@@ -15,7 +15,7 @@ class Command(BaseCommand):
     help = 'Seed stock movement data from migration JSON'
 
     def handle(self, *args, **options):
-        json_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'stock_migration.json')
+        json_path = os.path.join(settings.BASE_DIR, '..', 'migrate', 'data', 'stock_migration.json')
 
         
         if not os.path.exists(json_path):
@@ -50,11 +50,17 @@ class Command(BaseCommand):
                     note = entry.get('note', '')
 
                     # 1. Resolve Item
+                    prefix = 'tj' if 'TJ' in wh_code.upper() else 'tg'
+                    system_sku = f"{prefix}_{sku}"
+                    
                     try:
-                        item = Item.objects.get(sku=sku)
+                        item = Item.objects.get(sku=system_sku)
                     except Item.DoesNotExist:
-                        self.stdout.write(self.style.ERROR(f"Row {index}: SKU {sku} not found."))
-                        raise ValueError(f"SKU {sku} missing from Catalog.")
+                        # Fallback for old items that didn't get prefixed
+                        item = Item.objects.filter(express_sku=sku).first()
+                        if not item:
+                            self.stdout.write(self.style.ERROR(f"Row {index}: SKU {system_sku} (express {sku}) not found."))
+                            raise ValueError(f"SKU {sku} missing from Catalog.")
 
                     # 2. Resolve Warehouse
                     try:
@@ -85,8 +91,8 @@ class Command(BaseCommand):
                     )
 
                     # 5. Add Item Line
-                    # Unique Lot Name Logic: LOT-{sku}-{exp_date}
-                    lot_name = f"LOT-{sku}-{exp_date_str if exp_date_str else 'NOEXP'}"
+                    # Use lot name from JSON or fallback to default pattern
+                    lot_name = entry.get('lot', f"LOT-{sku}-{exp_date_str if exp_date_str else 'NOEXP'}")
                     
                     MovementService.add_item(
                         movement,
