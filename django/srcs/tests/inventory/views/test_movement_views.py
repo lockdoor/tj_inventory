@@ -99,7 +99,7 @@ class TestMovementDetailView:
             warehouse=warehouse,
             created_by=user_no_perms
         )
-        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-detail', kwargs={'pk': movement.pk})
         client.login(username='guest', password='password123')
         response = client.get(url)
         assert response.status_code == 403
@@ -113,7 +113,7 @@ class TestMovementDetailView:
             warehouse=warehouse,
             created_by=user_view_only
         )
-        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-detail', kwargs={'pk': movement.pk})
         client.login(username='viewer', password='password123')
         response = client.get(url)
         assert response.status_code == 200
@@ -121,7 +121,7 @@ class TestMovementDetailView:
 
     def test_movement_detail_404(self, client, user_view_only):
         """Verify that missing documents return 404."""
-        url = reverse('inventory:movement-detail', kwargs={'document_no': 'NON-EXISTENT'})
+        url = reverse('inventory:movement-detail', kwargs={'pk': 99999})
         client.login(username='viewer', password='password123')
         response = client.get(url)
         assert response.status_code == 404
@@ -160,7 +160,7 @@ class TestMovementDetailView:
         )
 
         # 2. Verify View
-        url = reverse('inventory:movement-detail', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-detail', kwargs={'pk': movement.pk})
         client.login(username='viewer', password='password123')
         response = client.get(url)
         
@@ -245,7 +245,8 @@ class TestMovementCreateView:
         
         # Verify redirect to detail view
         assert response.status_code == 302
-        assert response.url == reverse('inventory:movement-detail', kwargs={'document_no': 'MOV-SUCCESS-001'})
+        movement = InventoryMovement.objects.get(document_no='MOV-SUCCESS-001')
+        assert response.url == reverse('inventory:movement-detail', kwargs={'pk': movement.pk})
         
         # Verify database records
         movement = InventoryMovement.objects.get(document_no='MOV-SUCCESS-001')
@@ -379,7 +380,7 @@ class TestMovementLifecycleActions:
         InventoryMovementItem.objects.create(movement=movement, item=item, lot_number="LOT-001", quantity=50)
         
         client.login(username='creator', password='password123')
-        url = reverse('inventory:movement-complete', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-complete', kwargs={'pk': movement.pk})
         
         response = client.post(url)
         assert response.status_code == 302
@@ -403,7 +404,7 @@ class TestMovementLifecycleActions:
         Stock.objects.create(warehouse=warehouse, item=item, lot_number="LOT-002", balance=20, created_by=user_add_perm)
         
         client.login(username='creator', password='password123')
-        url = reverse('inventory:movement-revert', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-revert', kwargs={'pk': movement.pk})
         
         response = client.post(url)
         assert response.status_code == 302
@@ -421,7 +422,7 @@ class TestMovementLifecycleActions:
             warehouse=warehouse, created_by=user_delete_perm, status='draft'
         )
         client.login(username='creator', password='password123')
-        url = reverse('inventory:movement-delete', kwargs={'document_no': movement.document_no})
+        url = reverse('inventory:movement-delete', kwargs={'pk': movement.pk})
         
         response = client.post(url)
         assert response.status_code == 302

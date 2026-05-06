@@ -12,8 +12,8 @@ class MovementAttachmentUploadView(LoginRequiredMixin, PermissionRequiredMixin, 
     """
     permission_required = 'inventory.change_inventorymovement'
     
-    def post(self, request, document_no):
-        movement = get_object_or_404(InventoryMovement, document_no=document_no)
+    def post(self, request, pk):
+        movement = get_object_or_404(InventoryMovement, pk=pk)
         
         # Only allow attachments on documents that aren't hard-deleted
         # (Soft-deleted is okay if the user is in the trash view, but usually not)
@@ -29,7 +29,7 @@ class MovementAttachmentUploadView(LoginRequiredMixin, PermissionRequiredMixin, 
         else:
             messages.error(request, "Failed to attach file. Please check the file format and size.")
             
-        return redirect('inventory:movement-detail', document_no=movement.document_no)
+        return redirect('inventory:movement-detail', pk=movement.pk)
 
 class MovementAttachmentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
@@ -39,10 +39,10 @@ class MovementAttachmentDeleteView(LoginRequiredMixin, PermissionRequiredMixin, 
     
     def post(self, request, pk):
         attachment = get_object_or_404(InventoryMovementAttachment, pk=pk)
-        document_no = attachment.movement.document_no
+        movement_pk = attachment.movement.pk
         file_name = attachment.file_name
         
         attachment.delete(user=request.user)
         messages.info(request, f"Attachment '{file_name}' removed.")
         
-        return redirect('inventory:movement-detail', document_no=document_no)
+        return redirect('inventory:movement-detail', pk=movement_pk)

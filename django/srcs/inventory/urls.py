@@ -19,16 +19,16 @@ urlpatterns = [
     path('movements/', views.MovementListView.as_view(), name='movement-list'),
     path('movements/trash/', views.MovementTrashListView.as_view(), name='movement-trash'),
     path('movements/create/', views.MovementCreateView.as_view(), name='movement-create'),
-    path('movements/<str:document_no>/restore/', views.MovementRestoreView.as_view(), name='movement-restore'),
-    path('movements/<str:document_no>/update/', views.MovementUpdateView.as_view(), name='movement-update'),
-    path('movements/<str:document_no>/', views.MovementDetailView.as_view(), name='movement-detail'),
-    path('movements/<str:document_no>/complete/', views.MovementCompleteView.as_view(), name='movement-complete'),
-    path('movements/<str:document_no>/revert/', views.MovementRevertView.as_view(), name='movement-revert'),
-    path('movements/<str:document_no>/delete/', views.MovementDeleteView.as_view(), name='movement-delete'),
-    path('movements/<str:document_no>/hard-delete/', views.MovementHardDeleteView.as_view(), name='movement-hard-delete'),
+    path('movements/<int:pk>/restore/', views.MovementRestoreView.as_view(), name='movement-restore'),
+    path('movements/<int:pk>/update/', views.MovementUpdateView.as_view(), name='movement-update'),
+    path('movements/<int:pk>/', views.MovementDetailView.as_view(), name='movement-detail'),
+    path('movements/<int:pk>/complete/', views.MovementCompleteView.as_view(), name='movement-complete'),
+    path('movements/<int:pk>/revert/', views.MovementRevertView.as_view(), name='movement-revert'),
+    path('movements/<int:pk>/delete/', views.MovementDeleteView.as_view(), name='movement-delete'),
+    path('movements/<int:pk>/hard-delete/', views.MovementHardDeleteView.as_view(), name='movement-hard-delete'),
     
     # Movement Attachments
-    path('movements/<str:document_no>/attach/', views.MovementAttachmentUploadView.as_view(), name='movement-attachment-upload'),
+    path('movements/<int:pk>/attach/', views.MovementAttachmentUploadView.as_view(), name='movement-attachment-upload'),
     path('attachments/<int:pk>/delete/', views.MovementAttachmentDeleteView.as_view(), name='movement-attachment-delete'),
     
     # Stock Ledger
