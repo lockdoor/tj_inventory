@@ -181,6 +181,9 @@
                                     <div class="form-group" style="margin: 0;">
                                         <label class="field-label-sm">Lot / Batch Number</label>
                                         {{ item_form.lot_number }}
+                                        <div class="lot-guide-container inbound-only-sm" style="display: none; margin-top: 0.5rem; font-size: 0.75rem; color: var(--primary-light);">
+                                            Suggestion: <span class="lot-suggestion-badge" style="cursor: pointer; padding: 0.2rem 0.5rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.25rem; border: 1px dashed var(--primary-light);" title="Click to copy to Lot field"></span>
+                                        </div>
                                         {% if item_form.lot_number.errors %}<div class="error-msg">{{ item_form.lot_number.errors.0 }}</div>{% endif %}
                                     </div>
                                     <div class="form-group" style="margin: 0;">
@@ -385,40 +388,121 @@ document.addEventListener('DOMContentLoaded', function() {
     typeSelect.addEventListener('change', toggleMovementType);
     toggleMovementType(); // Initial check
 
-    // 2. Expand/Collapse Logic
+    warehouseSelect = document.getElementById('id_warehouse');
+    
+    // Feature 1: Filter Items by Warehouse Prefix
+    function filterItemsByWarehouse() {
+        const warehouseText = warehouseSelect.options[warehouseSelect.selectedIndex]?.text.toUpperCase() || '';
+        const expectedPrefix = warehouseText.includes('TG') ? 'tg_' : (warehouseText.includes('TJ') ? 'tj_' : '');
+
+        container.querySelectorAll('select[name*="item"]').forEach(itemSelect => {
+            const currentVal = itemSelect.value;
+            let valStillValid = false;
+            
+            Array.from(itemSelect.options).forEach(opt => {
+                if (!opt.value) return; // Skip empty option
+                const text = opt.text.toLowerCase();
+                
+                if (expectedPrefix && !text.startsWith(expectedPrefix)) {
+                    opt.hidden = true;
+                    opt.disabled = true;
+                } else {
+                    opt.hidden = false;
+                    opt.disabled = false;
+                    if (opt.value === currentVal) valStillValid = true;
+                }
+            });
+            
+            if (!valStillValid && currentVal) {
+                itemSelect.value = '';
+                // trigger change to update lots/summary
+                itemSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+
+    warehouseSelect.addEventListener('change', filterItemsByWarehouse);
+
+    // 2. Expand/Collapse Logic and Datalists
     function setupCardListeners(card) {
         const summary = card.querySelector('.card-summary');
         const details = card.querySelector('.card-details');
         const removeBtn = card.querySelector('.remove-card-btn');
 
         summary.addEventListener('click', (e) => {
-            // Don't expand if clicking the delete button
             if (e.target.closest('.remove-card-btn')) return;
-            
             const isExpanded = card.classList.contains('expanded');
-            // Collapse others if wanted (optional)
-            // container.querySelectorAll('.item-card').forEach(c => { c.classList.remove('expanded'); c.querySelector('.card-details').style.display = 'none'; });
-            
             card.classList.toggle('expanded');
             details.style.display = isExpanded ? 'none' : 'block';
         });
 
-        // Delete Logic
         if (removeBtn) {
             removeBtn.onclick = function() {
-                const rowCount = container.querySelectorAll('.item-card').length;
-                if (rowCount > 1) {
+                const visibleCards = Array.from(container.querySelectorAll('.item-card')).filter(c => c.style.display !== 'none');
+                if (visibleCards.length > 1) {
                     card.classList.add('animate-fade-out');
-                    setTimeout(() => card.remove(), 200);
+                    setTimeout(() => {
+                        const deleteCheckbox = card.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                        if (deleteCheckbox) {
+                            deleteCheckbox.checked = true;
+                            card.style.display = 'none';
+                            card.querySelectorAll('[required]').forEach(input => input.removeAttribute('required'));
+                        } else {
+                            card.style.display = 'none';
+                            card.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(input => {
+                                input.value = '';
+                                input.removeAttribute('required');
+                            });
+                        }
+                    }, 200);
+                } else {
+                    alert("You must have at least one item.");
                 }
             };
         }
 
-        // Live Summary Updates
         const itemSelect = card.querySelector('select[name*="item"]');
         const qtyInput = card.querySelector('input[name*="quantity"]');
         const lotInput = card.querySelector('input[name*="lot_number"]');
         const expInput = card.querySelector('input[name*="exp_date"]');
+
+        // Setup Datalist for Lots
+        let formIndex = "0";
+        const nameMatch = lotInput.name.match(/-(\d+)-/);
+        if (nameMatch) formIndex = nameMatch[1];
+        
+        const datalistId = `lot-suggestions-${formIndex}`;
+        lotInput.setAttribute('list', datalistId);
+        
+        let datalist = card.querySelector(`#${datalistId}`);
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = datalistId;
+            lotInput.parentNode.appendChild(datalist);
+        }
+
+        function fetchLots() {
+            const itemId = itemSelect.value;
+            const warehouseId = warehouseSelect.value;
+            
+            datalist.innerHTML = '';
+            
+            if (itemId && warehouseId) {
+                fetch(`/inventory/api/lots/?warehouse_id=${warehouseId}&item_id=${itemId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.lots) {
+                            data.lots.forEach(lot => {
+                                const opt = document.createElement('option');
+                                opt.value = lot.lot_number;
+                                opt.textContent = `Balance: ${lot.balance}`;
+                                datalist.appendChild(opt);
+                            });
+                        }
+                    })
+                    .catch(e => console.error('Error fetching lots', e));
+            }
+        }
 
         function updateSummary() {
             if (itemSelect.selectedOptions[0]) {
@@ -429,36 +513,111 @@ document.addEventListener('DOMContentLoaded', function() {
             card.querySelector('.exp-display').textContent = expInput.value || 'N/A';
         }
 
-        itemSelect.addEventListener('change', updateSummary);
+        function updateLotGuide() {
+            const guideContainer = card.querySelector('.lot-guide-container');
+            const suggestionBadge = card.querySelector('.lot-suggestion-badge');
+            if (!guideContainer || !suggestionBadge) return;
+            
+            const isOutbound = typeSelect.value === 'OUTBOUND';
+            const itemId = itemSelect.value;
+            
+            // Only show for inbound, if not disabled, and item is selected
+            if (isOutbound || lotInput.disabled || itemSelect.disabled || !itemId) {
+                guideContainer.style.display = 'none';
+                return;
+            }
+
+            const itemText = itemSelect.selectedOptions[0]?.text || '';
+            const sku = itemText.split(' - ')[0].trim();
+            const expDateVal = expInput.value;
+            
+            if (sku) {
+                let dateStr = 'YYYYMMDD';
+                if (expDateVal) {
+                    dateStr = expDateVal.replace(/-/g, '');
+                } else {
+                    const today = new Date();
+                    const localIso = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString();
+                    dateStr = localIso.split('T')[0].replace(/-/g, '');
+                }
+                const suggestedLot = `LOT-${sku}-${dateStr}`;
+                suggestionBadge.textContent = suggestedLot;
+                guideContainer.style.display = 'block';
+                
+                suggestionBadge.onclick = () => {
+                    lotInput.value = suggestedLot;
+                    updateSummary();
+                };
+            } else {
+                guideContainer.style.display = 'none';
+            }
+        }
+
+        itemSelect.addEventListener('change', () => {
+            updateSummary();
+            updateLotGuide();
+            fetchLots();
+        });
+        
+        warehouseSelect.addEventListener('change', fetchLots);
+        typeSelect.addEventListener('change', updateLotGuide);
+        
         qtyInput.addEventListener('input', updateSummary);
         lotInput.addEventListener('input', updateSummary);
-        expInput.addEventListener('input', updateSummary);
+        expInput.addEventListener('input', () => {
+            updateSummary();
+            updateLotGuide();
+        });
+        
         updateSummary();
+        updateLotGuide();
+        fetchLots(); // Initial fetch
     }
 
     // 3. Dynamic Addition Logic
     addButton.addEventListener('click', function() {
         const rowCount = parseInt(totalFormsInput.value);
-        const template = document.getElementById('item-card-template').innerHTML;
-        
-        // This is a bit tricky with raw HTML strings. 
-        // We'll use a hidden row as a source or pre-render components.
-        // For simplicity with Django FormSets, we clone the first card.
         const firstCard = container.querySelector('.item-card');
         const newCard = firstCard.cloneNode(true);
         
-        // Update indices
         newCard.setAttribute('data-form-index', rowCount);
+        newCard.style.display = ''; // Ensure it's visible if cloned from a hidden one
+        newCard.classList.remove('animate-fade-out');
+        
         const inputs = newCard.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
             const name = input.getAttribute('name');
-            if (name) input.setAttribute('name', name.replace('-0-', '-' + rowCount + '-'));
+            if (name) input.setAttribute('name', name.replace(/-\d+-/, '-' + rowCount + '-'));
             const id = input.getAttribute('id');
-            if (id) input.setAttribute('id', id.replace('-0-', '-' + rowCount + '-'));
-            if (input.type !== 'hidden') input.value = '';
+            if (id) input.setAttribute('id', id.replace(/-\d+-/, '-' + rowCount + '-'));
+            
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else if (input.type === 'hidden' && input.name.endsWith('-id')) {
+                // Clear the form ID so Django knows it's a new instance
+                input.value = '';
+            } else if (input.type !== 'hidden' && input.tagName !== 'SELECT') {
+                input.value = '';
+            }
+            if (input.tagName === 'SELECT') input.selectedIndex = 0;
+            
+            // Fix list attribute for datalist cloning
+            if (input.hasAttribute('list')) {
+                input.setAttribute('list', `lot-suggestions-${rowCount}`);
+            }
+            
+            // Clean up disabled states that might have been cloned from an existing row
+            input.removeAttribute('disabled');
+            input.removeAttribute('readonly');
+            input.style.opacity = '';
+            input.style.pointerEvents = '';
+            input.style.background = '';
+            input.classList.remove('disabled-field');
         });
 
-        // Reset state
+        // Remove old datalist to let setup function create a clean one
+        newCard.querySelectorAll('datalist').forEach(dl => dl.remove());
+
         newCard.classList.remove('expanded');
         newCard.querySelector('.card-details').style.display = 'none';
         newCard.querySelectorAll('.error-msg').forEach(e => e.remove());
@@ -467,11 +626,13 @@ document.addEventListener('DOMContentLoaded', function() {
         totalFormsInput.value = rowCount + 1;
         
         setupCardListeners(newCard);
-        toggleMovementType(); // Ensure correct field visibility
+        filterItemsByWarehouse();
+        toggleMovementType();
     });
 
-    // Initial setup for existing cards
+    // Initial setup
     container.querySelectorAll('.item-card').forEach(setupCardListeners);
+    filterItemsByWarehouse();
 });
 </script>
 {% endblock %}

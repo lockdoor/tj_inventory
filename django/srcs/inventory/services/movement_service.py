@@ -66,10 +66,16 @@ class MovementService:
     def add_item(movement, *, item, lot_number, quantity, user, unit_cost=None, mfg_date=None, exp_date=None, note=''):
         """Add an item line to a draft movement."""
         MovementService._ensure_draft(movement)
+        
+        cleaned_lot = lot_number.strip().upper() if lot_number else ''
+        
+        if movement.items.filter(item=item, lot_number=cleaned_lot).exists():
+            raise ValidationError("Item and lot number already exists in movement")
+            
         item_line = InventoryMovementItem(
             movement=movement,
             item=item,
-            lot_number=lot_number.strip().upper() if lot_number else '',
+            lot_number=cleaned_lot,
             quantity=quantity,
             unit_cost=unit_cost,
             mfg_date=mfg_date,
@@ -86,12 +92,24 @@ class MovementService:
     def update_item(item_line, *, user, **fields):
         """Update an item line in a draft movement."""
         MovementService._ensure_draft(item_line.movement)
-        allowed_fields = {'lot_number', 'quantity', 'unit_cost', 'mfg_date', 'exp_date', 'note'}
+        allowed_fields = {'lot_number', 'quantity', 'unit_cost', 'mfg_date', 'exp_date', 'note', 'item'}
+        
+        new_lot = item_line.lot_number
+        new_item = item_line.item
+        
         for field, value in fields.items():
             if field in allowed_fields:
                 if field == 'lot_number' and value:
                     value = value.strip().upper()
+                    new_lot = value
+                if field == 'item' and value:
+                    new_item = value
                 setattr(item_line, field, value)
+                
+        # Check for duplicates excluding self
+        if item_line.movement.items.filter(item=new_item, lot_number=new_lot).exclude(pk=item_line.pk).exists():
+            raise ValidationError("Item and lot number already exists in movement")
+            
         item_line.full_clean()
         item_line.save()
         item_line.movement.updated_by = user

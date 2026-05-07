@@ -30,3 +30,4 @@ from .attachment_views import (
     MovementAttachmentDeleteView
 )
 from .comparison_views import StockComparisonListView
+from .api_views import AvailableLotsAPIView

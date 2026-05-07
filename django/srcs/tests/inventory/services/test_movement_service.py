@@ -133,3 +133,65 @@ class TestMovementService:
         MovementService.remove_attachment(attachment, user=user)
         assert attachment.is_deleted is True
         assert movement.attachments.filter(is_deleted=False).count() == 0
+
+    def test_movement_item_quantity_can_be_negative(self, user, warehouse, item):
+        """Verify that movement item quantity can be negative."""
+        movement = MovementService.create_movement(
+            document_no="DOC-006",
+            type='outbound',
+            date=date.today(),
+            warehouse=warehouse,
+            user=user
+        )
+        item_line = MovementService.add_item(
+            movement,
+            item=item,
+            lot_number="LOT-ABC",
+            quantity=-10,
+            user=user
+        )
+        assert movement.status == InventoryMovement.Status.DRAFT
+        assert item_line.quantity == -10
+        MovementService.complete_movement(movement, user=user)
+        item_line.refresh_from_db()
+        assert item_line.quantity == -10
+        assert movement.status == InventoryMovement.Status.COMPLETED
+
+    def test_movement_update_can_remove_item_line(self, user, warehouse, item):
+        """Verify that movement update can remove item line."""
+        movement = MovementService.create_movement(
+            document_no="DOC-007",
+            type='outbound',
+            date=date.today(),
+            warehouse=warehouse,
+            user=user
+        )
+        item_line_1 = MovementService.add_item(movement, item=item, lot_number="LOT-ABC", quantity=10, user=user)
+        item_line_2 = MovementService.add_item(movement, item=item, lot_number="LOT-BCD", quantity=20, user=user)
+        MovementService.complete_movement(movement, user=user)
+        assert movement.status == InventoryMovement.Status.COMPLETED
+        assert movement.items.count() == 2
+        #change movement to draft
+        MovementService.revert_to_draft(movement, user=user)
+        assert movement.status == InventoryMovement.Status.DRAFT
+        # remove item line
+        MovementService.remove_item(item_line_1, user=user)
+        assert movement.items.count() == 1
+        MovementService.complete_movement(movement, user=user)
+        assert movement.status == InventoryMovement.Status.COMPLETED
+        assert movement.items.count() == 1
+
+    def test_movement_same_item_lot_number_in_document_should_error(self, user, warehouse, item):
+        """Verify that movement same item and lot number in document should error."""
+        movement = MovementService.create_movement(
+            document_no="DOC-008",
+            type='outbound',
+            date=date.today(),
+            warehouse=warehouse,
+            user=user
+        )
+        MovementService.add_item(movement, item=item, lot_number="LOT-ABC", quantity=10, user=user)
+        with pytest.raises(ValidationError) as exc_info:
+            MovementService.add_item(movement, item=item, lot_number="LOT-ABC", quantity=20, user=user)
+        assert "Item and lot number already exists in movement" in str(exc_info.value)
+        

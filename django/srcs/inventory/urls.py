@@ -4,6 +4,9 @@ from . import views
 app_name = 'inventory'
 
 urlpatterns = [
+    # API endpoints
+    path('api/lots/', views.AvailableLotsAPIView.as_view(), name='api-lots'),
+
     path('overview/', views.InventoryOverviewView.as_view(), name='overview'),
 
     # Warehouses
