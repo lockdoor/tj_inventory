@@ -83,7 +83,7 @@ class Command(BaseCommand):
                     unit = str(unit).strip()
                     
                     # Determine prefix based on warehouse
-                    prefix = 'tj' if 'TJ' in warehouse.upper() else 'tg'
+                    prefix = warehouse
                     system_sku = f"{prefix}_{express_sku}"
                     
                     # Skip if we already processed this SKU in this run

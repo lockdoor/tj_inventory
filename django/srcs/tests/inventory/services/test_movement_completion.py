@@ -31,30 +31,15 @@ class TestMovementCompletion:
         cat = Category.objects.create(name="Parts", code="P-COMP", created_by=user)
         return Item.objects.create(sku="SKU-COMP", name="Part X", unit="pcs", category=cat, created_by=user)
 
-    def test_inbound_completion_with_multiple_same_lots(self, user, warehouse, item):
-        """Verify cumulative lot accumulation during inbound completion."""
-        # Create draft with TWO identical lots on separate lines
+    def test_inbound_completion_with_multiple_same_lots_should_error(self, user, warehouse, item):
+        """Error should happen when adding same lot number to the same movement."""
         movement = MovementService.create_movement(
             document_no="INC-001", type='inbound', date=date.today(), warehouse=warehouse, user=user
         )
         MovementService.add_item(movement, item=item, lot_number="LOT-SAME", quantity=50, user=user)
-        MovementService.add_item(movement, item=item, lot_number="LOT-SAME", quantity=30, user=user)
-        
-        # Act: Complete
-        MovementService.complete_movement(movement, user=user)
-        
-        # Assert: Stock balance should be 80.00
-        stock = Stock.objects.get(warehouse=warehouse, item=item, lot_number="LOT-SAME")
-        assert stock.balance == 80.00
-        
-        # Assert: Two stockcards created with proper notes
-        cards = StockCard.objects.filter(stock=stock).order_by('created_at')
-        assert cards.count() == 2
-        assert all("[COMPLETION]" in card.note for card in cards)
-        assert cards[0].quantity == 50
-        assert cards[0].type == StockCard.StockCardType.IN
-        assert cards[1].quantity == 30
-        assert cards[1].type == StockCard.StockCardType.IN
+        with pytest.raises(ValidationError) as e:
+            MovementService.add_item(movement, item=item, lot_number="LOT-SAME", quantity=50, user=user)
+        assert "Item and lot number already exists in movement" in str(e.value)
 
     def test_outbound_completion_allows_negative_balance(self, user, warehouse, item):
         """Verify that outbound movements can result in a negative stock balance."""

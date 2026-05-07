@@ -172,8 +172,8 @@
  
                             <!-- Card Details (Visible if expanded/has errors) -->
                             <div class="card-details" style="display: {% if item_form.errors %}block{% else %}none{% endif %}; padding: 0 1.5rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.015);">
-                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
-                                    <div class="form-group" style="margin: 0;">
+                                <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
+                                    <div class="form-group" style="margin: 0; grid-column: 1 / -1;">
                                         <label class="field-label-sm">Product Item</label>
                                         {{ item_form.item }}
                                         {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
@@ -256,8 +256,8 @@
         </div>
 
         <div class="card-details" style="display: none; padding: 0 1.5rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.03); background: rgba(255,255,255,0.015);">
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
-                <div class="form-group" style="margin: 0;">
+            <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 1.25rem; padding-top: 1.5rem;">
+                <div class="form-group" style="margin: 0; grid-column: 1 / -1;">
                     <label class="field-label-sm">Product Item</label>
                     __ITEM_FIELD__
                 </div>
@@ -364,14 +364,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 1. Inbound Logic: Toggle fields based on movement type
     function toggleMovementType() {
-        const type = typeSelect.value;
+        const type = typeSelect.value.toLowerCase();
         const isInbound = type === 'inbound';
-        
+
         container.querySelectorAll('.inbound-section').forEach(section => {
             section.style.display = isInbound ? 'grid' : 'none';
         });
         container.querySelectorAll('.inbound-only-sm').forEach(span => {
-            span.style.display = isInbound ? 'inline' : 'none';
+            span.style.display = isInbound ? 'inline-flex' : 'none';
         });
 
         // Toggle outbound fields (like recipient)
@@ -393,7 +393,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Feature 1: Filter Items by Warehouse Prefix
     function filterItemsByWarehouse() {
         const warehouseText = warehouseSelect.options[warehouseSelect.selectedIndex]?.text.toUpperCase() || '';
-        const expectedPrefix = warehouseText.includes('TG') ? 'tg_' : (warehouseText.includes('TJ') ? 'tj_' : '');
+        // expected warehouse code
+        const expectedPrefix = warehouseText.split('-')[0].trim()
 
         container.querySelectorAll('select[name*="item"]').forEach(itemSelect => {
             const currentVal = itemSelect.value;
@@ -401,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             Array.from(itemSelect.options).forEach(opt => {
                 if (!opt.value) return; // Skip empty option
-                const text = opt.text.toLowerCase();
+                const text = opt.text;
                 
                 if (expectedPrefix && !text.startsWith(expectedPrefix)) {
                     opt.hidden = true;
@@ -518,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const suggestionBadge = card.querySelector('.lot-suggestion-badge');
             if (!guideContainer || !suggestionBadge) return;
             
-            const isOutbound = typeSelect.value === 'OUTBOUND';
+            const isOutbound = typeSelect.value.toLowerCase() === 'outbound';
             const itemId = itemSelect.value;
             
             // Only show for inbound, if not disabled, and item is selected
