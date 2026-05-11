@@ -1,4 +1,8 @@
 {
+    "python.defaultInterpreterPath": "${workspaceFolder}/django/venv/bin/python",
+    "python.analysis.extraPaths": [
+        "./django/srcs"
+    ],
     "python.testing.pytestArgs": [
         "django/srcs"
     ],
