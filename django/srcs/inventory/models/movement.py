@@ -21,9 +21,8 @@ class InventoryMovement(AuditableMixin, StatusMixin):
 
     document_no = models.CharField(
         max_length=50, 
-        unique=True, 
         db_index=True,
-        help_text="Unique document number (Manual or Auto)"
+        help_text="Document number (Manual or Auto)"
     )
     type = models.CharField(
         max_length=20, 

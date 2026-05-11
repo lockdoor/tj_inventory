@@ -45,7 +45,7 @@
         <div style="display: flex; gap: 0.75rem; align-items: center;">
             {% if movement.status == 'draft' %}
                 {% if perms.inventory.add_inventorymovement %}
-                    <form action="{% url 'inventory:movement-complete' movement.document_no %}" method="POST" style="display: inline;">
+                    <form action="{% url 'inventory:movement-complete' movement.pk %}" method="POST" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn-primary-glass" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.7rem 1.25rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer; color: #fff;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -55,14 +55,14 @@
                 {% endif %}
 
                 {% if perms.inventory.change_inventorymovement %}
-                    <a href="{% url 'inventory:movement-update' movement.document_no %}" class="btn-secondary-glass" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.7rem 1.25rem; border-radius: 0.75rem; font-weight: 600; color: var(--text-main);">
+                    <a href="{% url 'inventory:movement-update' movement.pk %}" class="btn-secondary-glass" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.7rem 1.25rem; border-radius: 0.75rem; font-weight: 600; color: var(--text-main);">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         Edit
                     </a>
                 {% endif %}
 
                 {% if perms.inventory.delete_inventorymovement %}
-                    <form action="{% url 'inventory:movement-delete' movement.document_no %}" method="POST" style="display: inline;" onsubmit="return confirm('Discard this draft document? It will be moved to trash.');">
+                    <form action="{% url 'inventory:movement-delete' movement.pk %}" method="POST" style="display: inline;" onsubmit="return confirm('Discard this draft document? It will be moved to trash.');">
                         {% csrf_token %}
                         <button type="submit" class="btn-danger-glass" style="padding: 0.7rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; color: #f87171;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
@@ -71,7 +71,7 @@
                 {% endif %}
             {% elif movement.status == 'completed' %}
                 {% if perms.inventory.add_inventorymovement %}
-                    <form action="{% url 'inventory:movement-revert' movement.document_no %}" method="POST" style="display: inline;" onsubmit="return confirm('Revert this document to Draft? This will undo physical stock changes and add reversal audit entries.');">
+                    <form action="{% url 'inventory:movement-revert' movement.pk %}" method="POST" style="display: inline;" onsubmit="return confirm('Revert this document to Draft? This will undo physical stock changes and add reversal audit entries.');">
                         {% csrf_token %}
                         <button type="submit" class="btn-secondary-glass" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem; border-radius: 0.75rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; color: var(--text-dim);">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"></path><path d="M3 13a9 9 0 1 0 3-7.7L3 8"></path></svg>
@@ -169,6 +169,68 @@
                         <div style="font-size: 0.75rem; color: var(--text-dim);">At {{ movement.created_at|date:"d M Y H:i" }}</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Supporting Documents Card -->
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em;">
+                    Supporting Documents
+                </h4>
+                
+                <!-- Existing Attachments -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; {% if attachments %}margin-bottom: 1.5rem;{% endif %}">
+                    {% for file in attachments %}
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                            <a href="{{ file.document_file.url }}" target="_blank" style="text-decoration: none; display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
+                                <div style="color: var(--primary-light);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ file.file_name }}">
+                                        {{ file.file_name }}
+                                    </div>
+                                    {% if file.note %}
+                                        <div style="color: var(--text-dim); font-size: 0.75rem;">{{ file.note }}</div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% if movement.status == 'draft' %}
+                            <form action="{% url 'inventory:movement-attachment-delete' file.pk %}" method="POST" style="display: inline;" onsubmit="return confirm('Remove this attachment?');">
+                                {% csrf_token %}
+                                <button type="submit" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" title="Remove Attachment">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">
+                            No documents attached yet.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Upload Form -->
+                {% if movement.status == 'draft' %}
+                <div style="padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                    <form action="{% url 'inventory:movement-attachment-upload' movement.pk %}" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-group-mini">
+                                <label style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem;">Upload New File</label>
+                                {{ attachment_form.document_file }}
+                            </div>
+                            <div class="form-group-mini">
+                                {{ attachment_form.note }}
+                            </div>
+                            <button type="submit" class="btn-secondary-glass" style="width: 100%; padding: 0.6rem; font-size: 0.85rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; color: var(--text-main); border: 1px solid rgba(16, 185, 129, 0.2);">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Upload Document
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Audit Trail Card (Stock Cards) -->

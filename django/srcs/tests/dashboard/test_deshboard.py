@@ -9,7 +9,7 @@ def test_user(db):
 @pytest.mark.django_db
 def test_dashboard_login_required(client):
     """Unauthorized users should be redirected to login."""
-    url = reverse('dashboard:overview')
+    url = reverse('dashboard:home')
     response = client.get(url)
     assert response.status_code == 302
     assert "login" in response.url
@@ -18,7 +18,7 @@ def test_dashboard_login_required(client):
 def test_dashboard_access_for_logged_in_user(client, test_user):
     """Authenticated users should see the dashboard and links."""
     client.force_login(test_user)
-    url = reverse('dashboard:overview')
+    url = reverse('dashboard:home')
     response = client.get(url)
     assert response.status_code == 200
     content = response.content.decode()

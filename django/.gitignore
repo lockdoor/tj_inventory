@@ -7,4 +7,6 @@ srcs/media/item_images/*
 !srcs/media/item_images/.gitkeep
 srcs/media/inventory/attachments/*
 !srcs/media/inventory/attachments/.gitkeep
-migrate/*.json
+migrate/data/*
+!migrate/data/.gitkeep
+migrate/notebook/*

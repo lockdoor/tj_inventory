@@ -25,3 +25,9 @@ from .stockcard_views import (
     StockCardDetailView
 )
 from .stock_views import StockBalanceListView
+from .attachment_views import (
+    MovementAttachmentUploadView,
+    MovementAttachmentDeleteView
+)
+from .comparison_views import StockComparisonListView
+from .api_views import AvailableLotsAPIView

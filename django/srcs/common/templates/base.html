@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,40 +9,48 @@
     <link rel="stylesheet" href="{% static 'common/css/index.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- Messages / Toasts -->
     {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-                <div class="message {{ message.tags }}">
-                    {% if message.tags == 'success' %}
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    {% endif %}
-                    {{ message }}
-                </div>
-            {% endfor %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message {{ message.tags }}">
+            {% if message.tags == 'success' %}
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            {% endif %}
+            {{ message }}
         </div>
+        {% endfor %}
+    </div>
     {% endif %}
 
-    <nav style="border-bottom: 1px solid var(--glass-border); background: rgba(255,255,255,0.02); backdrop-filter: blur(10px); margin-bottom: 2rem;">
-        <div class="container" style="display: flex; align-items: center; gap: 0.75rem; padding-top: 1rem; padding-bottom: 1rem;">
-            <a href="{% url 'dashboard:overview' %}" class="logo text-gradient" style="font-size: 1.1rem; font-weight: 800; text-decoration: none; letter-spacing: 0.05em;">TJ INVENTORY</a>
+    <nav
+        style="border-bottom: 1px solid var(--glass-border); background: rgba(255,255,255,0.02); backdrop-filter: blur(10px); margin-bottom: 2rem;">
+        <div class="container"
+            style="display: flex; align-items: center; gap: 0.75rem; padding-top: 1rem; padding-bottom: 1rem;">
+            <a href="{% url 'dashboard:home' %}" class="logo text-gradient"
+                style="font-size: 1.1rem; font-weight: 800; text-decoration: none; letter-spacing: 0.05em;">TJ
+                INVENTORY</a>
             <span style="color: var(--text-muted); opacity: 0.5; font-weight: 300;">/</span>
             <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem;">
                 {% block breadcrumbs %}{% endblock %}
             </div>
-            
+
             {% if user.is_authenticated %}
             <div style="margin-left: auto; display: flex; align-items: center; gap: 1rem;">
                 <div style="text-align: right;">
-                    <div style="color: var(--text-main); font-weight: 600; font-size: 0.8125rem;">{{ user.username }}</div>
-                    <div style="color: var(--text-muted); font-size: 0.625rem; text-transform: uppercase;">Authenticated</div>
+                    <div style="color: var(--text-main); font-weight: 600; font-size: 0.8125rem;">{{ user.username }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.625rem; text-transform: uppercase;">Authenticated
+                    </div>
                 </div>
                 <form action="{% url 'common:logout' %}" method="post" style="display: inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn-outline" style="padding: 0.4rem 0.75rem; font-size: 0.7rem; border-radius: 0.5rem; height: auto;">
+                    <button type="submit" class="btn-outline"
+                        style="padding: 0.4rem 0.75rem; font-size: 0.7rem; border-radius: 0.5rem; height: auto;">
                         Logout
                     </button>
                 </form>
@@ -54,14 +63,15 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--glass-border); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
+    <footer
+        style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--glass-border); text-align: center; color: var(--text-muted); font-size: 0.875rem;">
         <div class="container">
             &copy; 2024 TJ Inventory Preorder System. Built with Emerald Green Elegance.
         </div>
     </footer>
 
     {% block extra_js %}{% endblock %}
-    
+
     <script>
         // Auto-dismiss messages
         document.addEventListener('DOMContentLoaded', () => {
@@ -76,4 +86,5 @@
         });
     </script>
 </body>
+
 </html>

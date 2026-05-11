@@ -12,8 +12,6 @@ class MovementCompleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
     """View to trigger document fulfillment."""
     model = InventoryMovement
     permission_required = 'inventory.add_inventorymovement'
-    slug_field = 'document_no'
-    slug_url_kwarg = 'document_no'
 
     def post(self, request, *args, **kwargs):
         movement = self.get_object()
@@ -22,14 +20,12 @@ class MovementCompleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
             messages.success(request, f"Document {movement.document_no} completed successfully.")
         except Exception as e:
             messages.error(request, f"Error completing document: {str(e)}")
-        return redirect('inventory:movement-detail', document_no=movement.document_no)
+        return redirect('inventory:movement-detail', pk=movement.pk)
 
 class MovementRevertView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """View to trigger fulfillment reversal."""
     model = InventoryMovement
     permission_required = 'inventory.add_inventorymovement' # Requires high level permission
-    slug_field = 'document_no'
-    slug_url_kwarg = 'document_no'
 
     def post(self, request, *args, **kwargs):
         movement = self.get_object()
@@ -38,14 +34,12 @@ class MovementRevertView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             messages.warning(request, f"Document {movement.document_no} reverted to Draft. Stock ledger updated.")
         except Exception as e:
             messages.error(request, f"Error reverting document: {str(e)}")
-        return redirect('inventory:movement-detail', document_no=movement.document_no)
+        return redirect('inventory:movement-detail', pk=movement.pk)
 
 class MovementDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     """View to trigger document discard (deletion)."""
     model = InventoryMovement
     permission_required = 'inventory.delete_inventorymovement'
-    slug_field = 'document_no'
-    slug_url_kwarg = 'document_no'
 
     def post(self, request, *args, **kwargs):
         movement = self.get_object()
@@ -56,7 +50,7 @@ class MovementDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             return redirect('inventory:movement-list')
         except Exception as e:
             messages.error(request, f"Error discarding document: {str(e)}")
-            return redirect('inventory:movement-detail', document_no=movement.document_no)
+            return redirect('inventory:movement-detail', pk=movement.pk)
 
 class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     """
@@ -108,7 +102,7 @@ class MovementCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView
                 form.instance.created_by = self.request.user
                 self.object = form.save()
                 items.save()
-            return redirect('inventory:movement-detail', document_no=self.object.document_no)
+            return redirect('inventory:movement-detail', pk=self.object.pk)
         else:
             return self.form_invalid(form)
 
@@ -125,8 +119,6 @@ class MovementUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
     form_class = MovementCreateForm
     template_name = 'inventory/movement_create.html' # Reuse the same template
     permission_required = 'inventory.change_inventorymovement'
-    slug_field = 'document_no'
-    slug_url_kwarg = 'document_no'
     raise_exception = True
 
     def get_object(self, queryset=None):
@@ -183,7 +175,7 @@ class MovementUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
                 self.object = form.save()
                 items.save()
             messages.success(self.request, f"Document {self.object.document_no} updated successfully.")
-            return redirect('inventory:movement-detail', document_no=self.object.document_no)
+            return redirect('inventory:movement-detail', pk=self.object.pk)
         else:
             return self.form_invalid(form)
 
@@ -228,8 +220,8 @@ class MovementRestoreView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'inventory.delete_inventorymovement'
     raise_exception = True
 
-    def post(self, request, document_no):
-        movement = get_object_or_404(InventoryMovement, document_no=document_no, is_deleted=True)
+    def post(self, request, pk):
+        movement = get_object_or_404(InventoryMovement, pk=pk, is_deleted=True)
         try:
             MovementService.restore(movement, user=request.user)
             messages.success(request, f"Document '{movement.document_no}' restored successfully.")
@@ -246,8 +238,8 @@ class MovementHardDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'inventory.delete_inventorymovement'
     raise_exception = True
 
-    def post(self, request, document_no):
-        movement = get_object_or_404(InventoryMovement, document_no=document_no, is_deleted=True)
+    def post(self, request, pk):
+        movement = get_object_or_404(InventoryMovement, pk=pk, is_deleted=True)
         try:
             doc_no = movement.document_no
             # Perform hard delete
@@ -266,8 +258,6 @@ class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     context_object_name = 'movement'
     permission_required = 'inventory.view_inventorymovement'
     raise_exception = True
-    slug_field = 'document_no'
-    slug_url_kwarg = 'document_no'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -279,5 +269,11 @@ class MovementDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
             context['audit_trail'] = StockCard.objects.filter(
                 movement_item__movement=self.object
             ).select_related('item', 'warehouse')
+
+        # Fetch attachments (excluding soft-deleted ones)
+        context['attachments'] = self.object.attachments.filter(is_deleted=False)
+        # Add empty form for new upload
+        from inventory.forms.attachment_form import MovementAttachmentForm
+        context['attachment_form'] = MovementAttachmentForm()
             
         return context
