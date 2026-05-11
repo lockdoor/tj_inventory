@@ -65,3 +65,17 @@ restore_db:
 	@echo "Restoring database from backup..."
 	gunzip < database_backup.sql.gz | docker exec -i postgres psql -U tjglobal -d tjglobal
 	@echo "✓ Database restored successfully."
+
+# Delete Database 
+dk_db_drop:
+	@echo "Dropping and recreating database 'tjglobal'..."
+	docker exec -it postgres psql -U tjglobal -d postgres -c "REVOKE CONNECT ON DATABASE tjglobal FROM public;"
+	docker exec -it postgres psql -U tjglobal -d postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'tjglobal' AND pid <> pg_backend_pid();"
+	docker exec -it postgres psql -U tjglobal -d postgres -c "DROP DATABASE IF EXISTS tjglobal;"
+	docker exec -it postgres psql -U tjglobal -d postgres -c "CREATE DATABASE tjglobal;"
+	@echo "✓ Database 'tjglobal' reset successfully."
+
+dk_reset:
+	$(MAKE) dk_db_drop
+	$(MAKE) dk_migrate
+	$(MAKE) dk_setup
