@@ -72,8 +72,32 @@ class TestPermissionAssignment:
         group = Group.objects.get(name='stock_controller')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
-            'view_category', 'view_item', 'view_itemimage',
-            'view_warehouse', 'view_inventorymovement'
+                        # View catalog (read-only)
+            'view_category',
+            'view_item',
+            'view_itemimage',
+            # View Inventory
+            'view_warehouse',
+            'view_inventorymovement',
+            'view_stock',
+            # Full partner permissions
+            'add_partner',
+            'change_partner',
+            'delete_partner',
+            'view_partner',
+            # Full procurement permissions
+            'add_purchaseorder',
+            'change_purchaseorder',
+            'delete_purchaseorder',
+            'view_purchaseorder',
+            'add_arrival',
+            'change_arrival',
+            'delete_arrival',
+            'view_arrival',
+            'add_shortage',
+            'change_shortage',
+            'delete_shortage',
+            'view_shortage',
         }
 
     def test_sales_rep_permissions(self):

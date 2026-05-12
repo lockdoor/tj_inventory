@@ -104,6 +104,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Stock Controller Command Center"
         context['modules'] = [
             {
+                'title': 'Purchase Orders',
+                'description': 'Track and manage supplier orders and deliveries.',
+                'url': 'procurement:purchase-order-list',
+                'icon_name': 'shopping-cart',
+                'badge': 'Procurement'
+            },
+            {
                 'title': 'Product Catalog',
                 'description': 'View item specifications and media (Read-Only).',
                 'url': 'catalog:catalog-overview',
@@ -123,13 +130,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'url': 'inventory:stock-balance-list',
                 'icon_name': 'database',
                 'badge': 'Inventory'
-            },
-            {
-                'title': 'Purchase Orders',
-                'description': 'Track and manage supplier orders and deliveries.',
-                'url': 'procurement:purchase-order-list',
-                'icon_name': 'shopping-cart',
-                'badge': 'Procurement'
             },
         ]
         return context

@@ -15,7 +15,7 @@
         <p style="color: var(--text-dim);">Manage your supply chain and track supplier deliveries.</p>
     </div>
     <div class="actions">
-        <a href="#" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border-radius: 12px; font-size: 0.9375rem;">
+        <a href="{% url 'procurement:purchase-order-create' %}" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border-radius: 12px; font-size: 0.9375rem;">
             <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
             New Purchase Order
         </a>
@@ -71,7 +71,7 @@
                             <a href="#" class="icon-btn" title="View Details">
                                 <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
                             </a>
-                            <a href="#" class="icon-btn" title="Edit">
+                            <a href="{% url 'procurement:purchase-order-update' po.pk %}" class="icon-btn" title="Edit">
                                 <i data-lucide="edit-3" style="width: 18px; height: 18px;"></i>
                             </a>
                         </div>

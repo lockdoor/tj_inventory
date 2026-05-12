@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_update %}Update PO {{ object.document_no }}{% else %}New Purchase Order{% endif %} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'dashboard:home' %}" style="color: var(--text-muted); text-decoration: none;">Dashboard</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<a href="{% url 'procurement:purchase-order-list' %}" style="color: var(--text-muted); text-decoration: none;">Purchase Orders</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{% if is_update %}Update{% else %}Create{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="max-width: 1100px; margin: 0 auto;">
+    <form method="post" id="po-form">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+                    {% if is_update %}Update Purchase Order{% else %}New Purchase Order{% endif %}
+                </h1>
+                <p style="color: var(--text-dim);">Fill in the details to create a formal supply request.</p>
+            </div>
+            <div class="actions" style="display: flex; gap: 1rem;">
+                <a href="{% url 'procurement:purchase-order-list' %}" class="btn btn-outline" style="padding: 0.75rem 1.5rem; border-radius: 12px;">Cancel</a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; border-radius: 12px; font-weight: 600;">
+                    <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+                    Save Order
+                </button>
+            </div>
+        </div>
+
+        {% if form.errors or items.errors %}
+        <div class="glass-card" style="margin-bottom: 2rem; border-left: 4px solid #f87171; background: rgba(248, 113, 113, 0.05); padding: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: #f87171; font-weight: 600;">
+                <i data-lucide="alert-circle" style="width: 20px; height: 20px;"></i>
+                Please correct the errors below.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Header Section -->
+        <div class="glass-card" style="padding: 2rem; margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+                </div>
+                <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main);">Order Details</h3>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Document No</label>
+                    {{ form.document_no }}
+                    {% if form.document_no.errors %}<div class="error-msg">{{ form.document_no.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Supplier</label>
+                    {{ form.partner }}
+                    {% if form.partner.errors %}<div class="error-msg">{{ form.partner.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Expected Date</label>
+                    {{ form.expected_date }}
+                    {% if form.expected_date.errors %}<div class="error-msg">{{ form.expected_date.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Internal Note</label>
+                {{ form.note }}
+                {% if form.note.errors %}<div class="error-msg">{{ form.note.errors.0 }}</div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="glass-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="package" style="width: 18px; height: 18px;"></i>
+                    </div>
+                    <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main);">Order Items</h3>
+                </div>
+                <button type="button" id="add-item-btn" class="btn btn-outline" style="font-size: 0.8125rem; padding: 0.5rem 1rem;">
+                    <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                    Add Line
+                </button>
+            </div>
+
+            {{ items.management_form }}
+            <div id="item-rows-container">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 45%;">Item / Product</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Quantity</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Unit Cost</th>
+                            <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="formset-tbody">
+                        {% for item_form in items %}
+                        <tr class="item-row" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            {% for hidden in item_form.hidden_fields %}
+                                {{ hidden }}
+                            {% endfor %}
+                            <td style="padding: 1rem 2rem;">
+                                {{ item_form.item }}
+                                {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.order_qty }}
+                                {% if item_form.order_qty.errors %}<div class="error-msg">{{ item_form.order_qty.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.unit_cost }}
+                                {% if item_form.unit_cost.errors %}<div class="error-msg">{{ item_form.unit_cost.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 2rem; text-align: right;">
+                                {% if items.can_delete %}
+                                    <div style="display: none;">{{ item_form.DELETE }}</div>
+                                    <button type="button" class="remove-item-btn" style="background: none; border: none; color: #f87171; cursor: pointer; opacity: 0.6; transition: 0.2s;">
+                                        <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary Footer -->
+            <div style="padding: 1.5rem 2rem; background: rgba(255,255,255,0.01); display: flex; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: right;">
+                    <span style="color: var(--text-dim); font-size: 0.875rem;">Total Estimated Amount</span>
+                    <div id="total-amount" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">0.00</div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .glass-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        color: var(--text-main);
+        font-size: 0.9375rem;
+        transition: var(--transition);
+    }
+    .glass-input:focus {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        outline: none;
+    }
+    .error-msg {
+        color: #f87171;
+        font-size: 0.75rem;
+        margin-top: 0.4rem;
+        font-weight: 500;
+    }
+    .remove-item-btn:hover {
+        opacity: 1 !important;
+        transform: scale(1.1);
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('formset-tbody');
+    const addButton = document.getElementById('add-item-btn');
+    const totalAmountDisplay = document.getElementById('total-amount');
+    const totalForms = document.querySelector('input[id$="-TOTAL_FORMS"]');
+
+    function calculateTotal() {
+        if (!totalAmountDisplay) return;
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            if (row.style.display !== 'none') {
+                const qtyInput = row.querySelector('input[name$="-order_qty"]');
+                const costInput = row.querySelector('input[name$="-unit_cost"]');
+                
+                const qty = qtyInput ? (parseFloat(qtyInput.value) || 0) : 0;
+                const cost = costInput ? (parseFloat(costInput.value) || 0) : 0;
+                total += (qty * cost);
+            }
+        });
+        totalAmountDisplay.textContent = total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function setupRowListeners(row) {
+        row.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', calculateTotal);
+        });
+        
+        const removeBtn = row.querySelector('.remove-item-btn');
+        if (removeBtn) {
+            removeBtn.onclick = function() {
+                const visibleRows = Array.from(document.querySelectorAll('.item-row')).filter(r => r.style.display !== 'none');
+                if (visibleRows.length > 1) {
+                    const deleteCheckbox = row.querySelector('input[name$="-DELETE"]');
+                    if (deleteCheckbox) {
+                        deleteCheckbox.checked = true;
+                        row.style.display = 'none';
+                    } else {
+                        row.remove();
+                    }
+                    calculateTotal();
+                } else {
+                    alert("At least one item is required.");
+                }
+            };
+        }
+    }
+
+    addButton.addEventListener('click', function() {
+        if (!totalForms) {
+            console.error("Management form TOTAL_FORMS input not found.");
+            return;
+        }
+        const count = parseInt(totalForms.value);
+        const firstRow = document.querySelector('.item-row');
+        const newRow = firstRow.cloneNode(true);
+        
+        newRow.style.display = '';
+        newRow.querySelectorAll('input, select').forEach(input => {
+            const name = input.getAttribute('name');
+            const id = input.getAttribute('id');
+            if (name) input.setAttribute('name', name.replace('-0-', `-${count}-`));
+            if (id) input.setAttribute('id', id.replace('-0-', `-${count}-`));
+            
+            if (input.type === 'checkbox') {
+                input.checked = false;
+            } else if (input.name.endsWith('-id')) {
+                input.value = '';
+            } else {
+                input.value = '';
+            }
+        });
+        
+        tbody.appendChild(newRow);
+        totalForms.value = count + 1;
+        setupRowListeners(newRow);
+        lucide.createIcons(); // Re-initialize icons for new row
+    });
+
+    document.querySelectorAll('.item-row').forEach(setupRowListeners);
+    calculateTotal();
+});
+</script>
+{% endblock %}
