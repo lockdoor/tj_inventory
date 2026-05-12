@@ -61,6 +61,26 @@ ROLE_PERMISSIONS = {
         # View Inventory
         'inventory.view_warehouse',
         'inventory.view_inventorymovement',
+        'inventory.view_stock',
+        
+        # Full partner permissions
+        'partners.add_partner',
+        'partners.change_partner',
+        'partners.delete_partner',
+        'partners.view_partner',
+        # Full procurement permissions
+        'procurement.add_purchaseorder',
+        'procurement.change_purchaseorder',
+        'procurement.delete_purchaseorder',
+        'procurement.view_purchaseorder',
+        'procurement.add_arrival',
+        'procurement.change_arrival',
+        'procurement.delete_arrival',
+        'procurement.view_arrival',
+        'procurement.add_shortage',
+        'procurement.change_shortage',
+        'procurement.delete_shortage',
+        'procurement.view_shortage',
     ],
 
     'sales_rep': [

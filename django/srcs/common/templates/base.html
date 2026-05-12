@@ -72,9 +72,14 @@
 
     {% block extra_js %}{% endblock %}
 
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
-        // Auto-dismiss messages
+        // Auto-dismiss messages & Initialize Lucide
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize icons
+            lucide.createIcons();
+
+            // Auto-dismiss messages
             const messages = document.querySelectorAll('.message');
             messages.forEach(msg => {
                 setTimeout(() => {

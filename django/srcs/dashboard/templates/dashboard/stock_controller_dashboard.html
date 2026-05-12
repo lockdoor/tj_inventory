@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Controller Dashboard - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Stock Control</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="welcome-header" style="margin-bottom: 3rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+            Welcome, {{ user.first_name|default:user.username }}
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.125rem;">Inventory and supply chain oversight.</p>
+    </div>
+
+    <!-- Module Grid -->
+    <div class="module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        {% for module in modules %}
+            <a href="{% url module.url %}" class="glass-card module-card {% if module.is_construction %}construction-mode{% endif %}" 
+               style="text-decoration: none; display: flex; flex-direction: column; padding: 2.5rem; position: relative; overflow: hidden; transition: var(--transition); {% if module.is_construction %}cursor: default; opacity: 0.8;{% endif %}">
+                
+                <!-- Card Background Decoration -->
+                <div class="card-bg-glow"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; position: relative; z-index: 2;">
+                    <div class="icon-container" style="width: 56px; height: 56px; background: rgba(255,255,255,0.08); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: var(--primary); border: 1px solid rgba(255,255,255,0.1);">
+                        <i data-lucide="{{ module.icon_name }}" style="width: 28px; height: 28px;"></i>
+                    </div>
+                    <span class="badge" style="padding: 0.5rem 1rem; background: rgba(16, 185, 129, 0.1); color: var(--primary); border-radius: 99px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        {{ module.badge }}
+                    </span>
+                </div>
+
+                <div style="position: relative; z-index: 2;">
+                    <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">{{ module.title }}</h3>
+                    <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; font-size: 0.95rem;">{{ module.description }}</p>
+                    
+                    <div style="display: flex; align-items: center; color: var(--primary); font-weight: 600; font-size: 0.875rem;">
+                        {% if module.is_construction %}
+                            <span style="display: flex; align-items: center; gap: 0.5rem; color: #f59e0b;">
+                                <i data-lucide="hard-hat" style="width: 16px; height: 16px;"></i>
+                                Under Construction
+                            </span>
+                        {% else %}
+                            <span>Open Module</span>
+                            <i data-lucide="arrow-right" style="width: 16px; height: 16px; margin-left: 0.5rem; transition: transform 0.2s ease;"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .module-card {
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .module-card:hover:not(.construction-mode) {
+        transform: translateY(-8px);
+        border-color: var(--primary);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .module-card:hover:not(.construction-mode) .icon-container {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .module-card:hover:not(.construction-mode) i[data-lucide="arrow-right"] {
+        transform: translateX(4px);
+    }
+    .card-bg-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1;
+    }
+    .module-card:hover:not(.construction-mode) .card-bg-glow {
+        opacity: 1;
+    }
+    .construction-mode {
+        pointer-events: none;
+        filter: grayscale(0.5);
+    }
+</style>
+{% endblock %}

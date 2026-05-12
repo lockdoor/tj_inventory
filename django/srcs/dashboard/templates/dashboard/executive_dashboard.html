@@ -25,14 +25,7 @@
                 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
                     <div class="icon-box" style="background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.75rem; border-radius: 1rem; border: 1px solid rgba(16, 185, 129, 0.2);">
-                        <!-- Simple mapping for icons since we moved to icon_name -->
-                        {% if module.icon_name == 'box' %}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                        {% elif module.icon_name == 'users' %}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                        {% elif module.icon_name == 'database' %}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
-                        {% endif %}
+                        <i data-lucide="{{ module.icon_name }}" style="width: 32px; height: 32px;"></i>
                     </div>
                     {% if module.badge %}
                         <span class="badge">
@@ -84,11 +77,11 @@
         font-weight: 700; 
         text-transform: uppercase; 
         letter-spacing: 0.1em; 
-        color: var(--text-muted); 
-        background: rgba(255,255,255,0.05); 
+        color: var(--primary); 
+        background: rgba(16, 185, 129, 0.1); 
         padding: 0.25rem 0.5rem; 
         border-radius: 4px;
-        border: 1px solid rgba(255,255,255,0.05);
+        border: 1px solid rgba(16, 185, 129, 0.1);
     }
 </style>
 {% endblock %}
