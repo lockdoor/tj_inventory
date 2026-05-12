@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'dashboard:home' %}" style="color: var(--text-muted); text-decoration: none;">Dashboard</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Purchase Orders</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem;">
+    <div>
+        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Purchase Orders</h1>
+        <p style="color: var(--text-dim);">Manage your supply chain and track supplier deliveries.</p>
+    </div>
+    <div class="actions">
+        <a href="#" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border-radius: 12px; font-size: 0.9375rem;">
+            <i data-lucide="plus" style="width: 18px; height: 18px;"></i>
+            New Purchase Order
+        </a>
+    </div>
+</div>
+
+<div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+    <div class="table-container" style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Document No</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Supplier</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Expected Date</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Items</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for po in purchase_orders %}
+                <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
+                    <td style="padding: 1.25rem 1.5rem;">
+                        <span style="color: var(--text-main); font-weight: 600; font-family: 'JetBrains Mono', monospace;">{{ po.document_no }}</span>
+                    </td>
+                    <td style="padding: 1.25rem 1.5rem;">
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="color: var(--text-main); font-weight: 500;">{{ po.partner.name }}</span>
+                            <span style="color: var(--text-muted); font-size: 0.75rem;">{{ po.partner.code }}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 1.25rem 1.5rem; color: var(--text-dim);">
+                        {{ po.expected_date|default:"---" }}
+                    </td>
+                    <td style="padding: 1.25rem 1.5rem;">
+                        <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main);">
+                            {{ po.items.count }} Lines
+                        </span>
+                    </td>
+                    <td style="padding: 1.25rem 1.5rem;">
+                        {% if po.status == 'draft' %}
+                            <span class="badge" style="background: rgba(148, 163, 184, 0.1); color: #94a3b8; border-color: rgba(148, 163, 184, 0.2);">Draft</span>
+                        {% elif po.status == 'submitted' %}
+                            <span class="badge" style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; border-color: rgba(59, 130, 246, 0.2);">Submitted</span>
+                        {% elif po.status == 'closed' %}
+                            <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--primary); border-color: rgba(16, 185, 129, 0.2);">Closed</span>
+                        {% elif po.status == 'cancelled' %}
+                            <span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2);">Cancelled</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <a href="#" class="icon-btn" title="View Details">
+                                <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
+                            </a>
+                            <a href="#" class="icon-btn" title="Edit">
+                                <i data-lucide="edit-3" style="width: 18px; height: 18px;"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 4rem; text-align: center;">
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--text-muted);">
+                            <i data-lucide="shopping-cart" style="width: 48px; height: 48px; opacity: 0.2;"></i>
+                            <p>No purchase orders found.</p>
+                            <a href="#" class="btn btn-outline" style="font-size: 0.875rem;">Create your first PO</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="pagination-container" style="padding: 1.25rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.01);">
+        <div style="color: var(--text-dim); font-size: 0.8125rem;">
+            Showing <span style="color: var(--text-main); font-weight: 600;">{{ page_obj.start_index }}</span> to <span style="color: var(--text-main); font-weight: 600;">{{ page_obj.end_index }}</span> of <span style="color: var(--text-main); font-weight: 600;">{{ paginator.count }}</span> orders
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="pagination-btn">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i>
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    <i data-lucide="chevron-left" style="width: 16px; height: 16px;"></i>
+                </span>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <span class="pagination-btn active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}" class="pagination-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="pagination-btn">
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+                </a>
+            {% else %}
+                <span class="pagination-btn disabled">
+                    <i data-lucide="chevron-right" style="width: 16px; height: 16px;"></i>
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .table-row:hover {
+        background: rgba(255,255,255,0.02);
+    }
+    .pagination-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.02);
+        color: var(--text-dim);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    .pagination-btn:hover:not(.disabled):not(.active) {
+        background: rgba(255,255,255,0.08);
+        color: var(--text-main);
+        border-color: rgba(255,255,255,0.1);
+    }
+    .pagination-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .pagination-btn.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    .icon-btn {
+        padding: 0.5rem;
+        border-radius: 8px;
+        color: var(--text-dim);
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+    }
+    .icon-btn:hover {
+        background: rgba(255,255,255,0.05);
+        color: var(--primary);
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    .badge {
+        font-size: 0.625rem; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        letter-spacing: 0.1em; 
+        padding: 0.25rem 0.5rem; 
+        border-radius: 4px;
+        border: 1px solid transparent;
+        display: inline-block;
+    }
+</style>
+{% endblock %}

@@ -126,11 +126,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             },
             {
                 'title': 'Purchase Orders',
-                'description': 'Track and manage supplier orders (Under Construction).',
-                'url': 'dashboard:home',
+                'description': 'Track and manage supplier orders and deliveries.',
+                'url': 'procurement:purchase-order-list',
                 'icon_name': 'shopping-cart',
-                'badge': 'Procurement',
-                'is_construction': True
+                'badge': 'Procurement'
             },
         ]
         return context
