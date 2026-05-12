@@ -6,8 +6,8 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 
-from .models import PurchaseOrder
-from .forms import PurchaseOrderForm, PurchaseOrderItemFormSet
+from ..models import PurchaseOrder
+from ..forms import PurchaseOrderForm, PurchaseOrderItemFormSet
 
 class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PurchaseOrder

@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import PurchaseOrder, PurchaseOrderItem
+from ..models import PurchaseOrder, PurchaseOrderItem
 from partners.models import Partner
 
 class PurchaseOrderForm(forms.ModelForm):
