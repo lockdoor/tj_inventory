@@ -3,8 +3,6 @@
 {% block title %}Purchase Orders - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
-<a href="{% url 'dashboard:home' %}" style="color: var(--text-muted); text-decoration: none;">Dashboard</a>
-<span style="color: var(--text-muted); opacity: 0.5;">/</span>
 <span style="color: var(--text-main); font-weight: 500;">Purchase Orders</span>
 {% endblock %}
 
@@ -39,7 +37,9 @@
                 {% for po in purchase_orders %}
                 <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
                     <td style="padding: 1.25rem 1.5rem;">
-                        <span style="color: var(--text-main); font-weight: 600; font-family: 'JetBrains Mono', monospace;">{{ po.document_no }}</span>
+                        <a href="{% url 'procurement:purchase-order-detail' po.pk %}" style="color: var(--text-main); font-weight: 600; font-family: 'JetBrains Mono', monospace; text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.2);">
+                            {{ po.document_no }}
+                        </a>
                     </td>
                     <td style="padding: 1.25rem 1.5rem;">
                         <div style="display: flex; flex-direction: column;">
@@ -68,7 +68,7 @@
                     </td>
                     <td style="padding: 1.25rem 1.5rem; text-align: right;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                            <a href="#" class="icon-btn" title="View Details">
+                            <a href="{% url 'procurement:purchase-order-detail' po.pk %}" class="icon-btn" title="View Details">
                                 <i data-lucide="eye" style="width: 18px; height: 18px;"></i>
                             </a>
                             <a href="{% url 'procurement:purchase-order-update' po.pk %}" class="icon-btn" title="Edit">

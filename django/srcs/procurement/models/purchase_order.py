@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Sum, F
 from common.mixins.auditable import AuditableMixin
 
 
@@ -49,6 +50,12 @@ class PurchaseOrder(AuditableMixin):
     def __str__(self):
         return f"{self.document_no} ({self.partner.name})"
 
+    @property
+    def total_amount(self):
+        """Calculate total amount of all items."""
+        total = sum(item.subtotal for item in self.items.all())
+        return total
+
 
 class PurchaseOrderItem(models.Model):
     """
@@ -83,3 +90,10 @@ class PurchaseOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.purchase_order.document_no} - {self.item.sku} ({self.order_qty})"
+
+    @property
+    def subtotal(self):
+        """Calculate subtotal for this line."""
+        if self.order_qty and self.unit_cost:
+            return self.order_qty * self.unit_cost
+        return 0

@@ -69,6 +69,33 @@ class PurchaseOrderService:
         return po
 
     @staticmethod
+    @transaction.atomic
+    def sync_items(po, items_data):
+        """
+        Synchronize PO items.
+        items_data: list of dicts {'item': Item, 'order_qty': qty, 'unit_cost': cost, 'is_deleted': bool}
+        """
+        for item_data in items_data:
+            item_instance = item_data.get('instance')
+            if item_data.get('is_deleted', False):
+                if item_instance:
+                    item_instance.delete()
+                continue
+            
+            if item_instance:
+                item_instance.item = item_data['item']
+                item_instance.order_qty = item_data['order_qty']
+                item_instance.unit_cost = item_data.get('unit_cost')
+                item_instance.save()
+            else:
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    item=item_data['item'],
+                    order_qty=item_data['order_qty'],
+                    unit_cost=item_data.get('unit_cost')
+                )
+
+    @staticmethod
     def _validate_status_transition(po, new_status):
         """
         Logic for valid status movements.
@@ -86,6 +113,30 @@ class PurchaseOrderService:
             raise ValidationError("Only Draft or Cancelled POs can be deleted.")
         
         po.is_deleted = True
+        po.updated_by = user
+        po.save()
+        return po
+
+    @staticmethod
+    @transaction.atomic
+    def submit(po, *, user):
+        """Transition PO from DRAFT to SUBMITTED."""
+        if po.status != PurchaseOrder.Status.DRAFT:
+            raise ValidationError("Only Draft Purchase Orders can be submitted.")
+        
+        po.status = PurchaseOrder.Status.SUBMITTED
+        po.updated_by = user
+        po.save()
+        return po
+
+    @staticmethod
+    @transaction.atomic
+    def revert_to_draft(po, *, user):
+        """Transition PO from SUBMITTED back to DRAFT."""
+        if po.status != PurchaseOrder.Status.SUBMITTED:
+            raise ValidationError("Only Submitted Purchase Orders can be reverted.")
+        
+        po.status = PurchaseOrder.Status.DRAFT
         po.updated_by = user
         po.save()
         return po
