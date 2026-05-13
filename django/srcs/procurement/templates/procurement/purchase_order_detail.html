@@ -154,13 +154,69 @@
                 </div>
             </div>
 
-            <!-- Future: Arrivals Related to this PO -->
-            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05); background: rgba(255, 255, 255, 0.02);">
-                <h4 style="margin: 0 0 1rem 0; font-size: 0.8rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Related Deliveries</h4>
-                <div style="text-align: center; padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem; font-style: italic;">
-                    No arrivals recorded for this PO yet.
+            <!-- Supporting Documents Card -->
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em;">
+                    Supporting Documents
+                </h4>
+                
+                <!-- Existing Attachments -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; {% if attachments %}margin-bottom: 1.5rem;{% endif %}">
+                    {% for file in attachments %}
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                            <a href="{{ file.document_file.url }}" target="_blank" style="text-decoration: none; display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
+                                <div style="color: var(--primary-light);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ file.file_name }}">
+                                        {{ file.file_name }}
+                                    </div>
+                                    {% if file.note %}
+                                        <div style="color: var(--text-dim); font-size: 0.75rem;">{{ file.note }}</div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% if po.status == 'draft' %}
+                            <form action="{% url 'procurement:purchase-order-attachment-delete' file.pk %}" method="POST" style="display: inline;" onsubmit="return confirm('Remove this attachment?');">
+                                {% csrf_token %}
+                                <button type="submit" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" title="Remove Attachment">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">
+                            No documents attached yet.
+                        </div>
+                    {% endfor %}
                 </div>
+
+                <!-- Upload Form -->
+                {% if po.status == 'draft' %}
+                <div style="padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                    <form action="{% url 'procurement:purchase-order-attachment-upload' po.pk %}" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-group-mini">
+                                <label style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem;">Upload New File</label>
+                                {{ attachment_form.document_file }}
+                            </div>
+                            <div class="form-group-mini">
+                                {{ attachment_form.note }}
+                            </div>
+                            <button type="submit" class="btn-secondary-glass" style="width: 100%; padding: 0.6rem; font-size: 0.85rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; color: var(--text-main); border: 1px solid rgba(16, 185, 129, 0.2);">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Upload Document
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
             </div>
+
+            <!-- Future: Arrivals Related to this PO -->
         </div>
     </div>
 </div>

@@ -128,6 +128,12 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['items'] = self.object.items.all().select_related('item')
+        
+        # Attachments
+        context['attachments'] = self.object.attachments.filter(is_deleted=False)
+        from ..forms import PurchaseOrderAttachmentForm
+        context['attachment_form'] = PurchaseOrderAttachmentForm()
+        
         return context
 
 class PurchaseOrderSubmitView(LoginRequiredMixin, PermissionRequiredMixin, View):
