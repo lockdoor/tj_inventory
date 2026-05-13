@@ -134,6 +134,9 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
         from ..forms import PurchaseOrderAttachmentForm
         context['attachment_form'] = PurchaseOrderAttachmentForm()
         
+        # Related Arrivals
+        context['arrivals'] = self.object.arrivals.all().select_related('warehouse', 'partner')
+        
         return context
 
 class PurchaseOrderSubmitView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -161,3 +164,22 @@ class PurchaseOrderRevertView(LoginRequiredMixin, PermissionRequiredMixin, View)
             messages.error(request, str(e))
             
         return redirect('procurement:purchase-order-detail', pk=pk)
+from django.http import JsonResponse
+
+class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        po = get_object_or_404(PurchaseOrder, pk=pk)
+        items = po.items.all().select_related('item')
+        data = {
+            'items': [
+                {
+                    'id': item.item.id,
+                    'sku': item.item.sku,
+                    'name': item.item.name,
+                    'order_qty': float(item.order_qty),
+                    'po_item_id': item.id
+                } for item in items
+            ],
+            'partner_id': po.partner.id if po.partner else None
+        }
+        return JsonResponse(data)

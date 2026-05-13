@@ -4,11 +4,20 @@ from .purchase_order_views import (
     PurchaseOrderUpdateView,
     PurchaseOrderDetailView,
     PurchaseOrderSubmitView,
-    PurchaseOrderRevertView
+    PurchaseOrderRevertView,
+    PurchaseOrderItemsAPIView
 )
 from .attachment_views import (
     PurchaseOrderAttachmentUploadView,
     PurchaseOrderAttachmentDeleteView,
     ArrivalAttachmentUploadView,
     ArrivalAttachmentDeleteView
+)
+from .arrival_views import (
+    ArrivalListView,
+    ArrivalDetailView,
+    ArrivalCreateView,
+    ArrivalUpdateView,
+    ArrivalFromPOView,
+    ArrivalReceiveActionView
 )

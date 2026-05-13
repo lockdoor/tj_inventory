@@ -8,6 +8,7 @@ class Arrival(AuditableMixin):
     """
     class Status(models.TextChoices):
         SCHEDULED = 'scheduled', 'Scheduled'
+        RECEIVING = 'receiving', 'Receiving'
         RECEIVED = 'received', 'Received'
         CANCELLED = 'cancelled', 'Cancelled'
 

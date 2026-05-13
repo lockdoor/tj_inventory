@@ -111,6 +111,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'badge': 'Procurement'
             },
             {
+                'title': 'Arrival Schedules',
+                'description': 'Manage incoming shipments and warehouse receiving.',
+                'url': 'procurement:arrival-list',
+                'icon_name': 'truck',
+                'badge': 'Logistics'
+            },
+            {
                 'title': 'Product Catalog',
                 'description': 'View item specifications and media (Read-Only).',
                 'url': 'catalog:catalog-overview',

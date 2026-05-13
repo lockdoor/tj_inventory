@@ -15,6 +15,16 @@ urlpatterns = [
     path('purchase-orders/<int:pk>/attachment/upload/', views.PurchaseOrderAttachmentUploadView.as_view(), name='purchase-order-attachment-upload'),
     path('purchase-orders/attachment/<int:pk>/delete/', views.PurchaseOrderAttachmentDeleteView.as_view(), name='purchase-order-attachment-delete'),
 
+    path('purchase-orders/<int:pk>/items-api/', views.PurchaseOrderItemsAPIView.as_view(), name='purchase-order-items-api'),
+
+    # Arrivals
+    path('arrivals/', views.ArrivalListView.as_view(), name='arrival-list'),
+    path('arrivals/create/', views.ArrivalCreateView.as_view(), name='arrival-create'),
+    path('arrivals/<int:pk>/', views.ArrivalDetailView.as_view(), name='arrival-detail'),
+    path('arrivals/<int:pk>/update/', views.ArrivalUpdateView.as_view(), name='arrival-update'),
+    path('arrivals/from-po/<int:po_pk>/', views.ArrivalFromPOView.as_view(), name='arrival-from-po'),
+    path('arrivals/<int:pk>/receive/', views.ArrivalReceiveActionView.as_view(), name='arrival-receive'),
+
     # Arrival Attachments
     path('arrivals/<int:pk>/attachment/upload/', views.ArrivalAttachmentUploadView.as_view(), name='arrival-attachment-upload'),
     path('arrivals/attachment/<int:pk>/delete/', views.ArrivalAttachmentDeleteView.as_view(), name='arrival-attachment-delete'),

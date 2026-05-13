@@ -102,6 +102,14 @@ class InventoryMovementItem(models.Model):
         on_delete=models.CASCADE,
         related_name='movement_items'
     )
+    arrival_item = models.ForeignKey(
+        'procurement.ArrivalItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='movement_items',
+        help_text="Link to source arrival line (for inbound receiving)"
+    )
     lot_number = models.CharField(
         max_length=100, 
         help_text="Batch/Lot number recorded at entry"

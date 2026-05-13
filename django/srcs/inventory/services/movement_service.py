@@ -63,7 +63,7 @@ class MovementService:
 
 
     @staticmethod
-    def add_item(movement, *, item, lot_number, quantity, user, unit_cost=None, mfg_date=None, exp_date=None, note=''):
+    def add_item(movement, *, item, lot_number, quantity, user, unit_cost=None, mfg_date=None, exp_date=None, arrival_item=None, note=''):
         """Add an item line to a draft movement."""
         MovementService._ensure_draft(movement)
         
@@ -80,6 +80,7 @@ class MovementService:
             unit_cost=unit_cost,
             mfg_date=mfg_date,
             exp_date=exp_date,
+            arrival_item=arrival_item,
             note=note
         )
         item_line.full_clean()

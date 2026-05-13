@@ -57,6 +57,11 @@
                         Revert to Draft
                     </button>
                 </form>
+
+                <a href="{% url 'procurement:arrival-from-po' po.pk %}" class="btn-primary-glass" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.7rem 1.25rem; border-radius: 0.75rem; font-weight: 700; color: #fff;">
+                    <i data-lucide="calendar-plus" style="width: 18px; height: 18px;"></i>
+                    Schedule Arrival
+                </a>
             {% endif %}
 
             <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.05); margin: 0 0.5rem;"></div>
@@ -216,7 +221,41 @@
                 {% endif %}
             </div>
 
-            <!-- Future: Arrivals Related to this PO -->
+            <!-- Arrivals Related to this PO -->
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="truck" style="width: 18px; height: 18px; color: var(--primary);"></i>
+                    Related Deliveries
+                </h4>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for arrival in arrivals %}
+                        <div style="padding: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                <a href="{% url 'procurement:arrival-detail' arrival.pk %}" style="color: var(--text-main); font-weight: 700; font-family: 'JetBrains Mono', monospace; text-decoration: none; font-size: 0.9rem;">
+                                    {{ arrival.document_no }}
+                                </a>
+                                {% if arrival.status == 'scheduled' %}
+                                    <span style="color: #60a5fa; font-size: 0.65rem; font-weight: 800; text-transform: uppercase;">Scheduled</span>
+                                {% else %}
+                                    <span style="color: var(--primary); font-size: 0.65rem; font-weight: 800; text-transform: uppercase;">Received</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-dim); display: flex; align-items: center; gap: 0.4rem;">
+                                <i data-lucide="calendar" style="width: 12px; height: 12px;"></i>
+                                {{ arrival.expected_date|date:"d M Y" }}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                To: {{ arrival.warehouse.name }}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">
+                            No arrivals scheduled yet.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </div>

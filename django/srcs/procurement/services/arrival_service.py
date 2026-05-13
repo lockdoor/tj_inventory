@@ -10,7 +10,7 @@ class ArrivalService:
 
     @staticmethod
     def get_active_queryset():
-        return Arrival.objects.filter(is_deleted=False)
+        return Arrival.objects.filter(is_deleted=False).select_related('partner', 'warehouse', 'purchase_order')
 
     @staticmethod
     @transaction.atomic
@@ -44,6 +44,114 @@ class ArrivalService:
         return arrival
 
     @staticmethod
+    @transaction.atomic
+    def update(arrival, *, user, items_data=None, **fields):
+        """
+        Update an Arrival document and its items.
+        """
+        if arrival.status == Arrival.Status.RECEIVED:
+            raise ValidationError("Cannot update an arrival that has already been received.")
+
+        # Update header fields
+        for field, value in fields.items():
+            setattr(arrival, field, value)
+        
+        arrival.updated_by = user
+        arrival.full_clean()
+        arrival.save()
+
+        if items_data is not None:
+            ArrivalService.sync_items(arrival, items_data)
+
+        return arrival
+
+    @staticmethod
+    def sync_items(arrival, items_data):
+        """
+        Sync ArrivalItems based on formset data.
+        """
+        existing_items = {item.id: item for item in arrival.items.all()}
+        
+        for item_info in items_data:
+            if not item_info:
+                continue
+
+            item_id = item_info.get('id')
+            is_delete = item_info.get('DELETE', False)
+            
+            if is_delete:
+                if item_id and item_id in existing_items:
+                    existing_items[item_id].delete()
+                continue
+            
+            # Must have an item selected to create/update
+            if not item_info.get('item'):
+                continue
+                
+            if item_id and item_id in existing_items:
+                # Update existing
+                item = existing_items[item_id]
+                item.item = item_info['item']
+                item.expected_qty = item_info['expected_qty']
+                item.save()
+            else:
+                # Create new
+                ArrivalItem.objects.create(
+                    arrival=arrival,
+                    item=item_info['item'],
+                    po_item=item_info.get('po_item'),
+                    expected_qty=item_info['expected_qty'],
+                    received_qty=0
+                )
+
+    @staticmethod
+    @transaction.atomic
+    def initiate_receiving(arrival, user):
+        """
+        Creates a DRAFT InventoryMovement based on the Arrival.
+        Bridges Procurement and Inventory modules.
+        """
+        from inventory.services.movement_service import MovementService
+        from inventory.models import InventoryMovement
+        
+        if arrival.status in [Arrival.Status.RECEIVING, Arrival.Status.RECEIVED]:
+             raise ValidationError("This arrival is already in progress or completed.")
+
+        # 1. Create the Movement Header
+        movement = MovementService.create_movement(
+            document_no=f"RCV-{arrival.document_no}",
+            type=InventoryMovement.MovementType.INBOUND,
+            date=arrival.expected_date,
+            warehouse=arrival.warehouse,
+            user=user,
+            partner=arrival.partner,
+            note=f"Receiving for Arrival {arrival.document_no}. PO: {arrival.purchase_order.document_no if arrival.purchase_order else 'N/A'}"
+        )
+        movement.reference_type = InventoryMovement.ReferenceType.STOCK_ARRIVAL
+        movement.reference_no = arrival.document_no
+        movement.save()
+
+        # 2. Copy items
+        for arrival_item in arrival.items.all():
+            MovementService.add_item(
+                movement,
+                item=arrival_item.item,
+                lot_number=f"PENDING-{arrival_item.id}", # Placeholder: Staff must update this during physical receiving
+                quantity=arrival_item.expected_qty,
+                user=user,
+                unit_cost=arrival_item.po_item.unit_cost if arrival_item.po_item else None,
+                arrival_item=arrival_item,
+                note=f"[AUTO-GENERATED] Please update Lot Number and Expiry Date. Original Note: {arrival_item.arrival.note}"
+            )
+
+        # 3. Update Arrival Status
+        arrival.status = Arrival.Status.RECEIVING
+        arrival.updated_by = user
+        arrival.save()
+
+        return movement
+
+    @staticmethod
     def mark_received(arrival, *, user, received_items=None):
         """
         Mark arrival as received. 
@@ -60,6 +168,58 @@ class ArrivalService:
             arrival.updated_by = user
             arrival.save()
         
+        return arrival
+
+    @staticmethod
+    @transaction.atomic
+    def finalize_from_movement(movement, user):
+        """
+        Updates Arrival data based on a COMPLETED InventoryMovement.
+        """
+        if movement.status != movement.Status.COMPLETED:
+            return
+            
+        if movement.reference_type != movement.ReferenceType.STOCK_ARRIVAL:
+            return
+            
+        try:
+            arrival = Arrival.objects.get(document_no=movement.reference_no, is_deleted=False)
+        except Arrival.DoesNotExist:
+            return
+
+        # Determine overall status
+        from inventory.models import InventoryMovement
+        linked_movements = InventoryMovement.objects.filter(
+            reference_type=InventoryMovement.ReferenceType.STOCK_ARRIVAL,
+            reference_no=arrival.document_no
+        )
+        
+        has_draft = linked_movements.filter(status='draft').exists()
+        has_completed = linked_movements.filter(status='completed').exists()
+        
+        if has_completed and not has_draft:
+            arrival.status = Arrival.Status.RECEIVED
+        elif has_draft or has_completed:
+            arrival.status = Arrival.Status.RECEIVING
+        else:
+            arrival.status = Arrival.Status.SCHEDULED
+
+        arrival.updated_by = user
+        
+        # Update received quantities for items by summing all completed movements
+        from inventory.models import InventoryMovementItem
+        from django.db.models import Sum
+        
+        for arrival_item in arrival.items.all():
+            total_received = InventoryMovementItem.objects.filter(
+                arrival_item=arrival_item,
+                movement__status='completed' # status is a string choice
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            
+            arrival_item.received_qty = total_received
+            arrival_item.save()
+                
+        arrival.save()
         return arrival
 
     @staticmethod
