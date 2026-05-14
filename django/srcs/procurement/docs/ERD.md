@@ -72,7 +72,7 @@ erDiagram
     SHORTAGE {
         string sku FK "external.Item"
         string created_by FK "external.User"
-        string reference_type "PREORDER ,PRODUCTION, OTHER"
+        string reference_type "SELL_ORDER, PRODUCTION, OTHER"
         int request_qty
         string status "PENDING, PO_CREATED, CANCELLED"
         string po_no FK "PurchaseOrder (Optional)"

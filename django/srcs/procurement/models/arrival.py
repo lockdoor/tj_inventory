@@ -95,6 +95,17 @@ class ArrivalItem(models.Model):
         default=0.00,
         help_text="Actual quantity received in warehouse"
     )
+    reserved_qty = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        help_text="Quantity committed to Sell Orders"
+    )
+
+    @property
+    def available_qty(self):
+        """Expected quantity remaining after reservations."""
+        return max(0, self.expected_qty - self.reserved_qty)
 
     class Meta:
         verbose_name = "Arrival Item"

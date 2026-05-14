@@ -38,13 +38,13 @@ class TestShortageModel:
         shortage = Shortage.objects.create(
             item=item,
             request_qty=50.50,
-            reference_type=Shortage.ReferenceType.PREORDER,
-            reference_id="PRE-999",
+            reference_type=Shortage.ReferenceType.SELL_ORDER,
+            reference_id="SO-123",
             created_by=user
         )
         assert shortage.item == item
         assert shortage.request_qty == 50.50
-        assert shortage.reference_type == Shortage.ReferenceType.PREORDER
+        assert shortage.reference_type == Shortage.ReferenceType.SELL_ORDER
         assert shortage.status == Shortage.Status.PENDING
         assert str(shortage) == "Shortage: SP-001 (50.5) - pending"
 

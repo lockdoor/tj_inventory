@@ -4,11 +4,11 @@ from common.mixins.auditable import AuditableMixin
 
 class Shortage(AuditableMixin):
     """
-    Represents a shortage of items needed for demand (e.g. Preorders or Production).
+    Represents a shortage of items needed for demand (e.g. Sell orders or Production).
     Helps the Stock Controller decide what to purchase.
     """
     class ReferenceType(models.TextChoices):
-        PREORDER = 'preorder', 'Preorder'
+        SELL_ORDER = 'sell_order', 'Sell Order'
         PRODUCTION = 'production', 'Production'
         OTHER = 'other', 'Other'
 
@@ -38,7 +38,7 @@ class Shortage(AuditableMixin):
         max_length=100,
         blank=True,
         default='',
-        help_text="ID or document number of the source (e.g. Preorder #123)"
+        help_text="ID or document number of the source (e.g. Sell order #123)"
     )
     status = models.CharField(
         max_length=20,
