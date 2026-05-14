@@ -29,11 +29,21 @@
         int warehouse_id FK "CASCADE"
         int item_id FK "Outer Domain Reference"
         string lot_number UK "Globally unique batch ID"
-        decimal balance "Current available qty for this lot"
+        decimal balance "Current Total physical qty"
+        decimal reserved_qty "Sum of all active reservations"
         datetime mfg_date "Manufacturing Date"
         datetime exp_date "Expiry Date"
-        string note
         string status "active,expired,quarantined"
+    }
+
+    %% Physical lock on specific stock record
+    STOCK_RESERVATION {
+        int id PK
+        int stock_id FK "CASCADE"
+        decimal quantity "Locked amount"
+        string reference_no "SO-XXXX, etc"
+        string reference_type "sales_order, production, etc"
+        datetime created_at
     }
 
     %% Transaction history with Lot tracking
@@ -88,7 +98,8 @@
     %% Relationships
     WAREHOUSE ||--o{ STOCK : "stores_per_lot"
     ITEM_CATALOG ||--o{ STOCK : "has_lot_balances"
-    STOCK ||--o{ STOCKCARD : "audit_history"
+    STOCK ||--o{ STOCK_RESERVATION : "has holds"
+    STOCK ||--o{ STOCKCARD : "tracks balance"
     INVENTORY_MOVEMENT ||--o{ INVENTORY_MOVEMENT_ITEM : "contains"
     INVENTORY_MOVEMENT ||--o{ INVENTORY_MOVEMENT_ATTACHMENT : "has_files"
     INVENTORY_MOVEMENT_ITEM ||--o{ STOCKCARD : "generates_transaction"

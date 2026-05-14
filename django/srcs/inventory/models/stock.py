@@ -27,8 +27,15 @@ class Stock(AuditableMixin, StatusMixin):
         max_digits=12, 
         decimal_places=2, 
         default=0.00,
-        help_text="Current available quantity for this specific lot"
+        help_text="Current total quantity on hand for this specific lot"
     )
+    reserved_qty = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        help_text="Quantity reserved for sales orders or other commitments"
+    )
+
     mfg_date = models.DateField(
         null=True, 
         blank=True, 
@@ -62,3 +69,8 @@ class Stock(AuditableMixin, StatusMixin):
         if self.lot_number:
             self.lot_number = self.lot_number.strip().upper()
         super().save(*args, **kwargs)
+
+    @property
+    def available_qty(self):
+        """Calculated available quantity."""
+        return max(0, self.balance - self.reserved_qty)

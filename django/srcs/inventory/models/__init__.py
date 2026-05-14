@@ -3,6 +3,7 @@ from .stock import Stock
 from .movement import InventoryMovement, InventoryMovementItem
 from .attachment import InventoryMovementAttachment
 from .stockcard import StockCard
+from .reservation import StockReservation
 
 __all__ = [
     'Warehouse', 
@@ -10,5 +11,6 @@ __all__ = [
     'InventoryMovement', 
     'InventoryMovementItem', 
     'InventoryMovementAttachment',
-    'StockCard'
+    'StockCard',
+    'StockReservation'
 ]
