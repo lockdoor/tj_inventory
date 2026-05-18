@@ -1,0 +1,35 @@
+# Architecture Decision Record (ADR) 0002: Item Packaging & Unit Architecture
+
+## Status
+Accepted (2026-05-18)
+
+## Context & Problem Statement
+Currently, inventory balances are tracked strictly in single pieces (`pcs`). However, for commercial operations (Procurement and Sales), items are frequently bought and sold in larger packagings such as Cartons, Boxes, or Pallets. Crucially, the quantity inside a carton varies across items (e.g., a Mouse carton contains 24 pcs, while a Keyboard carton contains 12 pcs).
+
+We needed an architecture that:
+1. Keeps the Inventory Ledger clean and performant by always tracking stock in the base unit (`pcs`).
+2. Provides a flexible way for Sales and Procurement to handle alternative packagings.
+3. Avoids unnecessary lookup tables or complex database joins that would degrade query performance.
+
+## Decision: Dual-Layer Unit Architecture
+
+We decided to implement a **Dual-Layer Unit Architecture** separating the absolute Base Unit from Alternative Packaging Units:
+
+1. **Base Unit (`Item.unit`)**:
+   - Stored directly on the `Item` model (defaulting to `pcs`).
+   - The Inventory app interacts exclusively with this field, ensuring that stock balances and ledger calculations are instantaneous and robust without requiring multi-table joins.
+
+2. **Alternative Packaging (`ItemPackaging`)**:
+   - A One-to-Many junction model attached to `Item`.
+   - Stores `name` ("Carton", "Box", "Pallet"), `quantity` (the multiplier, e.g., 24), and an optional `barcode`.
+   - Used by Sales and Procurement as an automated "conversion calculator" when creating Orders or Arrivals, converting package amounts into base piece amounts for inventory ledger entries.
+
+## Consequences
+
+### Positive
+- **No Data Duplication**: Every item defines its exact packaging sizes without repeating lookup rows.
+- **High Performance**: Inventory ledger lookups remain extremely fast because `item.unit` is queried directly on the item.
+- **Clean Separation of Concerns**: Catalog holds master packaging definitions; Inventory tracks physical units.
+
+### Negative / Mitigation
+- **Form Complexity**: Admin UI / Item Forms require inline formsets or dynamic JavaScript rows to manage multiple packagings. (Mitigation: Will implement dynamic row addition in `item_form.html`).

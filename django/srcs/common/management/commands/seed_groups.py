@@ -41,6 +41,10 @@ ROLE_PERMISSIONS = {
         'catalog.change_itemimage',
         'catalog.delete_itemimage',
         'catalog.view_itemimage',
+        'catalog.add_itempackaging',
+        'catalog.change_itempackaging',
+        'catalog.delete_itempackaging',
+        'catalog.view_itempackaging',
         # Inventory Permissions
         'inventory.add_warehouse',
         'inventory.change_warehouse',
@@ -54,10 +58,23 @@ ROLE_PERMISSIONS = {
     ],
 
     'stock_controller': [
-        # View catalog (read-only)
+        # Full access to catalog
+        'catalog.add_category',
+        'catalog.change_category',
+        'catalog.delete_category',
         'catalog.view_category',
+        'catalog.add_item',
+        'catalog.change_item',
+        'catalog.delete_item',
         'catalog.view_item',
+        'catalog.add_itemimage',
+        'catalog.change_itemimage',
+        'catalog.delete_itemimage',
         'catalog.view_itemimage',
+        'catalog.add_itempackaging',
+        'catalog.change_itempackaging',
+        'catalog.delete_itempackaging',
+        'catalog.view_itempackaging',
         # View Inventory
         'inventory.view_warehouse',
         'inventory.view_inventorymovement',
@@ -88,6 +105,7 @@ ROLE_PERMISSIONS = {
         'catalog.view_category',
         'catalog.view_item',
         'catalog.view_itemimage',
+        'catalog.view_itempackaging',
         # View Inventory
         'inventory.view_warehouse',
         'inventory.view_inventorymovement',
@@ -110,6 +128,11 @@ ROLE_PERMISSIONS = {
         'catalog.change_itemimage',
         'catalog.delete_itemimage',
         'catalog.view_itemimage',
+        ## Catalog Item Packaging permissions
+        'catalog.add_itempackaging',
+        'catalog.change_itempackaging',
+        'catalog.delete_itempackaging',
+        'catalog.view_itempackaging',
         # Full Warehouse Access (operational)
         ## Inventory Warehouse permissions
         'inventory.add_warehouse',

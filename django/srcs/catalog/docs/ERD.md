@@ -21,6 +21,14 @@ erDiagram
         string status "active,inactive"
     }
 
+    ITEM_PACKAGING {
+        int id PK
+        int item_id FK "CASCADE"
+        string name "e.g., Carton, Box, Pallet"
+        int quantity "Number of base units, e.g., 12"
+        string barcode "Optional barcode for the carton"
+    }
+
     ITEM_IMAGE {
         int id PK
         int item_id FK "CASCADE"
@@ -32,4 +40,5 @@ erDiagram
 
     CATEGORY ||--o{ ITEM : "contains"
     ITEM ||--o{ ITEM_IMAGE : "has"
+    ITEM ||--o{ ITEM_PACKAGING : "has"
 ```
