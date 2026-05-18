@@ -1,0 +1,38 @@
+# Architecture Decision Record (ADR) 0003: Item Packaging CRUD Operations & UI Placement
+
+## Status
+Accepted (2026-05-18)
+
+## Context & Problem Statement
+With the `ItemPackaging` model established in ADR 0002 to support alternative units (Cartons, Boxes, Pallets), we needed to determine the best architectural approach for managing CRUD operations in the UI and backend services.
+
+Specifically, we evaluated whether packaging management should be embedded within the main `Item` create/update form (via complex JavaScript inline formsets) or handled as standalone actions centered on the `Item Detail` view.
+
+## Decision: Standalone Detail-Centric CRUD Architecture
+
+We decided to implement a **Standalone Detail-Centric CRUD Architecture** located directly on the `Item Detail` page (`item_detail.html`):
+
+1. **Backend Service Encapsulation (`ItemPackagingService`)**:
+   - Handles all creation, update, and soft-deletion (`is_deleted=True`) logic.
+   - Enforces business rules (e.g., minimum quantity multiplier of 1, unique barcode validation, status toggling).
+
+2. **Dedicated Class-Based Views (`ItemPackagingCreateView`, `ItemPackagingUpdateView`, `ItemPackagingDeleteView`)**:
+   - `ItemPackagingCreateView`: Handles POST requests for adding new units directly to a specific item SKU.
+   - `ItemPackagingUpdateView`: Renders a standalone form (`item_packaging_form.html`) to modify multipliers, barcodes, or notes.
+   - `ItemPackagingDeleteView`: Soft-deletes a packaging unit after user confirmation (`item_packaging_confirm_delete.html`).
+
+3. **UI Integration on `item_detail.html`**:
+   - Displays a dedicated "Alternative Packaging Units" glassmorphism card listing all active and inactive packagings.
+   - Includes an inline popup modal dialog for seamless "+ Add Packaging" operations without leaving the item detail view.
+   - Provides direct action buttons (Edit, Delete) for each item packaging row.
+
+## Consequences
+
+### Positive
+- **Simplicity & Robustness**: Avoids fragile JavaScript inline formset handling across complex multi-tab item creation forms.
+- **Safety**: Users can add, modify, or remove packaging sizes without putting the main SKU, pricing, or product descriptions at risk of accidental modification.
+- **Granular Permissions**: Leverages distinct Django permissions (`add_itempackaging`, `change_itempackaging`, `delete_itempackaging`) to control precisely which warehouse or procurement roles can alter packaging multipliers.
+- **Excellent UX**: The inline glassmorphism modal allows instantaneous addition of new packaging dimensions while reviewing the item specs.
+
+### Negative / Mitigation
+- **Two-Step Creation**: When creating a brand new item, the user first saves the base item, then adds packagings on the detail page. (Mitigation: In practice, this mirrors standard ERP workflows where base item master data is created first before setting up logistics units).

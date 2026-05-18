@@ -127,6 +127,15 @@ class ItemDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
         """
         return ItemService.get_active_queryset().select_related('created_by', 'updated_by')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from catalog.services.item_packaging_service import ItemPackagingService
+        from catalog.forms import ItemPackagingForm
+        context['packagings'] = ItemPackagingService.get_active_for_item(self.object)
+        context['packaging_form'] = ItemPackagingForm()
+        return context
+
+
 class ItemDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     """
     View for soft-deleting an Item via ItemService.

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-list' %}" style="color: var(--primary-light); text-decoration: none;">Items</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-detail' item.sku %}" style="color: var(--primary-light); text-decoration: none;">{{ item.name }}</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem;">
+            <h1 class="text-gradient" style="font-size: 2.25rem; font-weight: 700;">{{ title }}</h1>
+            <p style="color: var(--text-dim); margin-top: 0.5rem;">Manage the alternative packaging unit details for <strong style="color: var(--text-main);">{{ item.name }}</strong>.</p>
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="alert alert-error" style="margin-bottom: 1.5rem;">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Packaging Name -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.name.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                    Packaging Name
+                </label>
+                <input type="text" 
+                       name="{{ form.name.name }}" 
+                       id="{{ form.name.id_for_label }}" 
+                       class="form-control {% if form.name.errors %}is-invalid{% endif %}" 
+                       placeholder="e.g. Carton, Box, Pallet"
+                       value="{{ form.name.value|default:'' }}">
+                {% if form.name.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.name.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Quantity Multiplier -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.quantity.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                    Quantity (Pieces per packaging)
+                </label>
+                <input type="number" 
+                       name="{{ form.quantity.name }}" 
+                       id="{{ form.quantity.id_for_label }}" 
+                       class="form-control {% if form.quantity.errors %}is-invalid{% endif %}" 
+                       placeholder="e.g. 24"
+                       min="1"
+                       value="{{ form.quantity.value|default:'' }}">
+                {% if form.quantity.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.quantity.errors.0 }}
+                    </div>
+                {% endif %}
+                <span style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; display: block;">
+                    How many base units ({{ item.unit }}) are contained in 1 {{ form.name.value|default:'packaging' }}?
+                </span>
+            </div>
+
+            <!-- Barcode -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.barcode.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                    Packaging Barcode (Optional)
+                </label>
+                <input type="text" 
+                       name="{{ form.barcode.name }}" 
+                       id="{{ form.barcode.id_for_label }}" 
+                       class="form-control {% if form.barcode.errors %}is-invalid{% endif %}" 
+                       placeholder="Optional carton barcode"
+                       value="{{ form.barcode.value|default:'' }}">
+                {% if form.barcode.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.barcode.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Note -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="{{ form.note.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main);">
+                    Notes
+                </label>
+                <textarea name="{{ form.note.name }}" 
+                          id="{{ form.note.id_for_label }}" 
+                          class="form-control {% if form.note.errors %}is-invalid{% endif %}" 
+                          rows="2" 
+                          placeholder="Any internal notes...">{{ form.note.value|default:'' }}</textarea>
+                {% if form.note.errors %}
+                    <div style="color: var(--error); font-size: 0.8rem; margin-top: 0.3rem;">
+                        {{ form.note.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Status Toggle -->
+            <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+                <div>
+                    <label style="display: block; font-weight: 700; color: var(--text-main); font-size: 1rem;">Active Status</label>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem;">Active packagings are available for selection in commercial transactions.</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" 
+                           id="status-toggle"
+                           {% if form.status.value == 'active' or not form.instance.pk %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+                <input type="hidden" name="status" id="id_status_hidden" value="{{ form.status.value|default:'active' }}">
+            </div>
+
+            <!-- Actions -->
+            <div style="margin-top: 2.5rem; display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    {{ action_label }}
+                </button>
+                <a href="{% url 'catalog:item-detail' item.sku %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 54px;
+      height: 28px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.05); transition: .3s;
+      border: 1px solid var(--glass-border); border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px;
+      background-color: #94a3b8; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: rgba(16, 185, 129, 0.2); border-color: var(--primary-light);
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px); background-color: #10b981;
+    }
+    .form-control::placeholder { color: var(--text-muted); opacity: 0.5; }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('status-toggle');
+        const hiddenInput = document.getElementById('id_status_hidden');
+        if (toggle && hiddenInput) {
+            toggle.addEventListener('change', function() {
+                hiddenInput.value = this.checked ? 'active' : 'inactive';
+            });
+        }
+    });
+</script>
+{% endblock %}

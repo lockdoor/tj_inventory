@@ -134,6 +134,90 @@
             </div>
         </div>
     </div>
+
+    <!-- Packaging Units Section -->
+    <div class="glass-card" style="margin-bottom: 2rem; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-light);"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                Alternative Packaging Units
+            </h2>
+            {% if perms.catalog.add_itempackaging %}
+                <a href="{% url 'catalog:item-packaging-create' item.sku %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Packaging
+                </a>
+            {% endif %}
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 0; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                        <th style="padding: 0.75rem 1rem;">Packaging Name</th>
+                        <th style="padding: 0.75rem 1rem;">Base Multiplier</th>
+                        <th style="padding: 0.75rem 1rem;">Barcode</th>
+                        <th style="padding: 0.75rem 1rem;">Status</th>
+                        <th style="padding: 0.75rem 1rem; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody style="font-size: 0.925rem;">
+                    <!-- Base unit default row for visual completeness -->
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); background: rgba(16, 185, 129, 0.03);">
+                        <td style="padding: 1rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem;">
+                            Single Unit
+                            <span style="font-size: 0.7rem; background: var(--primary); color: #000; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px;">BASE</span>
+                        </td>
+                        <td style="padding: 1rem; color: var(--primary-light); font-weight: 600;">1 {{ item.unit }}</td>
+                        <td style="padding: 1rem; font-family: monospace; color: var(--text-muted); font-style: italic;">{{ item.sku }}</td>
+                        <td style="padding: 1rem;">
+                            <span class="status-chip status-active"><span class="status-dot"></span>Active</span>
+                        </td>
+                        <td style="padding: 1rem; text-align: right; color: var(--text-muted); font-size: 0.8rem; font-style: italic;">
+                            System Base Unit
+                        </td>
+                    </tr>
+                    {% for pkg in packagings %}
+                        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                            <td style="padding: 1rem; font-weight: 600; color: var(--text-main);">
+                                {{ pkg.name }}
+                                {% if pkg.note %}
+                                    <span title="{{ pkg.note }}" style="cursor: help; opacity: 0.6; margin-left: 0.4rem;">ℹ️</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 1rem; color: var(--primary-light); font-weight: 600;">{{ pkg.quantity }} {{ item.unit }}</td>
+                            <td style="padding: 1rem; font-family: monospace; color: var(--text-dim);">{{ pkg.barcode|default:"-" }}</td>
+                            <td style="padding: 1rem;">
+                                <span class="status-chip {% if pkg.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                    <span class="status-dot"></span>{{ pkg.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="padding: 1rem; text-align: right;">
+                                <div style="display: inline-flex; gap: 0.5rem;">
+                                    {% if perms.catalog.change_itempackaging %}
+                                        <a href="{% url 'catalog:item-packaging-update' pkg.id %}" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; text-decoration: none;">
+                                            Edit
+                                        </a>
+                                    {% endif %}
+                                    {% if perms.catalog.delete_itempackaging %}
+                                        <a href="{% url 'catalog:item-packaging-delete' pkg.id %}" class="btn btn-outline" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; border-color: var(--error); color: var(--error); text-decoration: none;">
+                                            Delete
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted); font-style: italic;">
+                                No alternative packaging units defined. Click "Add Packaging" to create cartons, boxes, or pallets.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -183,3 +267,4 @@
     }
 </style>
 {% endblock %}
+

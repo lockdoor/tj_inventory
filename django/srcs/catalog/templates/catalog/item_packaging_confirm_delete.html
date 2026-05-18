@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Packaging - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'catalog:catalog-overview' %}" style="color: var(--primary-light); text-decoration: none;">Catalog</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-list' %}" style="color: var(--primary-light); text-decoration: none;">Items</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<a href="{% url 'catalog:item-detail' object.item.sku %}" style="color: var(--primary-light); text-decoration: none;">{{ object.item.name }}</a>
+<span style="color: var(--text-dim); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Delete Packaging</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-sm" style="max-width: 600px; margin: 0 auto;">
+    <div class="glass-card" style="border-top: 4px solid var(--error);">
+        <!-- Header -->
+        <div style="margin-bottom: 2rem;">
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">Delete Packaging Unit?</h1>
+            <p style="color: var(--text-dim); line-height: 1.6;">
+                Are you sure you want to delete packaging unit <strong style="color: var(--text-main);">"{{ object.name }}"</strong> for <strong style="color: var(--text-main);">{{ object.item.name }}</strong>? 
+                This action will remove it from commercial selection lists.
+            </p>
+        </div>
+
+        <!-- Metadata Snippet -->
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 2.5rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                <span style="color: var(--text-muted); font-size: 0.875rem;">Packaging Name</span>
+                <span style="color: var(--text-main); font-weight: 600;">{{ object.name }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+                <span style="color: var(--text-muted); font-size: 0.875rem;">Base Multiplier</span>
+                <span style="color: var(--primary-light); font-weight: 600;">{{ object.quantity }} {{ object.item.unit }}</span>
+            </div>
+            {% if object.barcode %}
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted); font-size: 0.875rem;">Barcode</span>
+                    <span style="font-family: monospace; color: var(--text-dim);">{{ object.barcode }}</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" 
+                        style="flex: 1; background: var(--error); border-color: var(--error);">
+                    Confirm Delete
+                </button>
+                <a href="{% url 'catalog:item-detail' object.item.sku %}" 
+                   class="btn btn-outline" 
+                   style="flex: 1; text-align: center; text-decoration: none;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

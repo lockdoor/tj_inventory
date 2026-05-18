@@ -17,6 +17,11 @@ from catalog.views.item_views import (
     ItemDeleteView,
     ItemRestoreView
 )
+from catalog.views.item_packaging_views import (
+    ItemPackagingCreateView,
+    ItemPackagingUpdateView,
+    ItemPackagingDeleteView
+)
 from catalog.views.catalog_views import CatalogOverviewView
 
 app_name = 'catalog'
@@ -42,4 +47,10 @@ urlpatterns = [
     path('items/<str:sku>/update/', ItemUpdateView.as_view(), name='item-update'),
     path('items/<str:sku>/delete/', ItemDeleteView.as_view(), name='item-delete'),
     path('items/<str:sku>/restore/', ItemRestoreView.as_view(), name='item-restore'),
+
+    # Item Packagings
+    path('items/<str:sku>/packagings/create/', ItemPackagingCreateView.as_view(), name='item-packaging-create'),
+    path('packagings/<int:pk>/update/', ItemPackagingUpdateView.as_view(), name='item-packaging-update'),
+    path('packagings/<int:pk>/delete/', ItemPackagingDeleteView.as_view(), name='item-packaging-delete'),
 ]
+
