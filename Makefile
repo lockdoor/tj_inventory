@@ -66,6 +66,18 @@ restore_db:
 	gunzip < database_backup.sql.gz | docker exec -i postgres psql -U tjglobal -d tjglobal
 	@echo "✓ Database restored successfully."
 
+# We must exclude contenttypes and auth.permission because Django creates these automatically, 
+# and including them would cause duplicate key errors later.
+# get datadump.json to local develop environment ./django/migrate/data/datadump.json
+# delete old sqlite db and reset database in local develop environment
+# cd django/srcs
+# rm -f db.sqlite3
+# python manage.py migrate
+# python manage.py loaddata ../migrate/data/datadump.json
+
+dump_json:
+	docker exec -it django python manage.py dumpdata --exclude auth.permission --exclude contenttypes > datadump.json
+
 # Delete Database 
 dk_db_drop:
 	@echo "Dropping and recreating database 'tjglobal'..."
