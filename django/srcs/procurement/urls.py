@@ -24,6 +24,8 @@ urlpatterns = [
     path('arrivals/<int:pk>/update/', views.ArrivalUpdateView.as_view(), name='arrival-update'),
     path('arrivals/from-po/<int:po_pk>/', views.ArrivalFromPOView.as_view(), name='arrival-from-po'),
     path('arrivals/<int:pk>/receive/', views.ArrivalReceiveActionView.as_view(), name='arrival-receive'),
+    path('arrivals/<int:pk>/cancel-receive/', views.ArrivalCancelReceiveActionView.as_view(), name='arrival-cancel-receive'),
+    path('arrivals/<int:pk>/delete/', views.ArrivalDeleteActionView.as_view(), name='arrival-delete'),
 
     # Arrival Attachments
     path('arrivals/<int:pk>/attachment/upload/', views.ArrivalAttachmentUploadView.as_view(), name='arrival-attachment-upload'),

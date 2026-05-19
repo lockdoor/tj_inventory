@@ -71,6 +71,14 @@ class PurchaseOrderItem(models.Model):
         on_delete=models.PROTECT,
         related_name='purchase_order_items'
     )
+    packaging = models.ForeignKey(
+        'catalog.ItemPackaging',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_order_items',
+        help_text="Ordered packaging container (optional)"
+    )
     order_qty = models.DecimalField(
         max_digits=12,
         decimal_places=2,

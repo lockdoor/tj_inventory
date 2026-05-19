@@ -135,7 +135,7 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
         context['attachment_form'] = PurchaseOrderAttachmentForm()
         
         # Related Arrivals
-        context['arrivals'] = self.object.arrivals.all().select_related('warehouse', 'partner')
+        context['arrivals'] = self.object.arrivals.filter(is_deleted=False).select_related('warehouse', 'partner')
         
         return context
 
@@ -169,13 +169,14 @@ from django.http import JsonResponse
 class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):
     def get(self, request, pk):
         po = get_object_or_404(PurchaseOrder, pk=pk)
-        items = po.items.all().select_related('item')
+        items = po.items.all().select_related('item', 'packaging')
         data = {
             'items': [
                 {
                     'id': item.item.id,
                     'sku': item.item.sku,
                     'name': item.item.name,
+                    'packaging_id': item.packaging.id if item.packaging else None,
                     'order_qty': float(item.order_qty),
                     'po_item_id': item.id
                 } for item in items

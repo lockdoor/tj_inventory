@@ -145,5 +145,17 @@ class InventoryMovementItem(models.Model):
         verbose_name = "Movement Item"
         verbose_name_plural = "Movement Items"
 
+    @property
+    def packaging_name(self):
+        if self.arrival_item and self.arrival_item.packaging:
+            return self.arrival_item.packaging.name
+        return None
+
+    @property
+    def package_qty(self):
+        if self.arrival_item and self.arrival_item.packaging and self.arrival_item.packaging.quantity:
+            return self.quantity / self.arrival_item.packaging.quantity
+        return None
+
     def __str__(self):
         return f"{self.movement.document_no} - {self.item.sku} ({self.quantity})"

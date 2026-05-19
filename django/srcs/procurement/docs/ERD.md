@@ -9,6 +9,8 @@ erDiagram
     PARTNER ||--o{ ARRIVAL : "ships"
     ITEM ||--o{ PURCHASE_ORDER_ITEM : "ordered"
     ITEM ||--o{ ARRIVAL_ITEM : "shipped"
+    ITEM_PACKAGING ||--o{ PURCHASE_ORDER_ITEM : "ordered in unit"
+    ITEM_PACKAGING ||--o{ ARRIVAL_ITEM : "shipped in unit"
     WAREHOUSE ||--o{ ARRIVAL : "receives"
 
     %% Internal Procurement Models
@@ -33,6 +35,7 @@ erDiagram
     PURCHASE_ORDER_ITEM {
         string po_no FK
         string item_sku FK
+        string packaging_id FK "catalog.ItemPackaging (Optional)"
         decimal order_qty
         decimal unit_cost
     }
@@ -57,6 +60,7 @@ erDiagram
     ARRIVAL_ITEM {
         string arrival_no FK
         string item_sku FK
+        string packaging_id FK "catalog.ItemPackaging (Optional)"
         decimal expected_qty
         decimal received_qty
     }
@@ -84,7 +88,8 @@ erDiagram
 
 1.  **External References**:
     *   `Partner`: From the `partners` app.
-    *   `Item`: From the `catalog` app.
+    *   `Item`: From the `catalog` app (representing the base inventory unit).
+    *   `ItemPackaging`: From the `catalog` app, representing alternative commercial packaging units (e.g. Cartons of 12 or 24 pieces). This allows purchase orders and supplier shipments to track commercial containers alongside base units.
     *   `Warehouse`: From the `inventory` app.
 2.  **Purchase Order (PO)**: Represents the contract or intent to buy.
 3.  **Arrival**: Represents the actual shipment from the supplier. It can be linked to a `PurchaseOrder` for fulfillment tracking, or be "Standalone" if no PO exists.

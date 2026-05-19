@@ -2,6 +2,7 @@ from django import forms
 from django.forms import inlineformset_factory
 from ..models import PurchaseOrder, PurchaseOrderItem
 from partners.models import Partner
+from catalog.models import ItemPackaging
 
 class PurchaseOrderForm(forms.ModelForm):
     """
@@ -44,10 +45,13 @@ class PurchaseOrderItemForm(forms.ModelForm):
     """
     class Meta:
         model = PurchaseOrderItem
-        fields = ['item', 'order_qty', 'unit_cost']
+        fields = ['item', 'packaging', 'order_qty', 'unit_cost']
         widgets = {
             'item': forms.Select(attrs={
-                'class': 'glass-input'
+                'class': 'glass-input item-select'
+            }),
+            'packaging': forms.Select(attrs={
+                'class': 'glass-input packaging-select'
             }),
             'order_qty': forms.NumberInput(attrs={
                 'class': 'glass-input',
@@ -61,7 +65,12 @@ class PurchaseOrderItemForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['packaging'].queryset = ItemPackaging.objects.filter(is_deleted=False)
+
     def clean_order_qty(self):
+
         qty = self.cleaned_data.get('order_qty')
         if qty is not None and qty <= 0:
             raise forms.ValidationError("Quantity must be greater than zero.")

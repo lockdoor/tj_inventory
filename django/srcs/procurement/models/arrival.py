@@ -76,6 +76,14 @@ class ArrivalItem(models.Model):
         on_delete=models.PROTECT,
         related_name='arrival_items'
     )
+    packaging = models.ForeignKey(
+        'catalog.ItemPackaging',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='arrival_items',
+        help_text="Received packaging container (optional)"
+    )
     po_item = models.ForeignKey(
         'procurement.PurchaseOrderItem',
         on_delete=models.SET_NULL,

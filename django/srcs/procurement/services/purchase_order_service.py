@@ -41,6 +41,7 @@ class PurchaseOrderService:
                 PurchaseOrderItem.objects.create(
                     purchase_order=po,
                     item=item_data['item'],
+                    packaging=item_data.get('packaging'),
                     order_qty=item_data['order_qty'],
                     unit_cost=item_data.get('unit_cost')
                 )
@@ -84,6 +85,7 @@ class PurchaseOrderService:
             
             if item_instance:
                 item_instance.item = item_data['item']
+                item_instance.packaging = item_data.get('packaging')
                 item_instance.order_qty = item_data['order_qty']
                 item_instance.unit_cost = item_data.get('unit_cost')
                 item_instance.save()
@@ -91,6 +93,7 @@ class PurchaseOrderService:
                 PurchaseOrderItem.objects.create(
                     purchase_order=po,
                     item=item_data['item'],
+                    packaging=item_data.get('packaging'),
                     order_qty=item_data['order_qty'],
                     unit_cost=item_data.get('unit_cost')
                 )
@@ -135,6 +138,14 @@ class PurchaseOrderService:
         """Transition PO from SUBMITTED back to DRAFT."""
         if po.status != PurchaseOrder.Status.SUBMITTED:
             raise ValidationError("Only Submitted Purchase Orders can be reverted.")
+
+        arrivals = po.arrivals.filter()
+        
+        if arrivals.filter(is_deleted=False).exists():
+            raise ValidationError("Cannot revert to draft because this Purchase Order has scheduled or received arrivals.")
+
+        # hard delete arrivals if exists
+        arrivals.all().delete()
         
         po.status = PurchaseOrder.Status.DRAFT
         po.updated_by = user

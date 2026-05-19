@@ -101,9 +101,10 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 45%;">Item / Product</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Expected Qty</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Received Qty</th>
+                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 35%;">Item / Product</th>
+                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Packaging (Opt.)</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Expected Qty</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Received Qty</th>
                             <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;"></th>
                         </tr>
                     </thead>
@@ -116,6 +117,10 @@
                             <td style="padding: 1rem 2rem;">
                                 {{ item_form.item }}
                                 {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.packaging }}
+                                {% if item_form.packaging.errors %}<div class="error-msg">{{ item_form.packaging.errors.0 }}</div>{% endif %}
                             </td>
                             <td style="padding: 1rem 1rem;">
                                 {{ item_form.expected_qty }}
@@ -274,10 +279,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         const itemSelect = row.querySelector('select[name$="-item"]');
                         const qtyInput = row.querySelector('input[name$="-expected_qty"]');
                         const poItemInput = row.querySelector('input[name$="-po_item"]');
+                        const packagingSelect = row.querySelector('select[name$="-packaging"]');
 
                         if (itemSelect) itemSelect.value = item.id;
                         if (qtyInput) qtyInput.value = item.order_qty;
                         if (poItemInput) poItemInput.value = item.po_item_id;
+                        if (packagingSelect && item.packaging_id) packagingSelect.value = item.packaging_id;
                     });
                 })
                 .catch(err => console.error('Error fetching PO items:', err));

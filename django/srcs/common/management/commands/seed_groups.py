@@ -58,22 +58,10 @@ ROLE_PERMISSIONS = {
     ],
 
     'stock_controller': [
-        # Full access to catalog
-        'catalog.add_category',
-        'catalog.change_category',
-        'catalog.delete_category',
+        # View catalog (read-only)
         'catalog.view_category',
-        'catalog.add_item',
-        'catalog.change_item',
-        'catalog.delete_item',
         'catalog.view_item',
-        'catalog.add_itemimage',
-        'catalog.change_itemimage',
-        'catalog.delete_itemimage',
         'catalog.view_itemimage',
-        'catalog.add_itempackaging',
-        'catalog.change_itempackaging',
-        'catalog.delete_itempackaging',
         'catalog.view_itempackaging',
         # View Inventory
         'inventory.view_warehouse',

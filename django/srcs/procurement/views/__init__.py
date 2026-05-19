@@ -19,5 +19,7 @@ from .arrival_views import (
     ArrivalCreateView,
     ArrivalUpdateView,
     ArrivalFromPOView,
-    ArrivalReceiveActionView
+    ArrivalReceiveActionView,
+    ArrivalCancelReceiveActionView,
+    ArrivalDeleteActionView
 )

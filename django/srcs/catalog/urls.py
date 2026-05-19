@@ -20,7 +20,8 @@ from catalog.views.item_views import (
 from catalog.views.item_packaging_views import (
     ItemPackagingCreateView,
     ItemPackagingUpdateView,
-    ItemPackagingDeleteView
+    ItemPackagingDeleteView,
+    ItemPackagingsAPIView
 )
 from catalog.views.catalog_views import CatalogOverviewView
 
@@ -52,5 +53,9 @@ urlpatterns = [
     path('items/<str:sku>/packagings/create/', ItemPackagingCreateView.as_view(), name='item-packaging-create'),
     path('packagings/<int:pk>/update/', ItemPackagingUpdateView.as_view(), name='item-packaging-update'),
     path('packagings/<int:pk>/delete/', ItemPackagingDeleteView.as_view(), name='item-packaging-delete'),
+
+    # API
+    path('api/items/<int:item_id>/packagings/', ItemPackagingsAPIView.as_view(), name='api-item-packagings'),
 ]
+
 

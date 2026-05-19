@@ -54,28 +54,28 @@ class TestPermissionAssignment:
         codenames = set(group.permissions.values_list('codename', flat=True))
         
         # Catalog
-        for model in ['category', 'item', 'itemimage']:
+        for model in ['category', 'item', 'itemimage', 'itempackaging']:
             for action in ['add', 'change', 'delete', 'view']:
                 assert f'{action}_{model}' in codenames
         
         # Inventory
-        for model in ['warehouse']:
+        for model in ['warehouse', 'inventorymovement']:
             for action in ['add', 'change', 'delete', 'view']:
                 assert f'{action}_{model}' in codenames
 
-    def test_executive_has_20_permissions(self):
+    def test_executive_has_24_permissions(self):
         group = Group.objects.get(name='executive')
-        # 12 (catalog) + 4 (inventory)
-        assert group.permissions.count() == 20
+        assert group.permissions.count() == 24
 
     def test_stock_controller_permissions(self):
         group = Group.objects.get(name='stock_controller')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
-                        # View catalog (read-only)
+            # View catalog (read-only)
             'view_category',
             'view_item',
             'view_itemimage',
+            'view_itempackaging',
             # View Inventory
             'view_warehouse',
             'view_inventorymovement',
@@ -104,7 +104,7 @@ class TestPermissionAssignment:
         group = Group.objects.get(name='sales_rep')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
-            'view_category', 'view_item', 'view_itemimage',
+            'view_category', 'view_item', 'view_itemimage', 'view_itempackaging',
             'view_warehouse', 'view_inventorymovement'
         }
 
@@ -128,6 +128,11 @@ class TestPermissionAssignment:
             'change_itemimage',
             'delete_itemimage',
             'view_itemimage',
+            ## Catalog Item Packaging permissions
+            'add_itempackaging',
+            'change_itempackaging',
+            'delete_itempackaging',
+            'view_itempackaging',
             # Full Warehouse Access (operational)
             ## Inventory Warehouse permissions
             'add_warehouse',
@@ -166,7 +171,7 @@ class TestIdempotent:
     def test_running_twice_does_not_duplicate_permissions(self):
         call_command('seed_groups')
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 20
+        assert group.permissions.count() == 24
 
 
 # ============================================================

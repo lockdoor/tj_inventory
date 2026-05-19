@@ -38,6 +38,12 @@
                 <i data-lucide="edit-3" style="width: 18px; height: 18px; margin-right: 0.5rem;"></i>
                 Edit Schedule
             </a>
+            {% if perms.procurement.delete_arrival %}
+            <button type="button" class="btn btn-outline" style="padding: 0.7rem 1.25rem; border-radius: 12px; font-weight: 600; border-color: #f87171; color: #f87171;" onclick="openDeleteModal('{{ arrival.document_no }}', '{% url 'procurement:arrival-delete' arrival.pk %}')">
+                <i data-lucide="trash-2" style="width: 18px; height: 18px; margin-right: 0.5rem;"></i>
+                Delete
+            </button>
+            {% endif %}
             <form action="{% url 'procurement:arrival-receive' arrival.pk %}" method="POST" style="display: inline;">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-primary" style="padding: 0.7rem 1.25rem; border-radius: 12px; font-weight: 600;">
@@ -58,6 +64,13 @@
                 </a>
                 {% endwith %}
             {% endif %}
+            <form action="{% url 'procurement:arrival-cancel-receive' arrival.pk %}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to cancel receiving? This will soft-delete the draft inventory movement and return the arrival schedule to scheduled status.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline" style="padding: 0.7rem 1.25rem; border-radius: 12px; font-weight: 600; border-color: #f87171; color: #f87171;">
+                    <i data-lucide="x-circle" style="width: 18px; height: 18px; margin-right: 0.5rem;"></i>
+                    Cancel Receiving
+                </button>
+            </form>
         {% endif %}
     </div>
 </div>
@@ -89,6 +102,12 @@
                             <td style="padding: 1rem 1.5rem;">
                                 <div style="color: var(--text-main); font-weight: 500; font-size: 0.9rem;">{{ item.item.name }}</div>
                                 <div style="color: var(--text-muted); font-size: 0.75rem;">Category: {{ item.item.category.name|default:"General" }}</div>
+                                {% if item.packaging %}
+                                    <div style="font-size: 0.75rem; color: #10b981; font-weight: 500; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.3rem;">
+                                        <i data-lucide="package" style="width: 12px; height: 12px;"></i>
+                                        Arriving in {{ item.packaging.name }} ({{ item.packaging.quantity }} pcs/unit)
+                                    </div>
+                                {% endif %}
                             </td>
                             <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-main); font-size: 0.95rem;">
                                 {{ item.expected_qty|floatformat:2 }}
@@ -259,4 +278,101 @@
         color: var(--primary);
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentDocNo = '';
+
+function openDeleteModal(docNo, actionUrl) {
+    currentDocNo = docNo;
+    const modal = document.getElementById('delete-modal');
+    const form = document.getElementById('hard-delete-form');
+    const targetSpan = document.getElementById('target-doc-no');
+    const input = document.getElementById('verification-input');
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+
+    targetSpan.textContent = docNo;
+    form.action = actionUrl;
+    input.value = '';
+    confirmBtn.disabled = true;
+    confirmBtn.style.cursor = 'not-allowed';
+    confirmBtn.style.opacity = '0.5';
+
+    modal.style.display = 'flex';
+    input.focus();
+
+    input.oninput = function() {
+        if (this.value === currentDocNo) {
+            confirmBtn.disabled = false;
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.opacity = '1';
+        } else {
+            confirmBtn.disabled = true;
+            confirmBtn.style.cursor = 'not-allowed';
+            confirmBtn.style.opacity = '0.5';
+        }
+    };
+}
+
+function closeDeleteModal() {
+    document.getElementById('delete-modal').style.display = 'none';
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDeleteModal();
+});
+</script>
+
+
+<!-- Delete Verification Modal -->
+<div id="delete-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card animate-fade-in" style="width: 100%; max-width: 450px; padding: 2.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.9);">
+        <div style="color: #f87171; margin-bottom: 1.5rem; display: flex; justify-content: center;">
+            <div style="background: rgba(248, 113, 113, 0.1); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(248, 113, 113, 0.2);">
+                <i data-lucide="alert-triangle" style="width: 32px; height: 32px;"></i>
+            </div>
+        </div>
+        
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; text-align: center;">Delete Arrival</h2>
+        <p style="color: var(--text-dim); text-align: center; margin-bottom: 2rem; line-height: 1.6;">
+            This action will soft-delete the Arrival. Any associated soft-deleted Inventory Movements will be <strong style="color: #f87171;">permanently deleted</strong>.
+        </p>
+
+        <div style="background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.25rem; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 2rem;">
+            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; text-align: center;">
+                Type <span id="target-doc-no" style="color: var(--text-main); font-weight: 700; font-family: monospace; background: rgba(255,255,255,0.05); padding: 0.2rem 0.4rem; border-radius: 0.3rem;"></span> to confirm
+            </label>
+            <input type="text" id="verification-input" placeholder="Enter Document No." autocomplete="off"
+                   style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 0.85rem; color: var(--text-main); font-family: monospace; text-align: center; outline: none; transition: var(--transition);">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <button type="button" onclick="closeDeleteModal()" class="btn btn-outline" style="padding: 0.85rem; font-weight: 600;">Cancel</button>
+            <form id="hard-delete-form" method="post">
+                {% csrf_token %}
+                <button type="submit" id="confirm-delete-btn" disabled class="btn-danger-glass" style="width: 100%; padding: 0.85rem; border: none; border-radius: 0.75rem; font-weight: 700; cursor: not-allowed; opacity: 0.5; color: #fff; height: 100%;">
+                    Delete Arrival
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-danger-glass {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        transition: var(--transition);
+    }
+    .btn-danger-glass:not(:disabled):hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    }
+    #verification-input:focus {
+        border-color: #f87171;
+        box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.1);
+    }
+</style>
+
 {% endblock %}

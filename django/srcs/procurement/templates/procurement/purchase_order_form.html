@@ -91,9 +91,10 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 45%;">Item / Product</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Quantity</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Unit Cost</th>
+                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 35%;">Item / Product</th>
+                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Packaging (Opt.)</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Quantity</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Unit Cost</th>
                             <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;"></th>
                         </tr>
                     </thead>
@@ -106,6 +107,10 @@
                             <td style="padding: 1rem 2rem;">
                                 {{ item_form.item }}
                                 {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.packaging }}
+                                {% if item_form.packaging.errors %}<div class="error-msg">{{ item_form.packaging.errors.0 }}</div>{% endif %}
                             </td>
                             <td style="padding: 1rem 1rem;">
                                 {{ item_form.order_qty }}
@@ -194,10 +199,49 @@ document.addEventListener('DOMContentLoaded', function() {
         totalAmountDisplay.textContent = total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
+    function updatePackagingOptions(row, itemId, selectedPackagingId = null) {
+        const packagingSelect = row.querySelector('.packaging-select');
+        if (!packagingSelect) return;
+
+        if (!itemId) {
+            packagingSelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        fetch(`/catalog/api/items/${itemId}/packagings/`)
+            .then(response => response.json())
+            .then(data => {
+                let html = '<option value="">---------</option>';
+                data.packagings.forEach(p => {
+                    const selected = (selectedPackagingId && selectedPackagingId == p.id) ? 'selected' : '';
+                    html += `<option value="${p.id}" ${selected}>${p.display}</option>`;
+                });
+                packagingSelect.innerHTML = html;
+            })
+            .catch(err => console.error("Error fetching packagings:", err));
+    }
+
     function setupRowListeners(row) {
         row.querySelectorAll('input').forEach(input => {
             input.addEventListener('input', calculateTotal);
         });
+
+        const itemSelect = row.querySelector('.item-select');
+        const packagingSelect = row.querySelector('.packaging-select');
+
+        if (itemSelect && packagingSelect) {
+            const currentItemId = itemSelect.value;
+            const currentPackId = packagingSelect.value;
+            if (currentItemId) {
+                updatePackagingOptions(row, currentItemId, currentPackId);
+            } else {
+                packagingSelect.innerHTML = '<option value="">---------</option>';
+            }
+
+            itemSelect.addEventListener('change', function() {
+                updatePackagingOptions(row, this.value, null);
+            });
+        }
         
         const removeBtn = row.querySelector('.remove-item-btn');
         if (removeBtn) {
@@ -243,6 +287,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.value = '';
             }
         });
+
+        const packagingSelect = newRow.querySelector('.packaging-select');
+        if (packagingSelect) {
+            packagingSelect.innerHTML = '<option value="">---------</option>';
+        }
         
         tbody.appendChild(newRow);
         totalForms.value = count + 1;

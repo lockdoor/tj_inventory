@@ -102,9 +102,9 @@ class MovementItemForm(forms.ModelForm):
         # Lot number can be auto-generated for inbound, so it's not strictly required by the form
         self.fields['lot_number'].required = False
         
-        # If this is an existing item line (Update view), lock down the core item/lot fields
+        # If this is an existing item line (Update view), lock down the core item
         if self.instance and self.instance.pk:
-            locked_fields = ['item', 'lot_number', 'mfg_date', 'exp_date', 'unit_cost']
+            locked_fields = ['item']
             for field in locked_fields:
                 self.fields[field].disabled = True
                 self.fields[field].widget.attrs['class'] += ' disabled-field'

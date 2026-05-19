@@ -24,16 +24,24 @@ class ArrivalForm(forms.ModelForm):
             'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
 
+from catalog.models import ItemPackaging
+
 class ArrivalItemForm(forms.ModelForm):
     class Meta:
         model = ArrivalItem
-        fields = ['item', 'po_item', 'expected_qty', 'received_qty']
+        fields = ['item', 'po_item', 'packaging', 'expected_qty', 'received_qty']
         widgets = {
             'item': forms.Select(attrs={'class': 'form-control'}),
             'po_item': forms.HiddenInput(),
+            'packaging': forms.Select(attrs={'class': 'form-control'}),
             'expected_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'received_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': 'readonly'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['packaging'].queryset = ItemPackaging.objects.filter(is_deleted=False)
+
 
 ArrivalItemFormSet = inlineformset_factory(
     Arrival,

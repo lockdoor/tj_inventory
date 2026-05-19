@@ -99,3 +99,26 @@ class ItemPackagingDeleteView(LoginRequiredMixin, PermissionRequiredMixin, Delet
         ItemPackagingService.delete(self.object, user=self.request.user)
         messages.success(self.request, f"Packaging '{name}' deleted successfully from {item.sku}.")
         return redirect('catalog:item-detail', sku=item.sku)
+
+
+from django.http import JsonResponse
+from django.views import View
+
+class ItemPackagingsAPIView(LoginRequiredMixin, View):
+    """
+    Returns JSON list of active packagings for a given Item ID.
+    """
+    def get(self, request, item_id):
+        item = get_object_or_404(Item, id=item_id, is_deleted=False)
+        packagings = item.packagings.filter(status=ItemPackaging.Status.ACTIVE, is_deleted=False).order_by('quantity')
+        data = [
+            {
+                'id': p.id,
+                'name': p.name,
+                'quantity': p.quantity,
+                'display': f"{p.name} ({p.quantity} pcs)"
+            }
+            for p in packagings
+        ]
+        return JsonResponse({'packagings': data, 'base_unit': item.unit})
+

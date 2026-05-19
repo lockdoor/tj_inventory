@@ -137,7 +137,8 @@ class ArrivalDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
         from inventory.models import InventoryMovement
         context['movements'] = InventoryMovement.objects.filter(
             reference_type=InventoryMovement.ReferenceType.STOCK_ARRIVAL,
-            reference_no=self.object.document_no
+            reference_no=self.object.document_no,
+            is_deleted=False
         )
         
         return context
@@ -183,6 +184,38 @@ class ArrivalReceiveActionView(LoginRequiredMixin, PermissionRequiredMixin, View
             movement = ArrivalService.initiate_receiving(arrival, request.user)
             messages.success(request, f"Receiving process started. Inventory Movement {movement.document_no} created.")
             return redirect('inventory:movement-detail', pk=movement.pk)
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect('procurement:arrival-detail', pk=arrival.pk)
+
+
+class ArrivalCancelReceiveActionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Cancels the receiving process and reverts Arrival back to SCHEDULED.
+    """
+    permission_required = 'procurement.change_arrival'
+
+    def post(self, request, pk):
+        arrival = get_object_or_404(Arrival, pk=pk)
+        try:
+            ArrivalService.cancel_receiving(arrival, request.user)
+            messages.success(request, f"Receiving cancelled for Arrival {arrival.document_no}. Reverted to Scheduled.")
+        except ValidationError as e:
+            messages.error(request, str(e))
+        return redirect('procurement:arrival-detail', pk=arrival.pk)
+
+class ArrivalDeleteActionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Deletes an Arrival if no active movements reference it.
+    """
+    permission_required = 'procurement.delete_arrival'
+
+    def post(self, request, pk):
+        arrival = get_object_or_404(Arrival, pk=pk, is_deleted=False)
+        try:
+            ArrivalService.delete(arrival, user=request.user)
+            messages.success(request, f"Arrival {arrival.document_no} successfully deleted.")
+            return redirect('procurement:arrival-list')
         except ValidationError as e:
             messages.error(request, str(e))
             return redirect('procurement:arrival-detail', pk=arrival.pk)

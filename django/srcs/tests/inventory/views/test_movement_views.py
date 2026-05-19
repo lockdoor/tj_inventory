@@ -429,3 +429,66 @@ class TestMovementLifecycleActions:
         
         movement.refresh_from_db()
         assert movement.is_deleted is True
+
+
+@pytest.mark.django_db
+class TestMovementUpdateView:
+    """
+    Tests for the Movement Update view.
+    """
+    def test_movement_update_draft_fields(self, client, user_add_perm, warehouse):
+        from decimal import Decimal
+        from catalog.models import Item
+        from inventory.models import InventoryMovementItem
+        item = Item.objects.create(sku="SKU-UPDATE-1", name="Update Item", created_by=user_add_perm)
+        movement = InventoryMovement.objects.create(
+            document_no="MOV-UPDATE-001",
+            type=InventoryMovement.MovementType.INBOUND,
+            date=timezone.now().date(),
+            warehouse=warehouse,
+            created_by=user_add_perm,
+            status=InventoryMovement.Status.DRAFT
+        )
+        mov_item = InventoryMovementItem.objects.create(
+            movement=movement,
+            item=item,
+            lot_number="LOT-OLD",
+            quantity=Decimal("50.00"),
+            unit_cost=Decimal("10.00"),
+            mfg_date="2026-01-01",
+            exp_date="2026-12-31"
+        )
+        
+        url = reverse('inventory:movement-update', kwargs={'pk': movement.pk})
+        client.login(username='creator', password='password123')
+        
+        post_data = {
+            'document_no': 'MOV-UPDATE-001-NEW-NO',
+            'type': 'inbound',
+            'date': timezone.now().date(),
+            'warehouse': warehouse.id,
+            'note': 'Test update success',
+            'reference_type': 'none',
+            'reference_no': '',
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '1',
+            'items-MIN_NUM_FORMS': '1',
+            'items-MAX_NUM_FORMS': '1000',
+            'items-0-id': mov_item.id,
+            'items-0-item': item.id,
+            'items-0-lot_number': 'LOT-NEW',
+            'items-0-quantity': '60.00',
+            'items-0-unit_cost': '12.50',
+            'items-0-mfg_date': '2026-02-01',
+            'items-0-exp_date': '2027-01-01',
+        }
+        
+        response = client.post(url, post_data)
+        assert response.status_code == 302
+        
+        mov_item.refresh_from_db()
+        assert mov_item.lot_number == "LOT-NEW"
+        assert mov_item.quantity == Decimal("60.00")
+        assert mov_item.unit_cost == Decimal("12.50")
+        assert str(mov_item.mfg_date) == "2026-02-01"
+        assert str(mov_item.exp_date) == "2027-01-01"

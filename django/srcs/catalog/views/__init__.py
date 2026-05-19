@@ -8,7 +8,7 @@ from .item_views import (
     ItemTrashListView, ItemDeleteView, ItemRestoreView
 )
 from .item_packaging_views import (
-    ItemPackagingCreateView, ItemPackagingUpdateView, ItemPackagingDeleteView
+    ItemPackagingCreateView, ItemPackagingUpdateView, ItemPackagingDeleteView, ItemPackagingsAPIView
 )
 
 __all__ = [
@@ -17,5 +17,6 @@ __all__ = [
     'CategoryUpdateView', 'CategoryDeleteView', 'CategoryTrashListView', 'CategoryRestoreView',
     'ItemListView', 'ItemCreateView', 'ItemUpdateView', 'ItemDetailView',
     'ItemTrashListView', 'ItemDeleteView', 'ItemRestoreView',
-    'ItemPackagingCreateView', 'ItemPackagingUpdateView', 'ItemPackagingDeleteView'
+    'ItemPackagingCreateView', 'ItemPackagingUpdateView', 'ItemPackagingDeleteView', 'ItemPackagingsAPIView'
 ]
+
