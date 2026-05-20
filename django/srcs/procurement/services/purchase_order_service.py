@@ -115,6 +115,10 @@ class PurchaseOrderService:
         if po.status not in [PurchaseOrder.Status.DRAFT, PurchaseOrder.Status.CANCELLED]:
             raise ValidationError("Only Draft or Cancelled POs can be deleted.")
         
+        # Check if active arrivals exist
+        if po.arrivals.filter(is_deleted=False).exists():
+            raise ValidationError("Cannot delete Purchase Order because it has scheduled or received arrivals.")
+        
         po.is_deleted = True
         po.updated_by = user
         po.save()

@@ -80,3 +80,44 @@ class TestPurchaseOrderService:
             PurchaseOrderService.revert_to_draft(po, user=user)
         
         assert "Cannot revert to draft because this Purchase Order has scheduled or received arrivals" in str(excinfo.value)
+
+    def test_soft_delete_success_no_arrivals(self, user, partner):
+        po = PurchaseOrderService.create(
+            document_no="PO-DEL-OK",
+            partner=partner,
+            user=user
+        )
+        assert not po.is_deleted
+        
+        PurchaseOrderService.soft_delete(po, user=user)
+        
+        po.refresh_from_db()
+        assert po.is_deleted
+        assert po.updated_by == user
+
+    def test_soft_delete_fails_with_active_arrivals(self, user, partner):
+        from procurement.models import Arrival
+        from inventory.models import Warehouse
+        from django.core.exceptions import ValidationError
+
+        po = PurchaseOrderService.create(
+            document_no="PO-DEL-FAIL",
+            partner=partner,
+            user=user
+        )
+        warehouse = Warehouse.objects.create(name="Test WH 2", code="WH2", created_by=user)
+        
+        # Link an arrival to the PO
+        Arrival.objects.create(
+            document_no="ARR-002",
+            partner=partner,
+            warehouse=warehouse,
+            expected_date="2026-05-20",
+            purchase_order=po,
+            created_by=user
+        )
+
+        with pytest.raises(ValidationError) as excinfo:
+            PurchaseOrderService.soft_delete(po, user=user)
+        
+        assert "Cannot delete Purchase Order because it has scheduled or received arrivals" in str(excinfo.value)

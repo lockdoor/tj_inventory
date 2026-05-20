@@ -164,6 +164,20 @@ class PurchaseOrderRevertView(LoginRequiredMixin, PermissionRequiredMixin, View)
             messages.error(request, str(e))
             
         return redirect('procurement:purchase-order-detail', pk=pk)
+
+class PurchaseOrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'procurement.delete_purchaseorder'
+
+    def post(self, request, pk):
+        po = get_object_or_404(PurchaseOrder, pk=pk, is_deleted=False)
+        try:
+            PurchaseOrderService.soft_delete(po, user=request.user)
+            messages.success(request, f"Purchase Order {po.document_no} successfully deleted.")
+            return redirect('procurement:purchase-order-list')
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect('procurement:purchase-order-detail', pk=pk)
+
 from django.http import JsonResponse
 
 class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):

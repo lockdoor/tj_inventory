@@ -12,6 +12,7 @@ urlpatterns = [
     path('purchase-orders/<int:pk>/update/', views.PurchaseOrderUpdateView.as_view(), name='purchase-order-update'),
     path('purchase-orders/<int:pk>/submit/', views.PurchaseOrderSubmitView.as_view(), name='purchase-order-submit'),
     path('purchase-orders/<int:pk>/revert/', views.PurchaseOrderRevertView.as_view(), name='purchase-order-revert'),
+    path('purchase-orders/<int:pk>/delete/', views.PurchaseOrderDeleteView.as_view(), name='purchase-order-delete'),
     
     # PO Attachments
     path('purchase-orders/<int:pk>/attachment/upload/', views.PurchaseOrderAttachmentUploadView.as_view(), name='purchase-order-attachment-upload'),
