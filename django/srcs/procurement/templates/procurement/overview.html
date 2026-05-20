@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Procurement</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="welcome-header" style="margin-bottom: 3rem;">
+        <h1 class="text-gradient"
+            style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+            Procurement Overview
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">Manage purchase orders, track supplier deliveries, and handle warehouse receiving.</p>
+    </div>
+
+    <!-- Procurement Module Grid -->
+    <div class="module-grid"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+
+        <!-- Purchase Order Card -->
+        <a href="{% url 'procurement:purchase-order-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
+            <div class="card-icon po-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+            </div>
+            <h3>Purchase Orders</h3>
+            <p>Track and manage supplier orders, product pricing, and purchase histories.</p>
+            <div class="card-footer">
+                <span class="status-pill">Procurement</span>
+            </div>
+        </a>
+
+        <!-- Arrival Card -->
+        <a href="{% url 'procurement:arrival-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
+            <div class="card-icon arrival-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="16" height="16" x="4" y="4" rx="2"></rect>
+                    <path d="M9 12h6"></path>
+                    <path d="M12 9v6"></path>
+                </svg>
+            </div>
+            <h3>Arrival Schedules</h3>
+            <p>Manage incoming shipments, verify physical deliveries, and handle warehouse receiving.</p>
+            <div class="card-footer">
+                <span class="status-pill">Logistics</span>
+            </div>
+        </a>
+
+    </div>
+</div>
+
+<style>
+    .inventory-card {
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        transition: var(--transition);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+    }
+
+    .inventory-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-light);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        margin-bottom: 0.5rem;
+        backdrop-filter: blur(4px);
+    }
+
+    /* Icon Colors */
+    .po-icon {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .arrival-icon {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--primary-light);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .inventory-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .inventory-card p {
+        font-size: 0.95rem;
+        color: var(--text-dim);
+        line-height: 1.5;
+        flex-grow: 1;
+    }
+
+    .card-footer {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .status-pill {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.25rem 0.6rem;
+        border-radius: 2rem;
+    }
+</style>
+{% endblock %}

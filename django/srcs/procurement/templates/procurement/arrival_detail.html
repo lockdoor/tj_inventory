@@ -3,6 +3,8 @@
 {% block title %}Arrival {{ arrival.document_no }} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:arrival-list' %}" style="color: var(--text-muted); text-decoration: none; font-weight: 400;">Arrivals</a>
 <span style="color: var(--text-dim); margin: 0 0.5rem;">/</span>
 <span style="color: var(--text-main); font-weight: 500;">{{ arrival.document_no }}</span>

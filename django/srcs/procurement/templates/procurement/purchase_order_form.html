@@ -3,6 +3,8 @@
 {% block title %}{% if is_update %}Update PO {{ object.document_no }}{% else %}New Purchase Order{% endif %} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:purchase-order-list' %}" style="color: var(--text-muted); text-decoration: none;">Purchase Orders</a>
 <span style="color: var(--text-muted); opacity: 0.5;">/</span>
 <span style="color: var(--text-main); font-weight: 500;">{% if is_update %}Update{% else %}Create{% endif %}</span>

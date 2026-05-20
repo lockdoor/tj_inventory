@@ -3,6 +3,8 @@
 {% block title %}{% if object %}Update Arrival {{ object.document_no }}{% else %}New Arrival Schedule{% endif %} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:arrival-list' %}" style="color: var(--text-muted); text-decoration: none;">Arrivals</a>
 <span style="color: var(--text-muted); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <span style="color: var(--text-main); font-weight: 500;">{% if object %}Update{% else %}Create{% endif %}</span>
@@ -98,59 +100,69 @@
 
             {{ items.management_form }}
             <div id="item-rows-container">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 25%;">Item / Product</th>
-                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Packaging (Opt.)</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 12%;">Expected Qty</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 12%;">Received Qty</th>
-                            <th style="padding: 1rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 13%;">Mfg Date</th>
-                            <th style="padding: 1rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 13%;">Exp Date</th>
-                            <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 10%;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="formset-tbody">
-                        {% for item_form in items %}
-                        <tr class="item-row" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                            {% for hidden in item_form.hidden_fields %}
-                                {{ hidden }}
-                            {% endfor %}
-                            <td style="padding: 1rem 2rem;">
+                <div id="formset-tbody" style="display: flex; flex-direction: column; gap: 1rem;">
+                    {% for item_form in items %}
+                    <div class="item-row" style="position: relative; padding: 1.5rem; border-radius: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);">
+                        {% for hidden in item_form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+                        
+                        <!-- Delete Button -->
+                        {% if items.can_delete %}
+                            <div style="position: absolute; top: 1rem; right: 1rem; z-index: 10;">
+                                <div style="display: none;">{{ item_form.DELETE }}</div>
+                                <button type="button" class="remove-item-btn" style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); border-radius: 8px; padding: 0.4rem; color: #f87171; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                </button>
+                            </div>
+                        {% endif %}
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                            
+                            <!-- Item/Product -->
+                            <div style="grid-column: 1 / -1; padding-right: 3rem;">
+                                <label class="label-mini">Item / Product</label>
                                 {{ item_form.item }}
                                 {% if item_form.item.errors %}<div class="error-msg">{{ item_form.item.errors.0 }}</div>{% endif %}
-                            </td>
-                            <td style="padding: 1rem 1rem;">
+                            </div>
+
+                            <!-- Packaging -->
+                            <div>
+                                <label class="label-mini">Packaging (Opt.)</label>
                                 {{ item_form.packaging }}
                                 {% if item_form.packaging.errors %}<div class="error-msg">{{ item_form.packaging.errors.0 }}</div>{% endif %}
-                            </td>
-                            <td style="padding: 1rem 1rem;">
+                            </div>
+
+                            <!-- Expected Qty -->
+                            <div>
+                                <label class="label-mini">Expected Qty</label>
                                 {{ item_form.expected_qty }}
                                 {% if item_form.expected_qty.errors %}<div class="error-msg">{{ item_form.expected_qty.errors.0 }}</div>{% endif %}
-                            </td>
-                            <td style="padding: 1rem 1rem;">
+                            </div>
+
+                            <!-- Received Qty -->
+                            <div>
+                                <label class="label-mini">Received Qty</label>
                                 {{ item_form.received_qty }}
-                            </td>
-                            <td style="padding: 1rem 1rem;">
+                            </div>
+
+                            <!-- Mfg Date -->
+                            <div>
+                                <label class="label-mini">Mfg Date</label>
                                 {{ item_form.mfg_date }}
                                 {% if item_form.mfg_date.errors %}<div class="error-msg">{{ item_form.mfg_date.errors.0 }}</div>{% endif %}
-                            </td>
-                            <td style="padding: 1rem 1rem;">
+                            </div>
+
+                            <!-- Exp Date -->
+                            <div>
+                                <label class="label-mini">Exp Date</label>
                                 {{ item_form.exp_date }}
                                 {% if item_form.exp_date.errors %}<div class="error-msg">{{ item_form.exp_date.errors.0 }}</div>{% endif %}
-                            </td>
-                            <td style="padding: 1rem 2rem; text-align: right;">
-                                {% if items.can_delete %}
-                                    <div style="display: none;">{{ item_form.DELETE }}</div>
-                                    <button type="button" class="remove-item-btn" style="background: none; border: none; color: #f87171; cursor: pointer; opacity: 0.6; transition: 0.2s;">
-                                        <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
-                                    </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </form>
@@ -201,7 +213,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const addButton = document.getElementById('add-item-btn');
     const totalForms = document.querySelector('input[id$="-TOTAL_FORMS"]');
 
+    function updatePackagingOptions(row, itemId, selectedPackagingId = null) {
+        const packagingSelect = row.querySelector('.packaging-select');
+        if (!packagingSelect) return;
+
+        if (!itemId) {
+            packagingSelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
+
+        fetch(`/catalog/api/items/${itemId}/packagings/`)
+            .then(response => response.json())
+            .then(data => {
+                let html = '<option value="">---------</option>';
+                data.packagings.forEach(p => {
+                    const selected = (selectedPackagingId && selectedPackagingId == p.id) ? 'selected' : '';
+                    html += `<option value="${p.id}" ${selected}>${p.display}</option>`;
+                });
+                packagingSelect.innerHTML = html;
+            })
+            .catch(err => console.error("Error fetching packagings:", err));
+    }
+
     function setupRowListeners(row) {
+        const itemSelect = row.querySelector('.item-select');
+        const packagingSelect = row.querySelector('.packaging-select');
+
+        if (itemSelect && packagingSelect) {
+            const currentItemId = itemSelect.value;
+            const currentPackId = packagingSelect.value;
+            if (currentItemId) {
+                updatePackagingOptions(row, currentItemId, currentPackId);
+            } else {
+                packagingSelect.innerHTML = '<option value="">---------</option>';
+            }
+
+            itemSelect.addEventListener('change', function() {
+                updatePackagingOptions(row, this.value, null);
+            });
+        }
+        
         const removeBtn = row.querySelector('.remove-item-btn');
         if (removeBtn) {
             removeBtn.onclick = function() {
@@ -219,6 +270,72 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             };
         }
+    }
+
+    function setupItemRow(poId) {
+        if (!poId) {
+            // Clear existing items except the first one
+            const rows = Array.from(tbody.querySelectorAll('.item-row'));
+            rows.forEach((row, index) => {
+                if (index > 0) row.remove();
+            });
+            totalForms.value = 1;
+            
+            // Clear the first row's inputs
+            const firstRow = tbody.querySelector('.item-row');
+            if (firstRow) {
+                firstRow.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]), select').forEach(input => {
+                    input.value = '';
+                });
+                const packagingSelect = firstRow.querySelector('.packaging-select');
+                if (packagingSelect) packagingSelect.innerHTML = '<option value="">---------</option>';
+            }
+            
+            if (partnerSelect) partnerSelect.value = '';
+            return;
+        }
+
+        fetch(`/procurement/purchase-orders/${poId}/items-api/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.partner_id && partnerSelect) {
+                    partnerSelect.value = data.partner_id;
+                }
+
+                // Clear existing items except the first one
+                const rows = Array.from(tbody.querySelectorAll('.item-row'));
+                rows.forEach((row, index) => {
+                    if (index > 0) row.remove();
+                });
+                totalForms.value = 1;
+
+                // Fill data
+                data.items.forEach((item, index) => {
+                    let row;
+                    if (index === 0) {
+                        row = tbody.querySelector('.item-row');
+                    } else {
+                        // Programmatically add a row
+                        addButton.click();
+                        row = tbody.querySelectorAll('.item-row')[index];
+                    }
+
+                    // Set values
+                    const itemSelect = row.querySelector('select[name$="-item"]');
+                    const qtyInput = row.querySelector('input[name$="-expected_qty"]');
+                    const poItemInput = row.querySelector('input[name$="-po_item"]');
+                    
+                    if (itemSelect) itemSelect.value = item.id;
+                    if (qtyInput) qtyInput.value = item.order_qty;
+                    if (poItemInput) poItemInput.value = item.po_item_id;
+                    
+                    if (itemSelect) {
+                        updatePackagingOptions(row, item.id, item.packaging_id);
+                    }
+                });
+            })
+            .catch(err => console.error('Error fetching PO items:', err));
+        
     }
 
     addButton.addEventListener('click', function() {
@@ -256,49 +373,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const partnerSelect = document.querySelector('select[name="partner"]');
 
     if (poSelect) {
-        poSelect.addEventListener('change', function() {
-            const poId = this.value;
-            if (!poId) return;
-
-            fetch(`/procurement/purchase-orders/${poId}/items-api/`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.partner_id && partnerSelect) {
-                        partnerSelect.value = data.partner_id;
-                    }
-
-                    // Clear existing items except the first one
-                    const rows = Array.from(tbody.querySelectorAll('.item-row'));
-                    rows.forEach((row, index) => {
-                        if (index > 0) row.remove();
-                    });
-                    totalForms.value = 1;
-
-                    // Fill data
-                    data.items.forEach((item, index) => {
-                        let row;
-                        if (index === 0) {
-                            row = tbody.querySelector('.item-row');
-                        } else {
-                            // Programmatically add a row
-                            addButton.click();
-                            row = tbody.querySelectorAll('.item-row')[index];
-                        }
-
-                        // Set values
-                        const itemSelect = row.querySelector('select[name$="-item"]');
-                        const qtyInput = row.querySelector('input[name$="-expected_qty"]');
-                        const poItemInput = row.querySelector('input[name$="-po_item"]');
-                        const packagingSelect = row.querySelector('select[name$="-packaging"]');
-
-                        if (itemSelect) itemSelect.value = item.id;
-                        if (qtyInput) qtyInput.value = item.order_qty;
-                        if (poItemInput) poItemInput.value = item.po_item_id;
-                        if (packagingSelect && item.packaging_id) packagingSelect.value = item.packaging_id;
-                    });
-                })
-                .catch(err => console.error('Error fetching PO items:', err));
-        });
+        setupItemRow(poSelect.value);
+        poSelect.addEventListener('change', () => setupItemRow(poSelect.value));
     }
 });
 </script>

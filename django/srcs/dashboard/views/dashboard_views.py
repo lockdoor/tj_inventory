@@ -104,18 +104,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Stock Controller Command Center"
         context['modules'] = [
             {
-                'title': 'Purchase Orders',
-                'description': 'Track and manage supplier orders and deliveries.',
-                'url': 'procurement:purchase-order-list',
+                'title': 'Procurement Operations',
+                'description': 'Manage purchase orders, supplier deliveries, and warehouse receiving.',
+                'url': 'procurement:overview',
                 'icon_name': 'shopping-cart',
                 'badge': 'Procurement'
-            },
-            {
-                'title': 'Arrival Schedules',
-                'description': 'Manage incoming shipments and warehouse receiving.',
-                'url': 'procurement:arrival-list',
-                'icon_name': 'truck',
-                'badge': 'Logistics'
             },
             {
                 'title': 'Product Catalog',

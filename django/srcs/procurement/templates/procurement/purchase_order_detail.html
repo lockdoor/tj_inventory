@@ -4,6 +4,8 @@
 {% block title %}Purchase Order {{ po.document_no }} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:purchase-order-list' %}" style="color: var(--primary-light); text-decoration: none;">Purchase Orders</a>
 <span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <span style="color: var(--text-main); font-weight: 500;">{{ po.document_no }}</span>

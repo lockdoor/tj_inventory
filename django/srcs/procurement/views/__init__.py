@@ -23,3 +23,4 @@ from .arrival_views import (
     ArrivalCancelReceiveActionView,
     ArrivalDeleteActionView
 )
+from .overview_views import ProcurementOverviewView

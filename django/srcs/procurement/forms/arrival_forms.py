@@ -31,9 +31,9 @@ class ArrivalItemForm(forms.ModelForm):
         model = ArrivalItem
         fields = ['item', 'po_item', 'packaging', 'expected_qty', 'received_qty', 'mfg_date', 'exp_date']
         widgets = {
-            'item': forms.Select(attrs={'class': 'form-control'}),
+            'item': forms.Select(attrs={'class': 'form-control item-select'}),
             'po_item': forms.HiddenInput(),
-            'packaging': forms.Select(attrs={'class': 'form-control'}),
+            'packaging': forms.Select(attrs={'class': 'form-control packaging-select'}),
             'expected_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'received_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': 'readonly'}),
             'mfg_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
