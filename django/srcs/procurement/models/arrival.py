@@ -109,6 +109,16 @@ class ArrivalItem(models.Model):
         default=0.00,
         help_text="Quantity committed to Sell Orders"
     )
+    mfg_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Manufacturing date"
+    )
+    exp_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Expiry date"
+    )
 
     @property
     def available_qty(self):

@@ -101,11 +101,13 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 35%;">Item / Product</th>
-                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Packaging (Opt.)</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Expected Qty</th>
-                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Received Qty</th>
-                            <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;"></th>
+                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 25%;">Item / Product</th>
+                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Packaging (Opt.)</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 12%;">Expected Qty</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 12%;">Received Qty</th>
+                            <th style="padding: 1rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 13%;">Mfg Date</th>
+                            <th style="padding: 1rem 1rem; text-align: center; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 13%;">Exp Date</th>
+                            <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 10%;"></th>
                         </tr>
                     </thead>
                     <tbody id="formset-tbody">
@@ -128,6 +130,14 @@
                             </td>
                             <td style="padding: 1rem 1rem;">
                                 {{ item_form.received_qty }}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.mfg_date }}
+                                {% if item_form.mfg_date.errors %}<div class="error-msg">{{ item_form.mfg_date.errors.0 }}</div>{% endif %}
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                {{ item_form.exp_date }}
+                                {% if item_form.exp_date.errors %}<div class="error-msg">{{ item_form.exp_date.errors.0 }}</div>{% endif %}
                             </td>
                             <td style="padding: 1rem 2rem; text-align: right;">
                                 {% if items.can_delete %}

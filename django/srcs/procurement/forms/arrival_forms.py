@@ -29,13 +29,15 @@ from catalog.models import ItemPackaging
 class ArrivalItemForm(forms.ModelForm):
     class Meta:
         model = ArrivalItem
-        fields = ['item', 'po_item', 'packaging', 'expected_qty', 'received_qty']
+        fields = ['item', 'po_item', 'packaging', 'expected_qty', 'received_qty', 'mfg_date', 'exp_date']
         widgets = {
             'item': forms.Select(attrs={'class': 'form-control'}),
             'po_item': forms.HiddenInput(),
             'packaging': forms.Select(attrs={'class': 'form-control'}),
             'expected_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'received_qty': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'readonly': 'readonly'}),
+            'mfg_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'exp_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
     def __init__(self, *args, **kwargs):

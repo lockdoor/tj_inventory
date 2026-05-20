@@ -63,6 +63,8 @@ erDiagram
         string packaging_id FK "catalog.ItemPackaging (Optional)"
         decimal expected_qty
         decimal received_qty
+        date mfg_date
+        date exp_date
     }
 
     ARRIVAL_ATTACHMENT {

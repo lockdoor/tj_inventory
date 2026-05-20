@@ -132,6 +132,19 @@ class TestArrivalServiceReceivingFlow:
         # received_qty must be in package units: 40 pieces / 10 = 4.00 cartons
         assert arrival_item.received_qty == Decimal("4.00")
 
+    def test_receiving_copies_mfg_and_exp_date(self, sample_arrival, test_user):
+        import datetime
+        arrival_item = sample_arrival.items.first()
+        arrival_item.mfg_date = datetime.date(2026, 1, 1)
+        arrival_item.exp_date = datetime.date(2027, 1, 1)
+        arrival_item.save()
+
+        movement = ArrivalService.initiate_receiving(sample_arrival, test_user)
+        mov_item = movement.items.first()
+        
+        assert mov_item.mfg_date == datetime.date(2026, 1, 1)
+        assert mov_item.exp_date == datetime.date(2027, 1, 1)
+
 @pytest.mark.django_db
 class TestArrivalServiceDelete:
     def test_delete_arrival_with_no_movements(self, sample_arrival, test_user):

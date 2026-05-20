@@ -39,7 +39,9 @@ class ArrivalService:
                     po_item=item_data.get('po_item'),
                     packaging=item_data.get('packaging'),
                     expected_qty=item_data['expected_qty'],
-                    received_qty=item_data.get('received_qty', 0)
+                    received_qty=item_data.get('received_qty', 0),
+                    mfg_date=item_data.get('mfg_date'),
+                    exp_date=item_data.get('exp_date')
                 )
         
         return arrival
@@ -124,6 +126,8 @@ class ArrivalService:
                 item.item = item_info['item']
                 item.packaging = item_info.get('packaging')
                 item.expected_qty = item_info['expected_qty']
+                item.mfg_date = item_info.get('mfg_date')
+                item.exp_date = item_info.get('exp_date')
                 item.save()
             else:
                 # Create new
@@ -133,7 +137,9 @@ class ArrivalService:
                     po_item=item_info.get('po_item'),
                     packaging=item_info.get('packaging'),
                     expected_qty=item_info['expected_qty'],
-                    received_qty=0
+                    received_qty=0,
+                    mfg_date=item_info.get('mfg_date'),
+                    exp_date=item_info.get('exp_date')
                 )
 
     @staticmethod
@@ -192,6 +198,8 @@ class ArrivalService:
                 quantity=qty,
                 user=user,
                 unit_cost=unit_cost,
+                mfg_date=arrival_item.mfg_date,
+                exp_date=arrival_item.exp_date,
                 arrival_item=arrival_item,
                 note=f"[AUTO-GENERATED] Please update Lot Number and Expiry Date. Original Note: {arrival_item.arrival.note}"
             )
