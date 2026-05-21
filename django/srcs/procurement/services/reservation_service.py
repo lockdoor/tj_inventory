@@ -24,7 +24,7 @@ class ArrivalReservationService:
 
     @staticmethod
     @transaction.atomic
-    def reserve_future(arrival_item, quantity, reference_no, reference_type=ArrivalReservation.ReferenceType.SALES_ORDER, sales_item=None, note=''):
+    def reserve_future(arrival_item, quantity, reference_no, reference_type=ArrivalReservation.ReferenceType.SALES_ORDER, sales_item=None, note='', created_by=None):
         """
         Create a commitment against an incoming shipment line.
         """
@@ -50,7 +50,8 @@ class ArrivalReservationService:
             reference_no=reference_no,
             reference_type=reference_type,
             sales_item=sales_item,
-            note=note
+            note=note,
+            created_by=created_by
         )
         
         # Explicitly sync the arrival item

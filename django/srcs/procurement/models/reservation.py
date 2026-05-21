@@ -48,6 +48,15 @@ class ArrivalReservation(models.Model):
         related_name='arrival_reservations'
     )
     
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='arrival_reservations',
+        null=True,
+        blank=True,
+        help_text="User who created this arrival reservation"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     note = models.TextField(blank=True, default='')
 

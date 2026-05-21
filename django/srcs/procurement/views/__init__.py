@@ -25,3 +25,9 @@ from .arrival_views import (
     ArrivalDeleteActionView
 )
 from .overview_views import ProcurementOverviewView
+from .reservation_views import (
+    ArrivalReservationListView,
+    ArrivalReservationCreateView,
+    ArrivalReservationDetailView,
+    ArrivalReservationReleaseView
+)

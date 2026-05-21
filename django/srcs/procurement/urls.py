@@ -33,4 +33,10 @@ urlpatterns = [
     # Arrival Attachments
     path('arrivals/<int:pk>/attachment/upload/', views.ArrivalAttachmentUploadView.as_view(), name='arrival-attachment-upload'),
     path('arrivals/attachment/<int:pk>/delete/', views.ArrivalAttachmentDeleteView.as_view(), name='arrival-attachment-delete'),
+
+    # Arrival Reservations
+    path('arrivals/reservations/', views.ArrivalReservationListView.as_view(), name='arrival-reservation-list'),
+    path('arrivals/reservations/create/', views.ArrivalReservationCreateView.as_view(), name='arrival-reservation-create'),
+    path('arrivals/reservations/<int:pk>/', views.ArrivalReservationDetailView.as_view(), name='arrival-reservation-detail'),
+    path('arrivals/reservations/<int:pk>/release/', views.ArrivalReservationReleaseView.as_view(), name='arrival-reservation-release'),
 ]

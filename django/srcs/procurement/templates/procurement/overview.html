@@ -52,6 +52,22 @@
             </div>
         </a>
 
+        <!-- Arrival Reservations Card -->
+        <a href="{% url 'procurement:arrival-reservation-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
+            <div class="card-icon reservation-icon" style="background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+            <h3>Arrival Reservations</h3>
+            <p>Commit expected future stock from in-transit shipments to sales orders or maintenance holds.</p>
+            <div class="card-footer">
+                <span class="status-pill">Allocation</span>
+            </div>
+        </a>
+
+
     </div>
 </div>
 

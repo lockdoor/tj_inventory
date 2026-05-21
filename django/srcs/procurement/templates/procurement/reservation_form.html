@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Create Arrival Reservation - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'procurement:arrival-reservation-list' %}" style="color: var(--primary-light); text-decoration: none;">Arrival Reservations</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Create Reservation</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="max-width: 800px; margin: 2rem auto;">
+    <div style="margin-bottom: 2.5rem; text-align: center;">
+        <div style="background: rgba(16, 185, 129, 0.08); display: inline-flex; padding: 1.25rem; border-radius: 50%; margin-bottom: 1rem; border: 1px dashed rgba(16, 185, 129, 0.2); color: var(--primary-light);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+        </div>
+        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin: 0 0 0.5rem 0;">Create Arrival Reservation</h1>
+        <p style="color: var(--text-dim); margin: 0;">Allocate holds against incoming expected future stock lines before physical arrival.</p>
+    </div>
+
+    <form method="POST" class="glass-card" style="padding: 2.5rem; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        {% csrf_token %}
+
+        <!-- Global Errors -->
+        {% if form.non_field_errors %}
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; padding: 1rem 1.25rem; border-radius: 0.75rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                {% for err in form.non_field_errors %}
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <span>{{ err }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Destination Location (Warehouse) Filter -->
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="{{ form.warehouse.id_for_label }}" class="glass-label">Destination Location (Warehouse)</label>
+            {{ form.warehouse }}
+            <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                {{ form.warehouse.help_text }}
+            </span>
+            {% if form.warehouse.errors %}
+                <div class="form-error">{{ form.warehouse.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Expected Arrival Line (Full Width) -->
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="{{ form.arrival_item.id_for_label }}" class="glass-label">Expected Arrival Line to Lock</label>
+            {{ form.arrival_item }}
+            <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                {{ form.arrival_item.help_text }}
+            </span>
+            {% if form.arrival_item.errors %}
+                <div class="form-error">{{ form.arrival_item.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Quantity to Reserve -->
+            <div class="form-group">
+                <label for="{{ form.quantity.id_for_label }}" class="glass-label">Quantity to Hold</label>
+                {{ form.quantity }}
+                {% if form.quantity.errors %}
+                    <div class="form-error">{{ form.quantity.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Purpose/Reference Type -->
+            <div class="form-group">
+                <label for="{{ form.reference_type.id_for_label }}" class="glass-label">Reservation Purpose</label>
+                {{ form.reference_type }}
+                {% if form.reference_type.errors %}
+                    <div class="form-error">{{ form.reference_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Reference Document No -->
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="{{ form.reference_no.id_for_label }}" class="glass-label">Reference Document #</label>
+            {{ form.reference_no }}
+            <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                Specify the order, project, or batch code driving this arrival expected lock.
+            </span>
+            {% if form.reference_no.errors %}
+                <div class="form-error">{{ form.reference_no.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Note Textarea -->
+        <div class="form-group" style="margin-bottom: 2rem;">
+            <label for="{{ form.note.id_for_label }}" class="glass-label">Internal Explanatory Notes (Optional)</label>
+            {{ form.note }}
+            {% if form.note.errors %}
+                <div class="form-error">{{ form.note.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 2rem; justify-content: flex-end;">
+            <a href="{% url 'procurement:arrival-reservation-list' %}" class="btn btn-outline" style="text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 500;">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="background: var(--primary-light); color: var(--bg-main); padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: var(--transition); box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);"
+                    onmouseover="this.style.filter='brightness(1.1)';"
+                    onmouseout="this.style.filter='none';">
+                Lock Expected Stock
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const warehouseSelect = document.getElementById('{{ form.warehouse.id_for_label }}');
+    const arrivalItemSelect = document.getElementById('{{ form.arrival_item.id_for_label }}');
+    
+    if (!warehouseSelect || !arrivalItemSelect) return;
+
+    // Store all original options
+    const originalOptions = Array.from(arrivalItemSelect.options);
+
+    warehouseSelect.addEventListener('change', function() {
+        const selectedValue = warehouseSelect.value;
+        
+        // Save current selection value
+        const currentItemValue = arrivalItemSelect.value;
+        
+        // Clear current options
+        arrivalItemSelect.innerHTML = '';
+        
+        // Filter and append options
+        originalOptions.forEach(opt => {
+            if (opt.value === '') {
+                // Keep the placeholder option
+                arrivalItemSelect.appendChild(opt.cloneNode(true));
+                return;
+            }
+
+            if (!selectedValue) {
+                // If "All Locations" is selected, show all options
+                arrivalItemSelect.appendChild(opt.cloneNode(true));
+            } else {
+                // Option label format: Arrival: [doc_no] | SKU: [sku] | [name] | Whse: [warehouse_name] (Expected: [expected], Avail: [avail])
+                const parts = opt.text.split(' | ');
+                if (parts.length >= 4) {
+                    const warehousePart = parts[3]; // e.g. "Whse: Main Warehouse (Expected: 100.00, Avail: 50.00)"
+                    const prefix = "Whse: ";
+                    const prefixIndex = warehousePart.indexOf(prefix);
+                    if (prefixIndex !== -1) {
+                        const startPos = prefixIndex + prefix.length;
+                        const lastOpenParenIndex = warehousePart.lastIndexOf(' (Expected:');
+                        if (lastOpenParenIndex !== -1) {
+                            const warehouseName = warehousePart.substring(startPos, lastOpenParenIndex).trim();
+                            if (warehouseName === selectedValue) {
+                                arrivalItemSelect.appendChild(opt.cloneNode(true));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Try to restore previous selection if it's still available in filtered set
+        const exists = Array.from(arrivalItemSelect.options).some(opt => opt.value === currentItemValue);
+        if (exists) {
+            arrivalItemSelect.value = currentItemValue;
+        } else {
+            arrivalItemSelect.value = '';
+        }
+    });
+
+    // Trigger filter on load in case the warehouse field was pre-populated/restored
+    if (warehouseSelect.value) {
+        warehouseSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+
+<style>
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .glass-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin-left: 0.25rem;
+        letter-spacing: 0.02em;
+    }
+    .glass-input {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.75rem;
+        padding: 0.8rem 1rem;
+        color: var(--text-main);
+        font-size: 1rem;
+        transition: var(--transition);
+        outline: none;
+    }
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--primary-light);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+    }
+    .glass-input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    .form-error {
+        color: #f87171;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+        margin-left: 0.25rem;
+    }
+    select.glass-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+    select.glass-input option {
+        background: #111827;
+        color: white;
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
