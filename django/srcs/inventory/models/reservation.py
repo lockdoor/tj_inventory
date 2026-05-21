@@ -47,7 +47,16 @@ class StockReservation(models.Model):
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.CASCADE,
+        related_name='stock_reservations',
+        null=True,
+        blank=True,
+        help_text="User who created this reservation"
+    )
     note = models.TextField(blank=True, default='')
+
 
     class Meta:
         verbose_name = "Stock Reservation"

@@ -31,3 +31,10 @@ from .attachment_views import (
 )
 from .comparison_views import StockComparisonListView
 from .api_views import AvailableLotsAPIView
+from .reservation_views import (
+    StockReservationListView,
+    StockReservationCreateView,
+    StockReservationReleaseView,
+    StockReservationDetailView
+)
+

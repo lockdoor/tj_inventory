@@ -41,4 +41,11 @@ urlpatterns = [
     # Balances
     path('balances/', views.StockBalanceListView.as_view(), name='stock-balance-list'),
     path('compare-express/', views.StockComparisonListView.as_view(), name='stock-comparison'),
+    
+    # Reservations
+    path('reservations/', views.StockReservationListView.as_view(), name='reservation-list'),
+    path('reservations/create/', views.StockReservationCreateView.as_view(), name='reservation-create'),
+    path('reservations/<int:pk>/', views.StockReservationDetailView.as_view(), name='reservation-detail'),
+    path('reservations/<int:pk>/release/', views.StockReservationReleaseView.as_view(), name='reservation-release'),
 ]
+
