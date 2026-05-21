@@ -145,6 +145,23 @@ class TestArrivalServiceReceivingFlow:
         assert mov_item.mfg_date == datetime.date(2026, 1, 1)
         assert mov_item.exp_date == datetime.date(2027, 1, 1)
 
+    def test_receiving_flow_with_custom_quantities(self, sample_arrival, test_user):
+        arrival_item = sample_arrival.items.first()
+        custom_qty = Decimal("42.00")
+        
+        # Initiate receiving with customized quantities dict
+        movement = ArrivalService.initiate_receiving(
+            sample_arrival,
+            test_user,
+            receive_quantities={arrival_item.id: custom_qty}
+        )
+        assert sample_arrival.status == Arrival.Status.RECEIVING
+        assert movement.items.count() == 1
+        mov_item = movement.items.first()
+        
+        # The movement item quantity must be the custom quantity, not expected_qty (100.00)
+        assert mov_item.quantity == custom_qty
+
 @pytest.mark.django_db
 class TestArrivalServiceDelete:
     def test_delete_arrival_with_no_movements(self, sample_arrival, test_user):

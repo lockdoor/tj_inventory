@@ -156,6 +156,9 @@ class TestPermissionAssignment:
             'change_partner',
             'delete_partner',
             'view_partner',
+            # Procurement Arrivals permissions for receiving
+            'view_arrival',
+            'change_arrival',
         }
 
 

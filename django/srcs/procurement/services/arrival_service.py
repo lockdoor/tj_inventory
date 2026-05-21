@@ -144,7 +144,7 @@ class ArrivalService:
 
     @staticmethod
     @transaction.atomic
-    def initiate_receiving(arrival, user):
+    def initiate_receiving(arrival, user, receive_quantities=None):
         """
         Creates or restores a DRAFT InventoryMovement based on the Arrival.
         Bridges Procurement and Inventory modules.
@@ -184,6 +184,9 @@ class ArrivalService:
         # 2. Copy items
         for arrival_item in arrival.items.all():
             qty = arrival_item.expected_qty
+            if receive_quantities and arrival_item.id in receive_quantities:
+                qty = receive_quantities[arrival_item.id]
+
             if arrival_item.packaging and arrival_item.packaging.quantity:
                 qty = qty * arrival_item.packaging.quantity
 
@@ -191,17 +194,18 @@ class ArrivalService:
             if unit_cost is not None and arrival_item.packaging and arrival_item.packaging.quantity:
                 unit_cost = unit_cost / arrival_item.packaging.quantity
 
+            exp_date_str = arrival_item.exp_date.strftime("%Y%m%d") if arrival_item.exp_date else "PENDING"
             MovementService.add_item(
                 movement,
                 item=arrival_item.item,
-                lot_number=f"PENDING-{arrival_item.id}", # Placeholder: Staff must update this during physical receiving
+                lot_number=f'LOT-{arrival_item.item.sku}-{exp_date_str}',
                 quantity=qty,
                 user=user,
                 unit_cost=unit_cost,
                 mfg_date=arrival_item.mfg_date,
                 exp_date=arrival_item.exp_date,
                 arrival_item=arrival_item,
-                note=f"[AUTO-GENERATED] Please update Lot Number and Expiry Date. Original Note: {arrival_item.arrival.note}"
+                note=arrival_item.arrival.note
             )
 
         # 3. Update Arrival Status

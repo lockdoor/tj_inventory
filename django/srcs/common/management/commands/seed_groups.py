@@ -144,6 +144,9 @@ ROLE_PERMISSIONS = {
         'partners.change_partner',
         'partners.delete_partner',
         'partners.view_partner',
+        # Procurement Arrivals permissions for receiving
+        'procurement.view_arrival',
+        'procurement.change_arrival',
     ],
 }
 

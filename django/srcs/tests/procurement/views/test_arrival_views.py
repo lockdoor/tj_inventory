@@ -14,6 +14,9 @@ def test_user(db):
         'view_arrival', 'add_arrival', 'change_arrival'
     ])
     user.user_permissions.add(*perms)
+    from django.contrib.auth.models import Group
+    group, _ = Group.objects.get_or_create(name='warehouse_admin')
+    user.groups.add(group)
     return user
 
 @pytest.fixture
@@ -86,3 +89,17 @@ class TestArrivalReceiveActionViews:
         assert response.status_code == 403
         sample_arrival.refresh_from_db()
         assert sample_arrival.status == Arrival.Status.RECEIVING
+
+    def test_initiate_receiving_non_warehouse_admin_denied(self, client, sample_arrival):
+        non_wh_user = User.objects.create_user(username="non_wh_user", password="password")
+        perms = Permission.objects.filter(codename__in=['view_arrival', 'change_arrival'])
+        non_wh_user.user_permissions.add(*perms)
+        
+        client.force_login(non_wh_user)
+        initiate_url = reverse('procurement:arrival-receive', kwargs={'pk': sample_arrival.pk})
+        response = client.post(initiate_url)
+        
+        sample_arrival.refresh_from_db()
+        assert sample_arrival.status == Arrival.Status.SCHEDULED
+        assert response.status_code == 302
+        assert response.url == reverse('procurement:arrival-detail', kwargs={'pk': sample_arrival.pk})

@@ -373,7 +373,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const partnerSelect = document.querySelector('select[name="partner"]');
 
     if (poSelect) {
-        setupItemRow(poSelect.value);
+        {% if not object %}
+        if (poSelect.value) {
+            setupItemRow(poSelect.value);
+        }
+        {% endif %}
         poSelect.addEventListener('change', () => setupItemRow(poSelect.value));
     }
 });

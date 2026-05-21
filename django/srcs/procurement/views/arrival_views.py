@@ -141,6 +141,13 @@ class ArrivalDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView)
             is_deleted=False
         )
         
+        # Enforce that only warehouse_admin can receive
+        context['is_warehouse_admin'] = self.request.user.is_superuser or self.request.user.groups.filter(name='warehouse_admin').exists()
+
+        # Context for Stock Controller
+        if self.request.user.is_superuser or self.request.user.groups.filter(name='stock_controller').exists():
+            context['is_stock_controller'] = True
+        
         return context
 
 
@@ -179,9 +186,26 @@ class ArrivalReceiveActionView(LoginRequiredMixin, PermissionRequiredMixin, View
     permission_required = 'procurement.change_arrival'
 
     def post(self, request, pk):
+        import decimal
         arrival = get_object_or_404(Arrival, pk=pk)
+        
+        # Only warehouse admin can start receiving
+        is_wh_admin = request.user.is_superuser or request.user.groups.filter(name='warehouse_admin').exists()
+        if not is_wh_admin:
+            messages.error(request, "Only a Warehouse Admin can start the receiving process.")
+            return redirect('procurement:arrival-detail', pk=arrival.pk)
+        
+        receive_quantities = {}
+        for key, value in request.POST.items():
+            if key.startswith('qty_'):
+                try:
+                    item_id = int(key.replace('qty_', ''))
+                    receive_quantities[item_id] = decimal.Decimal(value)
+                except (ValueError, decimal.InvalidOperation):
+                    pass
+
         try:
-            movement = ArrivalService.initiate_receiving(arrival, request.user)
+            movement = ArrivalService.initiate_receiving(arrival, request.user, receive_quantities=receive_quantities)
             messages.success(request, f"Receiving process started. Inventory Movement {movement.document_no} created.")
             return redirect('inventory:movement-detail', pk=movement.pk)
         except ValidationError as e:
