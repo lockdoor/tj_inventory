@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Sales</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="welcome-header" style="margin-bottom: 3rem;">
+        <h1 class="text-gradient"
+            style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+            Sales Overview
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">Manage customer demands, track sales orders, and manage stock allocations.</p>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
+        <div class="glass-card stat-card">
+            <span class="stat-label">Total Sales Revenue</span>
+            <span class="stat-value" style="font-size: 1.75rem;">${{ total_revenue|floatformat:2 }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Confirmed Orders</span>
+            <span class="stat-value">{{ confirmed_count }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Pre-Orders</span>
+            <span class="stat-value">{{ preorder_count }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Draft Orders</span>
+            <span class="stat-value">{{ draft_count }}</span>
+        </div>
+    </div>
+
+    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+        <i data-lucide="layout-grid" style="width: 20px; height: 20px; color: var(--primary-light)"></i>
+        Operational Modules
+    </h3>
+
+    <!-- Sales Module Grid -->
+    <div class="module-grid"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+
+        <!-- Sales Order Card -->
+        <a href="{% url 'sales:sales-order-list' %}" class="glass-card sales-card" style="text-decoration: none;">
+            <div class="card-icon sales-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                    <path d="M3 6h18"></path>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+            </div>
+            <h3>Sales Orders</h3>
+            <p>Track customer orders, monitor fulfillment allocations, and manage sales demand flows.</p>
+            <div class="card-footer">
+                <span class="status-pill">Sells</span>
+            </div>
+        </a>
+
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--text-main);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .sales-card {
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        transition: var(--transition);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+    }
+
+    .sales-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-light);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        margin-bottom: 0.5rem;
+        backdrop-filter: blur(4px);
+    }
+
+    .sales-icon {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .sales-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    .sales-card p {
+        font-size: 0.95rem;
+        color: var(--text-dim);
+        line-height: 1.5;
+        flex-grow: 1;
+    }
+
+    .card-footer {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .status-pill {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.25rem 0.6rem;
+        border-radius: 2rem;
+    }
+</style>
+{% endblock %}

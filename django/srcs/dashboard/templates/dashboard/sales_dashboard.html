@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Dashboard - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Sales Command Center</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="welcome-header" style="margin-bottom: 3rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+            Welcome, {{ user.first_name|default:user.username }}
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.125rem;">Sales performance, customer demand network, and catalog reference control.</p>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
+        <div class="glass-card stat-card">
+            <span class="stat-label">Total Sales Revenue</span>
+            <span class="stat-value" style="font-size: 1.75rem;">${{ stats.total_revenue|floatformat:2 }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Confirmed Orders</span>
+            <span class="stat-value">{{ stats.confirmed_count }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Pre-Orders</span>
+            <span class="stat-value">{{ stats.preorder_count }}</span>
+        </div>
+        <div class="glass-card stat-card">
+            <span class="stat-label">Draft Orders</span>
+            <span class="stat-value">{{ stats.draft_count }}</span>
+        </div>
+    </div>
+
+    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+        <i data-lucide="layout-grid" style="width: 20px; height: 20px; color: var(--primary-light)"></i>
+        Operational Modules
+    </h3>
+
+    <!-- Module Grid -->
+    <div class="module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        {% for module in modules %}
+            <a href="{% url module.url %}" class="glass-card module-card" style="text-decoration: none; display: flex; flex-direction: column; padding: 2rem; position: relative; overflow: hidden; transition: var(--transition);">
+                <div class="card-bg-glow"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; position: relative; z-index: 2;">
+                    <div class="icon-box" style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; padding: 0.6rem; border-radius: 0.75rem; border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <i data-lucide="{{ module.icon_name }}" style="width: 28px; height: 28px;"></i>
+                    </div>
+                    {% if module.badge %}
+                        <span class="badge">{{ module.badge }}</span>
+                    {% endif %}
+                </div>
+
+                <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; position: relative; z-index: 2;">{{ module.title }}</h2>
+                <p style="color: var(--text-dim); font-size: 0.9375rem; line-height: 1.5; margin-bottom: 1.5rem; flex-grow: 1; position: relative; z-index: 2;">{{ module.description }}</p>
+
+                <div style="display: flex; align-items: center; color: var(--primary-light); font-weight: 600; font-size: 0.875rem; position: relative; z-index: 2;">
+                    <span>Open Module</span>
+                    <i data-lucide="arrow-right" style="width: 16px; height: 16px; margin-left: 0.5rem; transition: transform 0.2s ease;"></i>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .stat-value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--text-main);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .module-card {
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .module-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--primary-light);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+
+    .module-card:hover .icon-box {
+        background: var(--primary-light) !important;
+        color: var(--bg-main) !important;
+        border-color: var(--primary-light) !important;
+    }
+
+    .module-card:hover i[data-lucide="arrow-right"] {
+        transform: translateX(4px);
+    }
+
+    .card-bg-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1;
+    }
+
+    .module-card:hover .card-bg-glow {
+        opacity: 1;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.25rem 0.6rem;
+        border-radius: 2rem;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+</style>
+{% endblock %}

@@ -10,7 +10,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_role(self):
         """
         Determines the effective role of the user based on group membership.
-        Priority: Executive > Stock Controller > Warehouse Admin > Default (Executive)
+        Priority: Executive > Stock Controller > Warehouse Admin > Sales Rep > Default (Executive)
         """
         groups = self.request.user.groups.values_list('name', flat=True)
         if 'executive' in groups or self.request.user.is_superuser:
@@ -19,6 +19,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return 'stock_controller'
         if 'warehouse_admin' in groups:
             return 'warehouse_admin'
+        if 'sales_rep' in groups:
+            return 'sales_rep'
         return 'executive' # Fallback
 
     def get_template_names(self):
@@ -27,6 +29,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return ['dashboard/warehouse_dashboard.html']
         if role == 'stock_controller':
             return ['dashboard/stock_controller_dashboard.html']
+        if role == 'sales_rep':
+            return ['dashboard/sales_dashboard.html']
         return ['dashboard/executive_dashboard.html']
 
     def get_context_data(self, **kwargs):
@@ -35,6 +39,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return self.get_warehouse_context(**kwargs)
         if role == 'stock_controller':
             return self.get_stock_controller_context(**kwargs)
+        if role == 'sales_rep':
+            return self.get_sales_context(**kwargs)
         return self.get_executive_context(**kwargs)
 
     def get_executive_context(self, **kwargs):
@@ -61,6 +67,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'url': 'inventory:overview',
                 'icon_name': 'database',
                 'badge': 'Core Engine'
+            },
+            {
+                'title': 'Sales Orders',
+                'description': 'Manage sales orders, customer demands, and stock allocations.',
+                'url': 'sales:overview',
+                'icon_name': 'shopping-bag',
+                'badge': 'Sells'
             },
         ]
         return context
@@ -144,6 +157,52 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'url': 'inventory:stock-balance-list',
                 'icon_name': 'database',
                 'badge': 'Inventory'
+            },
+        ]
+        return context
+
+    def get_sales_context(self, **kwargs):
+        from sales.models import SalesOrder, SalesOrderItem
+        from django.db.models import Sum, F
+        
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Sales Command Center"
+        
+        active_orders = SalesOrder.objects.filter(is_deleted=False)
+        total_revenue = SalesOrderItem.objects.filter(
+            order__is_deleted=False
+        ).aggregate(
+            total=Sum(F('requested_qty') * F('unit_price'))
+        )['total'] or 0
+        
+        context['stats'] = {
+            'confirmed_count': active_orders.filter(status=SalesOrder.Status.CONFIRMED).count(),
+            'preorder_count': active_orders.filter(status=SalesOrder.Status.PREORDER).count(),
+            'draft_count': active_orders.filter(status=SalesOrder.Status.DRAFT).count(),
+            'total_revenue': total_revenue,
+        }
+        
+        context['modules'] = [
+            {
+                'title': 'Sales Orders',
+                'description': 'Manage sales orders, customer demands, and stock allocations.',
+                'url': 'sales:overview',
+                'icon_name': 'shopping-bag',
+                'badge': 'Sells'
+            },
+            {
+                'title': 'Product Catalog',
+                'description': 'View item specifications and media (Read-Only).',
+                'url': 'catalog:catalog-overview',
+                'icon_name': 'box',
+                'badge': 'Reference'
+            },
+            {
+                'title': 'Partner Database',
+                'description': 'Track and view your supplier and customer network.',
+                'url': 'partners:partner-list',
+                'icon_name': 'users',
+                'badge': 'Partners'
             },
         ]
         return context

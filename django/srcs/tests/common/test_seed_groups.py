@@ -63,9 +63,9 @@ class TestPermissionAssignment:
             for action in ['add', 'change', 'delete', 'view']:
                 assert f'{action}_{model}' in codenames
 
-    def test_executive_has_24_permissions(self):
+    def test_executive_has_92_permissions(self):
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 24
+        assert group.permissions.count() == 92
 
     def test_stock_controller_permissions(self):
         group = Group.objects.get(name='stock_controller')
@@ -79,7 +79,11 @@ class TestPermissionAssignment:
             # View Inventory
             'view_warehouse',
             'view_inventorymovement',
+            'view_inventorymovementitem',
             'view_stock',
+            'view_stockcard',
+            'view_stockreservation',
+            
             # Full partner permissions
             'add_partner',
             'change_partner',
@@ -90,22 +94,79 @@ class TestPermissionAssignment:
             'change_purchaseorder',
             'delete_purchaseorder',
             'view_purchaseorder',
+            'add_purchaseorderitem',
+            'change_purchaseorderitem',
+            'delete_purchaseorderitem',
+            'view_purchaseorderitem',
             'add_arrival',
             'change_arrival',
             'delete_arrival',
             'view_arrival',
+            'add_arrivalitem',
+            'change_arrivalitem',
+            'delete_arrivalitem',
+            'view_arrivalitem',
             'add_shortage',
             'change_shortage',
             'delete_shortage',
             'view_shortage',
+            'add_arrivalreservation',
+            'change_arrivalreservation',
+            'delete_arrivalreservation',
+            'view_arrivalreservation',
+            'add_purchaseorderattachment',
+            'change_purchaseorderattachment',
+            'delete_purchaseorderattachment',
+            'view_purchaseorderattachment',
+            'add_arrivalattachment',
+            'change_arrivalattachment',
+            'delete_arrivalattachment',
+            'view_arrivalattachment',
         }
 
     def test_sales_rep_permissions(self):
         group = Group.objects.get(name='sales_rep')
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
-            'view_category', 'view_item', 'view_itemimage', 'view_itempackaging',
-            'view_warehouse', 'view_inventorymovement'
+            # View catalog (read-only)
+            'view_category',
+            'view_item',
+            'view_itemimage',
+            'view_itempackaging',
+            # View Inventory
+            'view_warehouse',
+            'view_inventorymovement',
+            'view_inventorymovementitem',
+            'view_stock',
+            'view_stockcard',
+            # Full Partner/Customer permissions
+            'add_partner',
+            'change_partner',
+            'delete_partner',
+            'view_partner',
+            # Full Permission sales_order
+            'add_salesorder',
+            'change_salesorder',
+            'delete_salesorder',
+            'view_salesorder',
+            'add_salesorderitem',
+            'change_salesorderitem',
+            'delete_salesorderitem',
+            'view_salesorderitem',
+            # Full Permission allocation
+            'add_salesallocation',
+            'change_salesallocation',
+            'delete_salesallocation',
+            'view_salesallocation',
+            # Full Reservation permissions
+            'add_stockreservation',
+            'change_stockreservation',
+            'delete_stockreservation',
+            'view_stockreservation',
+            'add_arrivalreservation',
+            'change_arrivalreservation',
+            'delete_arrivalreservation',
+            'view_arrivalreservation',
         }
 
     def test_warehouse_admin_permissions(self):
@@ -113,45 +174,41 @@ class TestPermissionAssignment:
         codenames = set(group.permissions.values_list('codename', flat=True))
         assert codenames == {
             # Full Catalog
-            ## Catalog Category permissions
             'add_category',
             'change_category',
             'delete_category',
             'view_category',
-            ## Catalog Item permissions
             'add_item',
             'change_item',
             'delete_item',
             'view_item',
-            ## Catalog Item Image permissions
             'add_itemimage',
             'change_itemimage',
             'delete_itemimage',
             'view_itemimage',
-            ## Catalog Item Packaging permissions
             'add_itempackaging',
             'change_itempackaging',
             'delete_itempackaging',
             'view_itempackaging',
             # Full Warehouse Access (operational)
-            ## Inventory Warehouse permissions
             'add_warehouse',
             'change_warehouse',
             'delete_warehouse',
             'view_warehouse',
-            ## Inventory Movement Permissions
             'add_inventorymovement',
             'change_inventorymovement',
             'delete_inventorymovement',
             'view_inventorymovement',
-            ## Inventory Balances Permissions
+            'add_inventorymovementitem',
+            'change_inventorymovementitem',
+            'delete_inventorymovementitem',
+            'view_inventorymovementitem',
             'view_stock',
-            ## Inventory Ledger Permissions
-            'view_stockcard',
             'add_stockcard',
             'change_stockcard',
             'delete_stockcard',
-            # Full partner permissions
+            'view_stockcard',
+            # Full Partner/Customer permissions
             'add_partner',
             'change_partner',
             'delete_partner',
@@ -159,6 +216,26 @@ class TestPermissionAssignment:
             # Procurement Arrivals permissions for receiving
             'view_arrival',
             'change_arrival',
+            'view_arrivalitem',
+            'change_arrivalitem',
+            'add_arrivalattachment',
+            'change_arrivalattachment',
+            'delete_arrivalattachment',
+            'view_arrivalattachment',
+            # Update Reservation permissions
+            'add_stockreservation',
+            'change_stockreservation',
+            'delete_stockreservation',
+            'view_stockreservation',
+            'add_arrivalreservation',
+            'change_arrivalreservation',
+            'delete_arrivalreservation',
+            'view_arrivalreservation',
+            # Shortages / discrepancies
+            'add_shortage',
+            'change_shortage',
+            'delete_shortage',
+            'view_shortage',
         }
 
 
@@ -174,7 +251,7 @@ class TestIdempotent:
     def test_running_twice_does_not_duplicate_permissions(self):
         call_command('seed_groups')
         group = Group.objects.get(name='executive')
-        assert group.permissions.count() == 24
+        assert group.permissions.count() == 92
 
 
 # ============================================================
