@@ -1,0 +1,1080 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'sales:overview' %}" style="color: var(--text-dim); text-decoration: none; transition: var(--transition);">Sales</a>
+<span style="color: var(--text-muted); opacity: 0.5; font-weight: 300;">/</span>
+<a href="{% url 'sales:sales-order-list' %}" style="color: var(--text-dim); text-decoration: none; transition: var(--transition);">Sales Orders</a>
+<span style="color: var(--text-muted); opacity: 0.5; font-weight: 300;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">New Sales Order</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="welcome-header" style="margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+                Create Sales Order
+            </h1>
+            <p style="color: var(--text-dim); font-size: 1.1rem;">Fill order headers and add catalog products to your shopping cart.</p>
+        </div>
+        <a href="{% url 'sales:sales-order-list' %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem;">
+            <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
+            Back to List
+        </a>
+    </div>
+
+    <form id="sales-order-form" method="post" action="{% url 'sales:sales-order-create' %}">
+        {% csrf_token %}
+        
+        <!-- Hidden input for serialized JSON cart items -->
+        <input type="hidden" name="items_json" id="items-json-input" value="[]">
+
+        <div class="creation-grid">
+            
+            <!-- Left Workspace: Header & Catalog -->
+            <div class="workspace-left">
+                
+                <!-- Section 1: Header Information -->
+                <div class="glass-card segment-card" style="margin-bottom: 2rem; padding: 2rem;">
+                    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <i data-lucide="file-text" style="width: 20px; height: 20px; color: var(--primary-light)"></i>
+                        1. Sales Order Information
+                    </h3>
+                    
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="partner-select">Customer <span style="color: var(--error);">*</span></label>
+                            <select name="partner" id="partner-select" required class="glass-input">
+                                <option value="" disabled {% if not selected_partner_id %}selected{% endif %}>Select Customer...</option>
+                                {% for customer in customers %}
+                                    <option value="{{ customer.pk }}" {% if selected_partner_id == customer.pk %}selected{% endif %}>
+                                        {{ customer.code }} - {{ customer.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="document_no-input">Document Number <span style="color: var(--error);">*</span></label>
+                            <input type="text" name="document_no" id="document_no-input" required value="{{ suggested_no }}" placeholder="SO-YYYYMMDD-XXXX" class="glass-input">
+                            <span class="help-text">Unique sales order document ID.</span>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="order_type-select">Order Type</label>
+                            <select name="order_type" id="order_type-select" class="glass-input">
+                                {% for code, label in order_types %}
+                                    <option value="{{ code }}" {% if selected_order_type == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="order_date-input">Order Date</label>
+                            <input type="date" name="order_date" id="order_date-input" value="{% if selected_order_date %}{{ selected_order_date }}{% else %}{% now 'Y-m-d' %}{% endif %}" class="glass-input">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="note-textarea">Order Memo / Note</label>
+                        <textarea name="note" id="note-textarea" rows="2" placeholder="Optional notes about delivery instructions, customer requests, etc." class="glass-input">{{ selected_note }}</textarea>
+                    </div>
+                </div>
+
+                <!-- Section 2: Catalog Grid -->
+                <div class="glass-card segment-card" style="padding: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+                        <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+                            <i data-lucide="package" style="width: 20px; height: 20px; color: var(--primary-light)"></i>
+                            2. Select Catalog Items
+                        </h3>
+                        <div class="search-wrapper" style="position: relative; width: 300px; max-width: 100%;">
+                            <i data-lucide="search" style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+                            <input type="text" id="catalog-search" placeholder="Search item or SKU..." class="glass-input" style="padding-left: 2.25rem; font-size: 0.9rem;">
+                        </div>
+                    </div>
+
+                    <!-- Catalog Items Grid -->
+                    <div class="catalog-grid" id="catalog-items-container">
+                        <!-- Items rendered via JavaScript -->
+                    </div>
+                    
+                    <div id="no-items-found" style="display: none; text-align: center; padding: 3rem; color: var(--text-muted);">
+                        <i data-lucide="info" style="width: 48px; height: 48px; margin-bottom: 1rem; color: var(--text-muted); opacity: 0.5;"></i>
+                        <p style="font-size: 1.1rem;">No catalog items match your search.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Sidebar: Live Cart Summary -->
+            <div class="workspace-right">
+                <div class="glass-card cart-sidebar sticky-sidebar" style="padding: 2rem;">
+                    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                        <i data-lucide="shopping-cart" style="width: 22px; height: 22px; color: var(--primary-light)"></i>
+                        Shopping Cart
+                    </h3>
+
+                    <!-- Cart Item Lines List -->
+                    <div class="cart-items-list" id="cart-items-container">
+                        <!-- Rendered by JS -->
+                    </div>
+
+                    <!-- Empty Cart Placeholder -->
+                    <div class="cart-empty-state" id="cart-empty-placeholder" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                        <i data-lucide="shopping-bag" style="width: 40px; height: 40px; margin-bottom: 1rem; opacity: 0.3;"></i>
+                        <p style="font-size: 0.95rem;">Cart is empty.<br>Add items from the catalog.</p>
+                    </div>
+
+                    <!-- Summary aggregation -->
+                    <div class="cart-totals-summary" id="cart-totals-section" style="display: none; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; margin-top: 1.5rem; flex-direction: column; gap: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--text-dim);">
+                            <span>Total Unique Items</span>
+                            <span id="summary-unique-count">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--text-dim);">
+                            <span>Total Units</span>
+                            <span id="summary-total-qty">0.00</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 800; color: var(--text-main); border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 0.75rem; margin-top: 0.25rem;">
+                            <span>Grand Total</span>
+                            <span class="text-gradient" id="summary-grand-total">$0.00</span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="width: 100%; border-radius: 12px; margin-top: 1.5rem; padding: 0.9rem; font-size: 1.05rem; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25); display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem;">
+                            <i data-lucide="check-circle" style="width: 20px; height: 20px;"></i>
+                            Create Sales Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<!-- Raw preloaded catalog data passed securely to JavaScript -->
+<script type="application/json" id="catalog-raw-data">
+    {{ items_data_json|safe }}
+</script>
+
+{% if prepopulated_items_json %}
+<script type="application/json" id="prepopulated-cart-data">
+    {{ prepopulated_items_json|safe }}
+</script>
+{% endif %}
+
+<style>
+    .creation-grid {
+        display: grid;
+        grid-template-columns: 7fr 5fr;
+        gap: 2rem;
+        align-items: start;
+    }
+    
+    @media (max-width: 992px) {
+        .creation-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .sticky-sidebar {
+        position: sticky;
+        top: 2rem;
+        z-index: 100;
+    }
+    
+    /* Catalog Cards Grid */
+    .catalog-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    /* Elegant Product Card */
+    .catalog-item-card {
+        background: rgba(255, 255, 255, 0.015);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: var(--transition);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .catalog-item-card:hover {
+        border-color: rgba(16, 185, 129, 0.25);
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .product-row {
+        display: flex;
+        gap: 1.25rem;
+        align-items: center;
+    }
+    
+    .product-avatar {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 12px;
+        background: rgba(16, 185, 129, 0.05);
+        border: 1px solid rgba(16, 185, 129, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-light);
+        flex-shrink: 0;
+    }
+    
+    .product-details {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    
+    .product-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0 0 0.25rem 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .product-sku-badge {
+        font-size: 0.725rem;
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    
+    /* Interactive Add actions */
+    .card-actions-wrapper {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .price-qty-inputs {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-end;
+    }
+    
+    .compact-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .compact-input-label {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-left: 0.1rem;
+    }
+    
+    .compact-input {
+        width: 90px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    
+    /* Expandable Accordion for Stock & Active Reservations */
+    .expandable-stock-section {
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        padding-top: 1rem;
+        margin-top: 0.25rem;
+    }
+    
+    .accordion-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        cursor: pointer;
+        user-select: none;
+        transition: var(--transition);
+    }
+    
+    .accordion-toggle:hover {
+        color: var(--primary-light);
+    }
+    
+    .accordion-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s cubic-bezier(0, 1, 0, 1);
+    }
+    
+    .accordion-content.open {
+        max-height: 1000px;
+        transition: max-height 0.4s cubic-bezier(1, 0, 1, 0);
+        margin-top: 1rem;
+    }
+    
+    .stock-badge-pill {
+        font-size: 0.725rem;
+        font-weight: 700;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    
+    .badge-available {
+        background: rgba(16, 185, 129, 0.08);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.15);
+    }
+    
+    .badge-reserved {
+        background: rgba(245, 158, 11, 0.08);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+    
+    /* Mini-tables inside expandable stock */
+    .mini-stock-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .mini-stock-table th {
+        text-align: left;
+        color: var(--text-muted);
+        font-weight: 600;
+        padding: 0.4rem 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    
+    .mini-stock-table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+        color: var(--text-dim);
+    }
+    
+    .mini-stock-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    /* Cart Items list style */
+    .cart-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+    
+    .cart-items-list::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .cart-items-list::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+    }
+    
+    .cart-item-row {
+        background: rgba(255, 255, 255, 0.01);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: relative;
+        animation: slideInRow 0.2s ease-out;
+    }
+    
+    @keyframes slideInRow {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .cart-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .cart-item-title {
+        font-weight: 700;
+        font-size: 0.9rem;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+    }
+    
+    .cart-item-sku {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+    
+    .cart-item-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+    
+    .qty-adjuster {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .adjust-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-dim);
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    
+    .adjust-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--primary-light);
+    }
+    
+    .qty-display {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-main);
+        width: 45px;
+        text-align: center;
+    }
+    
+    .price-edit-group {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        max-width: 100px;
+    }
+    
+    .price-edit-input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px dashed var(--text-muted);
+        border-radius: 0;
+        padding: 0.1rem 0.25rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-align: right;
+        color: var(--text-main);
+        width: 80px;
+    }
+    
+    .price-edit-input:focus {
+        border-bottom-style: solid;
+        border-bottom-color: var(--primary);
+        box-shadow: none;
+        background: transparent;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Raw Catalog Data Parsing
+        const catalogRaw = JSON.parse(document.getElementById('catalog-raw-data').textContent);
+        const catalogSearch = document.getElementById('catalog-search');
+        const catalogContainer = document.getElementById('catalog-items-container');
+        const noItemsFound = document.getElementById('no-items-found');
+        
+        // 2. Shopping Cart State
+        let cart = [];
+        
+        const cartContainer = document.getElementById('cart-items-container');
+        const cartEmptyPlaceholder = document.getElementById('cart-empty-placeholder');
+        const cartTotalsSection = document.getElementById('cart-totals-section');
+        
+        const summaryUniqueCount = document.getElementById('summary-unique-count');
+        const summaryTotalQty = document.getElementById('summary-total-qty');
+        const summaryGrandTotal = document.getElementById('summary-grand-total');
+        const itemsJsonInput = document.getElementById('items-json-input');
+        
+        // 3. Prepopulate Cart if it exists (e.g. after form validation error reload)
+        const prepopulatedCartDataElement = document.getElementById('prepopulated-cart-data');
+        if (prepopulatedCartDataElement) {
+            try {
+                const prepopulated = JSON.parse(prepopulatedCartDataElement.textContent);
+                if (prepopulated && prepopulated.length > 0) {
+                    cart = prepopulated.map(line => {
+                        const itemObj = catalogRaw.find(i => i.id === parseInt(line.item_id));
+                        const baseQty = parseFloat(line.requested_qty);
+                        const unitPrice = parseFloat(line.unit_price);
+                        
+                        let pkgName = null;
+                        let pkgQty = null;
+                        let packagingInfo = null;
+                        
+                        if (itemObj && itemObj.packagings && itemObj.packagings.length > 0) {
+                            // Find the packaging that fits the base quantity perfectly, largest first
+                            const sortedPackagings = [...itemObj.packagings].sort((a, b) => b.quantity - a.quantity);
+                            const matchingPkg = sortedPackagings.find(pkg => pkg.quantity > 1 && baseQty % pkg.quantity === 0);
+                            if (matchingPkg) {
+                                pkgName = matchingPkg.name;
+                                pkgQty = baseQty / matchingPkg.quantity;
+                                packagingInfo = `Packaged: ${pkgQty} ${pkgName} (${baseQty} ${itemObj.unit})`;
+                            }
+                        }
+                        
+                        return {
+                            item_id: parseInt(line.item_id),
+                            sku: itemObj ? itemObj.sku : 'SKU',
+                            name: itemObj ? itemObj.name : 'Unknown Product',
+                            unit: itemObj ? itemObj.unit : 'pcs',
+                            requested_qty: baseQty,
+                            unit_price: unitPrice,
+                            pkg_name: pkgName,
+                            pkg_qty: pkgQty,
+                            packaging_info: packagingInfo
+                        };
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading prepopulated cart data:", e);
+            }
+        }
+
+        // 4. Render Catalog Items Grid
+        function renderCatalog(filterText = '') {
+            catalogContainer.innerHTML = '';
+            let visibleCount = 0;
+            const term = filterText.trim().toLowerCase();
+            
+            catalogRaw.forEach(item => {
+                const matchesSearch = item.name.toLowerCase().includes(term) || item.sku.toLowerCase().includes(term);
+                if (!matchesSearch) return;
+                
+                visibleCount++;
+                
+                // Construct lot rows html
+                let lotRowsHtml = '';
+                if (item.lots && item.lots.length > 0) {
+                    item.lots.forEach(lot => {
+                        // Gather reservations label
+                        let resDetails = '';
+                        if (lot.reservations && lot.reservations.length > 0) {
+                            lot.reservations.forEach(r => {
+                                resDetails += `<div style="font-size: 0.725rem; color: #fbbf24; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.25rem;">
+                                    <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
+                                    <span>${r.quantity} held for ${r.reference_no} (${r.reference_type})</span>
+                                </div>`;
+                            });
+                        } else {
+                            resDetails = '<span style="color: var(--text-muted); opacity: 0.6;">None</span>';
+                        }
+                        
+                        lotRowsHtml += `
+                            <tr>
+                                <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">${lot.lot_number}</td>
+                                <td>${lot.exp_date}</td>
+                                <td style="text-align: right;">${lot.balance.toFixed(2)}</td>
+                                <td style="text-align: right; color: #fbbf24;">${lot.reserved_qty.toFixed(2)}</td>
+                                <td style="text-align: right; color: #34d399; font-weight: 600;">${lot.available_qty.toFixed(2)}</td>
+                                <td>${resDetails}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    lotRowsHtml = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1rem 0;">No active stock lots on hand.</td></tr>`;
+                }
+
+                // Packaging Select dropdown
+                let packagingSelectHtml = '';
+                if (item.packagings && item.packagings.length > 0) {
+                    let packagingOptionsHtml = `<option value="1" data-qty="1">Base (${item.unit})</option>`;
+                    item.packagings.forEach(pkg => {
+                        packagingOptionsHtml += `<option value="${pkg.id}" data-qty="${pkg.quantity}">${pkg.name} (${pkg.quantity} ${item.unit})</option>`;
+                    });
+                    packagingSelectHtml = `
+                        <div class="compact-input-group">
+                            <span class="compact-input-label">Packaging</span>
+                            <select id="pkg-select-${item.id}" class="glass-input compact-input pkg-select-elem" data-item-id="${item.id}" data-prev-qty="1" style="width: 140px; padding: 0.4rem 0.5rem; text-align: left; font-size: 0.8rem; height: 38px;">
+                                ${packagingOptionsHtml}
+                            </select>
+                        </div>
+                    `;
+                }
+
+                // Overall stock badges
+                const availablePill = `<span class="stock-badge-pill badge-available"><i data-lucide="check" style="width:12px;height:12px;"></i> ${item.total_available.toFixed(2)} ${item.unit} available</span>`;
+                const reservedPill = item.total_reserved > 0 ? `<span class="stock-badge-pill badge-reserved"><i data-lucide="clock" style="width:12px;height:12px;"></i> ${item.total_reserved.toFixed(2)} ${item.unit} reserved</span>` : '';
+
+                const itemCard = document.createElement('div');
+                itemCard.className = 'catalog-item-card';
+                itemCard.innerHTML = `
+                    <div class="product-row">
+                        <div class="product-avatar">
+                            <i data-lucide="package" style="width: 24px; height: 24px;"></i>
+                        </div>
+                        <div class="product-details">
+                            <h4 class="product-name">${item.name}</h4>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <span class="product-sku-badge">${item.sku}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-dim);">/ ${item.unit}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Catalog Card Actions -->
+                        <div class="card-actions-wrapper" style="flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+                            <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end;">
+                                ${availablePill}
+                                ${reservedPill}
+                            </div>
+                            
+                            <div class="price-qty-inputs">
+                                ${packagingSelectHtml}
+                                <div class="compact-input-group">
+                                    <span class="compact-input-label">Price ($)</span>
+                                    <input type="number" id="price-input-${item.id}" value="10.00" min="0.00" step="0.01" class="glass-input compact-input" placeholder="Price" style="width: 100px; height: 38px;">
+                                </div>
+                                <div class="compact-input-group">
+                                    <span class="compact-input-label">Qty</span>
+                                    <input type="number" id="qty-input-${item.id}" value="1" min="1" step="1" class="glass-input compact-input" placeholder="Qty" style="width: 75px; height: 38px;">
+                                </div>
+                                <button type="button" class="btn btn-primary btn-add-item" data-item-id="${item.id}" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-md); height: 38px;">
+                                    <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+                                    Add
+                                </button>
+                            </div>
+                            <div id="pkg-calc-${item.id}" style="font-size: 0.725rem; color: var(--primary-light); margin-top: 0.15rem; text-align: right; width: 100%; display: none; font-weight: 500;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Expandable Stock Lot & Reservations Accordion -->
+                    <div class="expandable-stock-section">
+                        <div class="accordion-toggle" onclick="toggleAccordion(this)">
+                            <i data-lucide="chevron-right" style="width: 14px; height: 14px; transform: rotate(0deg); transition: transform 0.2s;"></i>
+                            <span>View Stock Lots & Reservation Details (${item.lots.length})</span>
+                        </div>
+                        <div class="accordion-content">
+                            <div style="overflow-x: auto; background: rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid rgba(255,255,255,0.02); padding: 0.5rem;">
+                                <table class="mini-stock-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Lot ID</th>
+                                            <th>Expiry Date</th>
+                                            <th style="text-align: right;">On Hand</th>
+                                            <th style="text-align: right;">Reserved</th>
+                                            <th style="text-align: right;">Available</th>
+                                            <th>Current Active Locks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${lotRowsHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                catalogContainer.appendChild(itemCard);
+            });
+            
+            lucide.createIcons();
+            
+            if (visibleCount === 0) {
+                noItemsFound.style.display = 'block';
+            } else {
+                noItemsFound.style.display = 'none';
+            }
+        }
+        
+        // 5. Accordion Toggle Action
+        window.toggleAccordion = function(element) {
+            const content = element.nextElementSibling;
+            const icon = element.querySelector('i');
+            
+            content.classList.toggle('open');
+            if (content.classList.contains('open')) {
+                icon.style.transform = 'rotate(90deg)';
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        };
+
+        // 5b. Item Packaging Helper Calculations
+        window.updatePkgCalc = function(itemId) {
+            const pkgSelect = document.getElementById(`pkg-select-${itemId}`);
+            const priceInput = document.getElementById(`price-input-${itemId}`);
+            const qtyInput = document.getElementById(`qty-input-${itemId}`);
+            const calcLabel = document.getElementById(`pkg-calc-${itemId}`);
+            
+            if (!calcLabel) return;
+            
+            if (!pkgSelect) {
+                calcLabel.style.display = 'none';
+                return;
+            }
+            
+            const selectedOption = pkgSelect.options[pkgSelect.selectedIndex];
+            const multiplier = parseFloat(selectedOption.getAttribute('data-qty')) || 1;
+            const pkgName = selectedOption.text.split(' (')[0];
+            
+            const qty = parseFloat(qtyInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            
+            if (multiplier > 1) {
+                const totalBaseQty = qty * multiplier;
+                const unitPrice = price / multiplier;
+                const itemObj = catalogRaw.find(i => i.id === itemId);
+                const unitName = itemObj ? itemObj.unit : 'pcs';
+                
+                const qtyText = Number.isInteger(totalBaseQty) ? totalBaseQty.toString() : totalBaseQty.toFixed(2);
+                
+                calcLabel.innerHTML = `${qty} ${pkgName} = ${qtyText} ${unitName} at $${unitPrice.toFixed(2)} / ${unitName}`;
+                calcLabel.style.display = 'block';
+            } else {
+                calcLabel.style.display = 'none';
+            }
+        };
+
+        // 6. Shopping Cart Render Logic
+        function updateCart() {
+            cartContainer.innerHTML = '';
+            
+            if (cart.length === 0) {
+                cartEmptyPlaceholder.style.display = 'block';
+                cartTotalsSection.style.display = 'none';
+                itemsJsonInput.value = '[]';
+                return;
+            }
+            
+            cartEmptyPlaceholder.style.display = 'none';
+            cartTotalsSection.style.display = 'flex';
+            
+            let uniqueCount = 0;
+            let totalQty = 0;
+            let grandTotal = 0;
+            
+            cart.forEach((line, index) => {
+                uniqueCount++;
+                totalQty += line.requested_qty;
+                const rowTotal = line.requested_qty * line.unit_price;
+                grandTotal += rowTotal;
+                
+                let pkgIndicatorHtml = '';
+                if (line.packaging_info) {
+                    pkgIndicatorHtml = `<div class="cart-item-pkg-info" style="font-size: 0.75rem; color: var(--primary-light); margin-top: 0.2rem; display: flex; align-items: center; gap: 0.25rem;">
+                        <i data-lucide="package" style="width: 12px; height: 12px;"></i>
+                        <span>${line.packaging_info}</span>
+                    </div>`;
+                }
+
+                let pkgPriceHtml = '';
+                if (line.pkg_qty && line.pkg_name) {
+                    const multiplier = line.requested_qty / line.pkg_qty;
+                    const pkgPrice = line.unit_price * multiplier;
+                    pkgPriceHtml = `<div style="font-size: 0.7rem; color: var(--text-muted); text-align: right; margin-top: 0.1rem;">
+                        ($${pkgPrice.toFixed(2)} / ${line.pkg_name})
+                    </div>`;
+                }
+
+                const itemRow = document.createElement('div');
+                itemRow.className = 'cart-item-row';
+                itemRow.innerHTML = `
+                    <div class="cart-item-header">
+                        <div>
+                            <div class="cart-item-title">${line.name}</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.1rem;">
+                                <span class="cart-item-sku">${line.sku}</span>
+                                ${pkgIndicatorHtml}
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline btn-remove-cart" data-index="${index}" style="padding: 0.25rem; border: none; color: var(--error); background: transparent; cursor: pointer; border-radius: 6px;">
+                            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="cart-item-actions">
+                        <!-- Qty Adjuster -->
+                        <div class="qty-adjuster">
+                            <button type="button" class="adjust-btn btn-qty-dec" data-index="${index}">
+                                <i data-lucide="minus" style="width: 12px; height: 12px;"></i>
+                            </button>
+                            <span class="qty-display">${Number.isInteger(line.requested_qty) ? line.requested_qty.toString() : line.requested_qty.toFixed(0)}</span>
+                            <button type="button" class="adjust-btn btn-qty-inc" data-index="${index}">
+                                <i data-lucide="plus" style="width: 12px; height: 12px;"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Price Customizer -->
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <div class="price-edit-group">
+                                <span style="font-size:0.8rem; color:var(--text-dim);">$</span>
+                                <input type="number" class="price-edit-input cart-price-input" data-index="${index}" value="${line.unit_price.toFixed(2)}" min="0" step="0.01">
+                                <span style="font-size:0.75rem; color:var(--text-muted);">/ ${line.unit}</span>
+                            </div>
+                            ${pkgPriceHtml}
+                        </div>
+                        
+                        <!-- Line Total -->
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; color: var(--text-main);">
+                            $${rowTotal.toFixed(2)}
+                        </div>
+                    </div>
+                `;
+                
+                cartContainer.appendChild(itemRow);
+            });
+            
+            // Render icons inside added rows
+            lucide.createIcons();
+            
+            // Set aggregates
+            summaryUniqueCount.textContent = uniqueCount;
+            summaryTotalQty.textContent = totalQty.toFixed(2);
+            summaryGrandTotal.textContent = `$${grandTotal.toFixed(2)}`;
+            
+            // Update hidden input with JSON payload
+            const serializedLines = cart.map(line => ({
+                item_id: line.item_id,
+                requested_qty: line.requested_qty,
+                unit_price: line.unit_price
+            }));
+            itemsJsonInput.value = JSON.stringify(serializedLines);
+        }
+
+        // 7. Event listeners
+        
+        // Catalog Packaging Select & Input Listeners
+        catalogContainer.addEventListener('change', (e) => {
+            const select = e.target.closest('.pkg-select-elem');
+            if (!select) return;
+            
+            const itemId = parseInt(select.getAttribute('data-item-id'));
+            const priceInput = document.getElementById(`price-input-${itemId}`);
+            
+            const prevQty = parseFloat(select.getAttribute('data-prev-qty')) || 1;
+            const selectedOption = select.options[select.selectedIndex];
+            const newQty = parseFloat(selectedOption.getAttribute('data-qty')) || 1;
+            
+            if (priceInput) {
+                const oldPrice = parseFloat(priceInput.value) || 0;
+                const newPrice = oldPrice * (newQty / prevQty);
+                priceInput.value = newPrice.toFixed(2);
+            }
+            
+            select.setAttribute('data-prev-qty', newQty);
+            updatePkgCalc(itemId);
+        });
+
+        catalogContainer.addEventListener('input', (e) => {
+            const input = e.target.closest('input');
+            if (!input) return;
+            
+            const idAttr = input.getAttribute('id');
+            if (!idAttr) return;
+            
+            let itemId = null;
+            if (idAttr.startsWith('price-input-')) {
+                itemId = parseInt(idAttr.replace('price-input-', ''));
+            } else if (idAttr.startsWith('qty-input-')) {
+                itemId = parseInt(idAttr.replace('qty-input-', ''));
+            }
+            
+            if (itemId) {
+                updatePkgCalc(itemId);
+            }
+        });
+
+        // Add to Cart
+        catalogContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-add-item');
+            if (!btn) return;
+            
+            const itemId = parseInt(btn.getAttribute('data-item-id'));
+            const qtyInput = document.getElementById(`qty-input-${itemId}`);
+            const priceInput = document.getElementById(`price-input-${itemId}`);
+            
+            const qty = parseFloat(qtyInput.value) || 1;
+            const price = parseFloat(priceInput.value) || 0.00;
+            
+            const itemObj = catalogRaw.find(i => i.id === itemId);
+            if (!itemObj) return;
+
+            let baseQty = qty;
+            let baseUnitPrice = price;
+            let packagingInfo = null;
+            let pkgName = null;
+            let pkgQty = null;
+
+            const pkgSelect = document.getElementById(`pkg-select-${itemId}`);
+            if (pkgSelect) {
+                const selectedOption = pkgSelect.options[pkgSelect.selectedIndex];
+                const multiplier = parseFloat(selectedOption.getAttribute('data-qty')) || 1;
+                if (multiplier > 1) {
+                    pkgName = selectedOption.text.split(' (')[0];
+                    pkgQty = qty;
+                    baseQty = qty * multiplier;
+                    baseUnitPrice = price / multiplier;
+                    packagingInfo = `Packaged: ${pkgQty} ${pkgName} (${baseQty} ${itemObj.unit})`;
+                }
+            }
+            
+            // Search if already in cart
+            const existing = cart.find(c => c.item_id === itemId);
+            if (existing) {
+                if (pkgName && existing.pkg_name === pkgName) {
+                    existing.pkg_qty += pkgQty;
+                    existing.requested_qty += baseQty;
+                    existing.unit_price = baseUnitPrice;
+                    existing.packaging_info = `Packaged: ${existing.pkg_qty} ${pkgName} (${existing.requested_qty} ${existing.unit})`;
+                } else {
+                    // Revert to mixed/base unit styling
+                    existing.requested_qty += baseQty;
+                    existing.unit_price = baseUnitPrice; // Update to the latest unit price
+                    existing.pkg_name = null;
+                    existing.pkg_qty = null;
+                    existing.packaging_info = null;
+                }
+            } else {
+                cart.push({
+                    item_id: itemId,
+                    sku: itemObj.sku,
+                    name: itemObj.name,
+                    unit: itemObj.unit,
+                    requested_qty: baseQty,
+                    unit_price: baseUnitPrice,
+                    pkg_name: pkgName,
+                    pkg_qty: pkgQty,
+                    packaging_info: packagingInfo
+                });
+            }
+            
+            updateCart();
+            
+            // Micro-animation indicator on the button
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="check" style="width:14px;height:14px;"></i> Added`;
+            btn.style.background = 'var(--primary-dark)';
+            lucide.createIcons();
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.style.background = '';
+                lucide.createIcons();
+            }, 1000);
+        });
+
+        // Cart Actions (Remove, Quantity, Price Changes)
+        cartContainer.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.btn-remove-cart');
+            if (removeBtn) {
+                const idx = parseInt(removeBtn.getAttribute('data-index'));
+                cart.splice(idx, 1);
+                updateCart();
+                return;
+            }
+            
+            const decBtn = e.target.closest('.btn-qty-dec');
+            if (decBtn) {
+                const idx = parseInt(decBtn.getAttribute('data-index'));
+                const line = cart[idx];
+                if (line.pkg_qty && line.pkg_qty > 1) {
+                    const multiplier = line.requested_qty / line.pkg_qty;
+                    line.pkg_qty--;
+                    line.requested_qty = line.pkg_qty * multiplier;
+                    line.packaging_info = `Packaged: ${line.pkg_qty} ${line.pkg_name} (${line.requested_qty} ${line.unit})`;
+                    updateCart();
+                } else if (!line.pkg_qty && line.requested_qty > 1) {
+                    line.requested_qty--;
+                    updateCart();
+                }
+                return;
+            }
+            
+            const incBtn = e.target.closest('.btn-qty-inc');
+            if (incBtn) {
+                const idx = parseInt(incBtn.getAttribute('data-index'));
+                const line = cart[idx];
+                if (line.pkg_qty) {
+                    const multiplier = line.requested_qty / line.pkg_qty;
+                    line.pkg_qty++;
+                    line.requested_qty = line.pkg_qty * multiplier;
+                    line.packaging_info = `Packaged: ${line.pkg_qty} ${line.pkg_name} (${line.requested_qty} ${line.unit})`;
+                    updateCart();
+                } else {
+                    line.requested_qty++;
+                    updateCart();
+                }
+                return;
+            }
+        });
+        
+        // Inline Price Inputs in Cart
+        cartContainer.addEventListener('change', (e) => {
+            const priceInput = e.target.closest('.cart-price-input');
+            if (!priceInput) return;
+            
+            const idx = parseInt(priceInput.getAttribute('data-index'));
+            const newPrice = parseFloat(priceInput.value);
+            if (!isNaN(newPrice) && newPrice >= 0) {
+                cart[idx].unit_price = newPrice;
+                updateCart();
+            } else {
+                priceInput.value = cart[idx].unit_price.toFixed(2);
+            }
+        });
+
+        // Real-time catalog search filtering
+        catalogSearch.addEventListener('input', (e) => {
+            renderCatalog(e.target.value);
+        });
+
+        // Form Submit check
+        document.getElementById('sales-order-form').addEventListener('submit', (e) => {
+            if (cart.length === 0) {
+                e.preventDefault();
+                alert("Please add at least one item to your shopping cart before creating a Sales Order.");
+            }
+        });
+
+        // Initial Runs
+        renderCatalog();
+        updateCart();
+    });
+</script>
+{% endblock %}

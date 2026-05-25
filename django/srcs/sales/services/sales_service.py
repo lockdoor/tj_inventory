@@ -64,6 +64,10 @@ class SalesService:
         """
         Add an item to the order and trigger initial allocation.
         """
+        from decimal import Decimal
+        requested_qty = Decimal(str(requested_qty))
+        unit_price = Decimal(str(unit_price))
+
         order_item: SalesOrderItem = SalesOrderItem.objects.create(
             order=order,
             item=item,
