@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Record Material Shortage - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'procurement:shortage-list' %}" style="color: var(--primary-light); text-decoration: none;">Material Shortages</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Record Shortage</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="max-width: 800px; margin: 2rem auto;">
+    <!-- Title / Branding Header -->
+    <div style="margin-bottom: 2.5rem; text-align: center;">
+        <div style="background: rgba(239, 68, 68, 0.08); display: inline-flex; padding: 1.25rem; border-radius: 50%; margin-bottom: 1rem; border: 1px dashed rgba(239, 68, 68, 0.2); color: #f87171;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" x2="12" y1="9" y2="13"/>
+                <line x1="12" x2="12.01" y1="17" y2="17"/>
+            </svg>
+        </div>
+        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin: 0 0 0.5rem 0;">Record Material Shortage</h1>
+        <p style="color: var(--text-dim); margin: 0;">Log allocation gaps and product shortage demands manually to drive procurement decisions.</p>
+    </div>
+
+    <!-- Main Glassmorphic Form Card -->
+    <form method="POST" class="glass-card" style="padding: 2.5rem; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+        {% csrf_token %}
+
+        <!-- Global Errors -->
+        {% if form.non_field_errors %}
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; padding: 1rem 1.25rem; border-radius: 0.75rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                {% for err in form.non_field_errors %}
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <span>{{ err }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Warehouse Location Filter & Product Selection Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+                <label for="{{ form.warehouse.id_for_label }}" class="glass-label">Filter by Warehouse Location</label>
+                {{ form.warehouse }}
+                <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                    {{ form.warehouse.help_text }}
+                </span>
+                {% if form.warehouse.errors %}
+                    <div class="form-error">{{ form.warehouse.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.item.id_for_label }}" class="glass-label">Product / Catalog Item</label>
+                {{ form.item }}
+                <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                    {{ form.item.help_text }}
+                </span>
+                {% if form.item.errors %}
+                    <div class="form-error">{{ form.item.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Packaging Choice & Input Quantity Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+                <label for="{{ form.packaging.id_for_label }}" class="glass-label">Item Packaging</label>
+                {{ form.packaging }}
+                <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                    {{ form.packaging.help_text }}
+                </span>
+                {% if form.packaging.errors %}
+                    <div class="form-error">{{ form.packaging.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.input_qty.id_for_label }}" class="glass-label">Quantity (in Selected Unit)</label>
+                {{ form.input_qty }}
+                {% if form.input_qty.errors %}
+                    <div class="form-error">{{ form.input_qty.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Hidden actual request quantity field -->
+        {{ form.request_qty }}
+
+        <!-- Live Conversion Calculation Indicator Widget -->
+        <div id="conversion-calculator-widget" style="display: none; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #f87171;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <span style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Live Conversion</span>
+                </div>
+                <div id="live-conversion-text" style="font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 800; color: var(--text-main);">
+                    --
+                </div>
+            </div>
+        </div>
+
+        <!-- Purpose & Document ID Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Demand Source Type -->
+            <div class="form-group">
+                <label for="{{ form.reference_type.id_for_label }}" class="glass-label">Demand Source Type</label>
+                {{ form.reference_type }}
+                {% if form.reference_type.errors %}
+                    <div class="form-error">{{ form.reference_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Reference Document ID -->
+            <div class="form-group">
+                <label for="{{ form.reference_id.id_for_label }}" class="glass-label">Reference Document ID / Code</label>
+                {{ form.reference_id }}
+                <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                    Specify originating Sales Order, Production Lot, or custom batch number.
+                </span>
+                {% if form.reference_id.errors %}
+                    <div class="form-error">{{ form.reference_id.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Note Textarea -->
+        <div class="form-group" style="margin-bottom: 2rem;">
+            <label for="{{ form.note.id_for_label }}" class="glass-label">Shortage Notes & Reason</label>
+            {{ form.note }}
+            {% if form.note.errors %}
+                <div class="form-error">{{ form.note.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Submit & Actions Footer -->
+        <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 2rem; justify-content: flex-end;">
+            <a href="{% url 'procurement:shortage-list' %}" class="btn btn-outline" style="text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 500;">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="background: #f87171; color: #111827; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: var(--transition); box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);"
+                    onmouseover="this.style.filter='brightness(1.1)';"
+                    onmouseout="this.style.filter='none';">
+                Record Shortage
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Embed pre-loaded JSON maps for client-side JavaScript filtering -->
+<script id="packagings-data" type="application/json">
+    [
+        {% for pkg in packagings %}
+            {
+                "id": {{ pkg.id }},
+                "item_id": {{ pkg.item_id }},
+                "name": "{{ pkg.name|escapejs }}",
+                "quantity": {{ pkg.quantity }}
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const warehouseSelect = document.getElementById('{{ form.warehouse.id_for_label }}');
+    const itemSelect = document.getElementById('{{ form.item.id_for_label }}');
+    const packagingSelect = document.getElementById('{{ form.packaging.id_for_label }}');
+    const inputQtyField = document.getElementById('{{ form.input_qty.id_for_label }}');
+    const hiddenRequestQtyField = document.getElementById('{{ form.request_qty.id_for_label }}');
+    const conversionWidget = document.getElementById('conversion-calculator-widget');
+    const conversionText = document.getElementById('live-conversion-text');
+
+    if (!itemSelect || !packagingSelect || !inputQtyField || !hiddenRequestQtyField) return;
+
+    // Parse preloaded JSON packaging configurations
+    const allPackagings = JSON.parse(document.getElementById('packagings-data').textContent || '[]');
+
+    // Keep copies of all original options
+    const originalItemOptions = Array.from(itemSelect.options);
+
+    // 1. Warehouse filter handling using ADR-0010 split-string option-matching pattern
+    if (warehouseSelect) {
+        warehouseSelect.addEventListener('change', function() {
+            const selectedValue = warehouseSelect.value;
+            const currentItemVal = itemSelect.value;
+
+            // Clear item options
+            itemSelect.innerHTML = '';
+
+            // Filter and append options
+            originalItemOptions.forEach(opt => {
+                if (opt.value === '') {
+                    // Keep the placeholder option
+                    itemSelect.appendChild(opt.cloneNode(true));
+                    return;
+                }
+
+                if (!selectedValue) {
+                    // If "All Locations" is selected, show all options
+                    itemSelect.appendChild(opt.cloneNode(true));
+                } else {
+                    // Read 'data-warehouse' attribute directly from option element
+                    const warehouseData = opt.getAttribute('data-warehouse') || '';
+                    // Split comma-separated warehouses and check presence of selected warehouse
+                    const warehousesArray = warehouseData.split(',').map(s => s.trim());
+                    if (warehousesArray.includes(selectedValue)) {
+                        itemSelect.appendChild(opt.cloneNode(true));
+                    }
+                }
+            });
+
+            // Restore selection if still present in filtered set
+            const stillExists = Array.from(itemSelect.options).some(opt => opt.value === currentItemVal);
+            if (stillExists) {
+                itemSelect.value = currentItemVal;
+            } else {
+                itemSelect.value = '';
+            }
+
+            // Trigger item change
+            itemSelect.dispatchEvent(new Event('change'));
+        });
+    }
+
+    // 2. Item select handling (populate packagings dropdown)
+    itemSelect.addEventListener('change', function() {
+        const itemVal = itemSelect.value;
+        const currentPkgVal = packagingSelect.value;
+
+        // Clear packaging options
+        packagingSelect.innerHTML = '';
+
+        // Always add a "Base Unit" option
+        const baseOpt = document.createElement('option');
+        baseOpt.value = '';
+        baseOpt.text = 'Base Unit (pcs)';
+        packagingSelect.appendChild(baseOpt);
+
+        if (itemVal) {
+            // Find all packagings for this item
+            const itemPkgs = allPackagings.filter(pkg => pkg.item_id == itemVal);
+            itemPkgs.forEach(pkg => {
+                const opt = document.createElement('option');
+                opt.value = pkg.id;
+                opt.text = `${pkg.name} (${pkg.quantity} pcs)`;
+                packagingSelect.appendChild(opt);
+            });
+        }
+
+        // Try to restore packaging selection
+        const stillExists = Array.from(packagingSelect.options).some(opt => opt.value === currentPkgVal);
+        if (stillExists) {
+            packagingSelect.value = currentPkgVal;
+        } else {
+            packagingSelect.value = '';
+        }
+
+        // Trigger updates
+        updateConversion();
+    });
+
+    // 3. Packaging and input quantity change handling
+    packagingSelect.addEventListener('change', updateConversion);
+    inputQtyField.addEventListener('input', updateConversion);
+
+    function updateConversion() {
+        const itemVal = itemSelect.value;
+        const inputQtyVal = parseFloat(inputQtyField.value);
+        const pkgVal = packagingSelect.value;
+
+        if (isNaN(inputQtyVal) || inputQtyVal <= 0 || !itemVal) {
+            conversionWidget.style.display = 'none';
+            hiddenRequestQtyField.value = '';
+            return;
+        }
+
+        if (!pkgVal) {
+            // Base unit conversion: 1:1
+            conversionWidget.style.display = 'none';
+            hiddenRequestQtyField.value = inputQtyVal.toFixed(2);
+            return;
+        }
+
+        // Find selected packaging multiplier
+        const pkgObj = allPackagings.find(pkg => pkg.id == pkgVal);
+        if (pkgObj) {
+            const multiplier = pkgObj.quantity;
+            const converted = inputQtyVal * multiplier;
+            
+            // Update live conversion box
+            conversionWidget.style.display = 'block';
+            conversionText.textContent = `${inputQtyVal.toFixed(2)} ${pkgObj.name} = ${converted.toFixed(2)} pcs`;
+            
+            // Set hidden field value
+            hiddenRequestQtyField.value = converted.toFixed(2);
+        } else {
+            conversionWidget.style.display = 'none';
+            hiddenRequestQtyField.value = inputQtyVal.toFixed(2);
+        }
+    }
+
+    // Trigger initial triggers on reload / validation back
+    if (warehouseSelect && warehouseSelect.value) {
+        warehouseSelect.dispatchEvent(new Event('change'));
+    } else {
+        itemSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+
+<style>
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .glass-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin-left: 0.25rem;
+        letter-spacing: 0.02em;
+    }
+    .glass-input {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.75rem;
+        padding: 0.8rem 1rem;
+        color: var(--text-main);
+        font-size: 1rem;
+        transition: var(--transition);
+        outline: none;
+    }
+    .glass-input:focus {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: #f87171;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+    }
+    .glass-input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    .form-error {
+        color: #f87171;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+        margin-left: 0.25rem;
+    }
+    select.glass-input {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+    select.glass-input option {
+        background: #111827;
+        color: white;
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}

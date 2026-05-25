@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.urls import reverse
 from django.contrib.auth.models import User, Permission, Group
 from procurement.models import Shortage, PurchaseOrder
-from catalog.models import Item, Category
+from catalog.models import Item, Category, ItemPackaging
 from partners.models import Partner
 
 
@@ -235,3 +235,110 @@ class TestShortageListViews:
         assert shortage_card['url'] == 'procurement:shortage-list'
         assert shortage_card['badge'] == 'Shortages'
         assert shortage_card['icon_name'] == 'alert-triangle'
+
+    def test_shortage_create_view_permissions(self, client, unauthorized_user, test_user):
+        url = reverse('procurement:shortage-create')
+
+        # 1. Unauthenticated -> 403 Forbidden
+        response = client.get(url)
+        assert response.status_code == 403
+
+        # 2. Authenticated but unauthorized -> 403 Forbidden
+        client.force_login(unauthorized_user)
+        response = client.get(url)
+        assert response.status_code == 403
+
+        # 3. Authorized -> 200 OK
+        client.force_login(test_user)
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_shortage_create_view_get(self, client, test_user, item_a, item_b):
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-create')
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "form" in response.context
+        assert response.context['page_title'] == "Record Material Shortage"
+        
+        # Verify active items are preloaded in the choice field
+        form = response.context['form']
+        item_choices = [choice[0] for choice in form.fields['item'].choices if choice[0]]
+        assert item_a.pk in item_choices
+        assert item_b.pk in item_choices
+
+    def test_shortage_create_view_post_success(self, client, test_user, item_a):
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-create')
+        data = {
+            'item': item_a.pk,
+            'input_qty': '10.50',
+            'reference_type': Shortage.ReferenceType.SELL_ORDER,
+            'reference_id': 'SO-999',
+            'note': 'Urgent requirement'
+        }
+
+        response = client.post(url, data)
+        assert response.status_code == 302
+        assert response.url == reverse('procurement:shortage-list')
+
+        # Verify shortage created correctly
+        shortage = Shortage.objects.get(reference_id='SO-999')
+        assert shortage.item == item_a
+        assert shortage.request_qty == Decimal('10.50')
+        assert shortage.reference_type == Shortage.ReferenceType.SELL_ORDER
+        assert shortage.note == 'Urgent requirement'
+        assert shortage.created_by == test_user
+        assert shortage.status == Shortage.Status.PENDING
+
+    def test_shortage_create_view_post_with_packaging(self, client, test_user, item_a):
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-create')
+        
+        # Create an alternative packaging
+        pkg = ItemPackaging.objects.create(
+            item=item_a,
+            name="Box",
+            quantity=12,
+            created_by=test_user
+        )
+
+        data = {
+            'item': item_a.pk,
+            'packaging': pkg.pk,
+            'input_qty': '3.50',
+            'reference_type': Shortage.ReferenceType.SELL_ORDER,
+            'reference_id': 'SO-PACKAGED',
+            'note': 'Packaging conversion test'
+        }
+
+        response = client.post(url, data)
+        assert response.status_code == 302
+        
+        # Verify shortage was calculated with packaging multiplier: 3.50 * 12 = 42.00
+        shortage = Shortage.objects.get(reference_id='SO-PACKAGED')
+        assert shortage.item == item_a
+        assert shortage.request_qty == Decimal('42.00')
+        assert shortage.reference_type == Shortage.ReferenceType.SELL_ORDER
+        assert shortage.created_by == test_user
+        assert shortage.status == Shortage.Status.PENDING
+
+    def test_shortage_create_view_post_invalid(self, client, test_user, item_a):
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-create')
+        
+        # Test negative quantity
+        data = {
+            'item': item_a.pk,
+            'input_qty': '-5.00',
+            'reference_type': Shortage.ReferenceType.OTHER,
+            'reference_id': '',
+            'note': ''
+        }
+        response = client.post(url, data)
+        assert response.status_code == 200
+        assert not Shortage.objects.filter(request_qty='-5.00').exists()
+        assert 'input_qty' in response.context['form'].errors
+
+

@@ -42,4 +42,5 @@ urlpatterns = [
     
     # Material Shortages
     path('shortages/', views.ShortageListView.as_view(), name='shortage-list'),
+    path('shortages/create/', views.ShortageCreateView.as_view(), name='shortage-create'),
 ]

@@ -16,6 +16,11 @@
             <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Material Shortages</h1>
             <p style="color: var(--text-dim);">Review active allocation gaps across sales orders to accumulate demand and make supplier purchase decisions.</p>
         </div>
+        <a href="{% url 'procurement:shortage-create' %}" class="btn btn-primary" style="text-decoration: none; background: #f87171; color: #111827; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: var(--transition); box-shadow: 0 10px 20px rgba(239, 68, 68, 0.15);"
+           onmouseover="this.style.filter='brightness(1.1)';"
+           onmouseout="this.style.filter='none';">
+            + Record Shortage
+        </a>
     </div>
 
     <!-- KPIs Stats Row -->
