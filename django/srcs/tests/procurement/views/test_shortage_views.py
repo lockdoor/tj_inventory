@@ -281,10 +281,10 @@ class TestShortageListViews:
 
         response = client.post(url, data)
         assert response.status_code == 302
-        assert response.url == reverse('procurement:shortage-list')
 
         # Verify shortage created correctly
         shortage = Shortage.objects.get(reference_id='SO-999')
+        assert response.url == reverse('procurement:shortage-detail', kwargs={'pk': shortage.pk})
         assert shortage.item == item_a
         assert shortage.request_qty == Decimal('10.50')
         assert shortage.reference_type == Shortage.ReferenceType.SELL_ORDER
@@ -340,5 +340,117 @@ class TestShortageListViews:
         assert response.status_code == 200
         assert not Shortage.objects.filter(request_qty='-5.00').exists()
         assert 'input_qty' in response.context['form'].errors
+
+    def test_shortage_update_view_permissions(self, client, unauthorized_user, test_user, item_a):
+        shortage = Shortage.objects.create(
+            item=item_a,
+            request_qty=Decimal("10.00"),
+            status=Shortage.Status.PENDING,
+            created_by=test_user
+        )
+        url = reverse('procurement:shortage-update', kwargs={'pk': shortage.pk})
+
+        # 1. Unauthenticated -> 403 Forbidden
+        response = client.get(url)
+        assert response.status_code == 403
+
+        # 2. Authenticated but unauthorized -> 403 Forbidden
+        client.force_login(unauthorized_user)
+        response = client.get(url)
+        assert response.status_code == 403
+
+        # 3. Authorized -> 200 OK
+        client.force_login(test_user)
+        response = client.get(url)
+        assert response.status_code == 200
+
+    def test_shortage_update_view_get(self, client, test_user, item_a):
+        import datetime
+        shortage = Shortage.objects.create(
+            item=item_a,
+            request_qty=Decimal("15.50"),
+            status=Shortage.Status.PENDING,
+            expected_date=datetime.date(2026, 6, 1),
+            note="Pre-edit note",
+            created_by=test_user
+        )
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-update', kwargs={'pk': shortage.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert "form" in response.context
+        assert response.context['page_title'] == f"Edit Material Shortage: {item_a.sku}"
+
+        # Verify pre-populated values in form
+        form = response.context['form']
+        assert form.initial['input_qty'] == Decimal("15.50")
+        assert form.initial['note'] == "Pre-edit note"
+        assert form.initial['expected_date'] == shortage.expected_date
+
+    def test_shortage_update_view_post_success(self, client, test_user, item_a, item_b):
+        shortage = Shortage.objects.create(
+            item=item_a,
+            request_qty=Decimal("15.50"),
+            status=Shortage.Status.PENDING,
+            created_by=test_user
+        )
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-update', kwargs={'pk': shortage.pk})
+        data = {
+            'item': item_b.pk,
+            'input_qty': '25.00',
+            'expected_date': '2026-07-15',
+            'reference_type': Shortage.ReferenceType.PRODUCTION,
+            'reference_id': 'PROD-777',
+            'note': 'Updated notes here'
+        }
+
+        response = client.post(url, data)
+        assert response.status_code == 302
+        assert response.url == reverse('procurement:shortage-detail', kwargs={'pk': shortage.pk})
+
+        # Reload from DB and verify updates
+        shortage.refresh_from_db()
+        assert shortage.item == item_b
+        assert shortage.request_qty == Decimal("25.00")
+        assert shortage.expected_date.strftime("%Y-%m-%d") == "2026-07-15"
+        assert shortage.reference_type == Shortage.ReferenceType.PRODUCTION
+        assert shortage.reference_id == "PROD-777"
+        assert shortage.note == "Updated notes here"
+        assert shortage.updated_by == test_user
+
+    def test_shortage_update_view_post_blocked_non_pending(self, client, test_user, item_a):
+        # Create non-pending (PO_CREATED) shortage
+        shortage = Shortage.objects.create(
+            item=item_a,
+            request_qty=Decimal("15.50"),
+            status=Shortage.Status.PO_CREATED,
+            created_by=test_user
+        )
+        client.force_login(test_user)
+        url = reverse('procurement:shortage-update', kwargs={'pk': shortage.pk})
+        data = {
+            'item': item_a.pk,
+            'input_qty': '30.00',
+            'note': 'Hacked edit'
+        }
+
+        response = client.post(url, data)
+        # Should redirect to detail view
+        assert response.status_code == 302
+        assert response.url == reverse('procurement:shortage-detail', kwargs={'pk': shortage.pk})
+
+        # Verify DB is unchanged
+        shortage.refresh_from_db()
+        assert shortage.request_qty == Decimal("15.50")
+        assert shortage.note != "Hacked edit"
+
+        # Direct test on service layer to check custom ValidationError
+        from procurement.services.shortage_service import ShortageService
+        from django.core.exceptions import ValidationError
+        with pytest.raises(ValidationError, match="Only pending shortages can be updated."):
+            ShortageService.update(shortage, user=test_user, request_qty=Decimal("30.00"))
+
 
 

@@ -40,6 +40,11 @@ class Shortage(AuditableMixin):
         default='',
         help_text="ID or document number of the source (e.g. Sell order #123)"
     )
+    expected_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date when the items are expected to be needed"
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

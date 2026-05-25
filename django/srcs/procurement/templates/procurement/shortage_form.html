@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Record Material Shortage - TJ Inventory{% endblock %}
+{% block title %}{% if form.instance.pk %}Edit Material Shortage: {{ form.instance.item.sku }}{% else %}Record Material Shortage{% endif %} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
 <a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
 <span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:shortage-list' %}" style="color: var(--primary-light); text-decoration: none;">Material Shortages</a>
 <span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
-<span style="color: var(--text-main); font-weight: 500;">Record Shortage</span>
+<span style="color: var(--text-main); font-weight: 500;">{% if form.instance.pk %}Edit Shortage: {{ form.instance.item.sku }}{% else %}Record Shortage{% endif %}</span>
 {% endblock %}
 
 {% block content %}
@@ -21,8 +21,8 @@
                 <line x1="12" x2="12.01" y1="17" y2="17"/>
             </svg>
         </div>
-        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin: 0 0 0.5rem 0;">Record Material Shortage</h1>
-        <p style="color: var(--text-dim); margin: 0;">Log allocation gaps and product shortage demands manually to drive procurement decisions.</p>
+        <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; margin: 0 0 0.5rem 0;">{% if form.instance.pk %}Edit Material Shortage{% else %}Record Material Shortage{% endif %}</h1>
+        <p style="color: var(--text-dim); margin: 0;">{% if form.instance.pk %}Update the details, expected date, and reference document for this shortage gap.{% else %}Log allocation gaps and product shortage demands manually to drive procurement decisions.{% endif %}</p>
     </div>
 
     <!-- Main Glassmorphic Form Card -->
@@ -106,8 +106,20 @@
             </div>
         </div>
 
-        <!-- Purpose & Document ID Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Expected Date, Purpose & Document ID Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <!-- Expected Date -->
+            <div class="form-group">
+                <label for="{{ form.expected_date.id_for_label }}" class="glass-label">Expected Date</label>
+                {{ form.expected_date }}
+                <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
+                    When are the items needed?
+                </span>
+                {% if form.expected_date.errors %}
+                    <div class="form-error">{{ form.expected_date.errors.0 }}</div>
+                {% endif %}
+            </div>
+
             <!-- Demand Source Type -->
             <div class="form-group">
                 <label for="{{ form.reference_type.id_for_label }}" class="glass-label">Demand Source Type</label>
@@ -119,10 +131,10 @@
 
             <!-- Reference Document ID -->
             <div class="form-group">
-                <label for="{{ form.reference_id.id_for_label }}" class="glass-label">Reference Document ID / Code</label>
+                <label for="{{ form.reference_id.id_for_label }}" class="glass-label">Reference Document ID</label>
                 {{ form.reference_id }}
                 <span style="font-size: 0.75rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.25rem;">
-                    Specify originating Sales Order, Production Lot, or custom batch number.
+                    SO#, Production Lot, or batch number.
                 </span>
                 {% if form.reference_id.errors %}
                     <div class="form-error">{{ form.reference_id.errors.0 }}</div>
@@ -141,13 +153,13 @@
 
         <!-- Submit & Actions Footer -->
         <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 2rem; justify-content: flex-end;">
-            <a href="{% url 'procurement:shortage-list' %}" class="btn btn-outline" style="text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 500;">
+            <a href="{% if form.instance.pk %}{% url 'procurement:shortage-detail' form.instance.pk %}{% else %}{% url 'procurement:shortage-list' %}{% endif %}" class="btn btn-outline" style="text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 500;">
                 Cancel
             </a>
             <button type="submit" class="btn btn-primary" style="background: #f87171; color: #111827; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: var(--transition); box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);"
                     onmouseover="this.style.filter='brightness(1.1)';"
                     onmouseout="this.style.filter='none';">
-                Record Shortage
+                {% if form.instance.pk %}Update Shortage{% else %}Record Shortage{% endif %}
             </button>
         </div>
     </form>

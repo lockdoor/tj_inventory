@@ -31,4 +31,5 @@ from .reservation_views import (
     ArrivalReservationDetailView,
     ArrivalReservationReleaseView
 )
-from .shortage_views import ShortageListView, ShortageCreateView
+from .shortage_views import ShortageListView, ShortageCreateView, ShortageDetailView, ShortageCancelView, ShortageUpdateView
+

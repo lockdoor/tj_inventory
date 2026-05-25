@@ -65,9 +65,13 @@ class ShortageForm(forms.ModelForm):
 
     class Meta:
         model = Shortage
-        fields = ['item', 'request_qty', 'reference_type', 'reference_id', 'note']
+        fields = ['item', 'request_qty', 'expected_date', 'reference_type', 'reference_id', 'note']
         widgets = {
             'request_qty': forms.HiddenInput(),
+            'expected_date': forms.DateInput(attrs={
+                'class': 'glass-input',
+                'type': 'date',
+            }),
             'reference_type': forms.Select(attrs={
                 'class': 'glass-input'
             }),
@@ -85,6 +89,10 @@ class ShortageForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['request_qty'].required = False
+
+        if self.instance and self.instance.pk:
+            self.initial['input_qty'] = self.instance.request_qty
+
         
         # Optimize queryset with prefetch_related for Stocks to prevent N+1 DB queries
         items_qs = Item.objects.filter(

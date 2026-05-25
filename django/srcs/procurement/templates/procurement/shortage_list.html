@@ -93,6 +93,7 @@
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Product SKU & Name</th>
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Shortage Qty</th>
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Reference Source</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Expected Date</th>
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Date Logged</th>
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
                         <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Notes</th>
@@ -100,7 +101,7 @@
                 </thead>
                 <tbody>
                     {% for shortage in shortages %}
-                    <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
+                    <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition); cursor: pointer;" onclick="window.location='{% url 'procurement:shortage-detail' shortage.pk %}';">
                         <td style="padding: 1.25rem 1.5rem;">
                             <div style="display: flex; flex-direction: column;">
                                 <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">{{ shortage.item.name }}</span>
@@ -123,6 +124,13 @@
                                 </div>
                             {% else %}
                                 <span style="color: var(--text-dim); font-size: 0.85rem;">{{ shortage.reference_id|default:"Direct Request" }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.875rem;">
+                            {% if shortage.expected_date %}
+                                <span style="font-weight: 600; color: var(--text-main);">{{ shortage.expected_date|date:"d M Y" }}</span>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-style: italic;">—</span>
                             {% endif %}
                         </td>
                         <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.875rem;">
@@ -153,7 +161,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" style="padding: 4rem; text-align: center;">
+                        <td colspan="7" style="padding: 4rem; text-align: center;">
                             <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--text-muted);">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2;">
                                     <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>

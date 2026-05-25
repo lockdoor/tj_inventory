@@ -53,9 +53,38 @@ class ShortageService:
         return shortage
 
     @staticmethod
+    def update(shortage, *, user, item=None, request_qty=None, expected_date=None, reference_type=None, reference_id=None, note=None):
+        """
+        Update an existing shortage record.
+        Only allowed for PENDING status.
+        """
+        if shortage.status != Shortage.Status.PENDING:
+            raise ValidationError("Only pending shortages can be updated.")
+        
+        if item is not None:
+            shortage.item = item
+        if request_qty is not None:
+            shortage.request_qty = request_qty
+        # Since expected_date is optional, handle both empty strings (which django forms submit for empty inputs) and None
+        if expected_date is not None:
+            shortage.expected_date = expected_date or None
+        if reference_type is not None:
+            shortage.reference_type = reference_type
+        if reference_id is not None:
+            shortage.reference_id = reference_id
+        if note is not None:
+            shortage.note = note
+
+        shortage.updated_by = user
+        shortage.full_clean()
+        shortage.save()
+        return shortage
+
+    @staticmethod
     def soft_delete(shortage, *, user):
         """Soft-delete the shortage record."""
         shortage.is_deleted = True
         shortage.updated_by = user
         shortage.save()
         return shortage
+
