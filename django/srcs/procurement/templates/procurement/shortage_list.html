@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Material Shortages</span>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <!-- Header Section -->
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1.5rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">Material Shortages</h1>
+            <p style="color: var(--text-dim);">Review active allocation gaps across sales orders to accumulate demand and make supplier purchase decisions.</p>
+        </div>
+    </div>
+
+    <!-- KPIs Stats Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+        <div class="glass-card stat-card" style="border: 1px solid rgba(239, 68, 68, 0.15); box-shadow: 0 10px 30px rgba(239, 68, 68, 0.05);">
+            <label style="color: #f87171;">Pending Shortage Cards</label>
+            <div class="value" style="color: #f87171;">{{ pending_count }}</div>
+            <div class="sub">Active unfulfilled item requests</div>
+        </div>
+        <div class="glass-card stat-card" style="border: 1px solid rgba(16, 185, 129, 0.08);">
+            <label>Outstanding Qty Gaps</label>
+            <div class="value" style="color: var(--primary-light);">{{ total_pending_qty|floatformat:2 }}</div>
+            <div class="sub">Total base pieces to be ordered</div>
+        </div>
+        <div class="glass-card stat-card" style="border: 1px solid rgba(59, 130, 246, 0.08);">
+            <label>Unique Short Products</label>
+            <div class="value" style="color: #60a5fa;">{{ unique_short_items }}</div>
+            <div class="sub">Product variants lacking lot balances</div>
+        </div>
+        <div class="glass-card stat-card" style="border: 1px solid rgba(255, 255, 255, 0.03);">
+            <label>Addressed Gaps</label>
+            <div class="value" style="color: var(--text-dim);">{{ po_created_count }}</div>
+            <div class="sub">Shortages linked to supplier POs</div>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <!-- Status Filter Tabs -->
+        <div style="display: flex; gap: 0.35rem; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 0.25rem; border: 1px solid rgba(255,255,255,0.03);">
+            <a href="?{% if q %}q={{ q }}&{% endif %}status=all" class="tab-link {% if current_status == 'all' or not current_status %}active{% endif %}">
+                All Shortages
+            </a>
+            <a href="?{% if q %}q={{ q }}&{% endif %}status=pending" class="tab-link {% if current_status == 'pending' %}active{% endif %}">
+                Pending
+            </a>
+            <a href="?{% if q %}q={{ q }}&{% endif %}status=po_created" class="tab-link {% if current_status == 'po_created' %}active{% endif %}">
+                PO Created
+            </a>
+            <a href="?{% if q %}q={{ q }}&{% endif %}status=cancelled" class="tab-link {% if current_status == 'cancelled' %}active{% endif %}">
+                Cancelled
+            </a>
+        </div>
+
+        <!-- Search input -->
+        <form method="get" style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+            {% if current_status != 'all' %}
+                <input type="hidden" name="status" value="{{ current_status }}">
+            {% endif %}
+            <input type="text" name="q" value="{{ q }}" placeholder="Search SKU, name, Sales Order #..." 
+                   class="glass-input" 
+                   style="width: 280px; padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: var(--text-main);">
+            <button type="submit" class="btn btn-outline" style="padding: 0.5rem 1.25rem; font-size: 0.85rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                Search
+            </button>
+            {% if q %}
+                <a href="?{% if current_status != 'all' %}status={{ current_status }}{% endif %}" class="btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem; text-decoration: none; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--text-dim);">
+                    Clear
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Data Ledger Grid -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 2rem;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.015);">
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Product SKU & Name</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Shortage Qty</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Reference Source</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Date Logged</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
+                        <th style="padding: 1rem 1.5rem; color: var(--text-dim); font-size: 0.725rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shortage in shortages %}
+                    <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
+                        <td style="padding: 1.25rem 1.5rem;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">{{ shortage.item.name }}</span>
+                                <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--primary-light); margin-top: 0.15rem;">{{ shortage.item.sku }}</span>
+                            </div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main); font-size: 1rem;">
+                                {{ shortage.request_qty|floatformat:2 }}
+                            </span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.1rem;">{{ shortage.item.unit }}</span>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            {% if shortage.reference_type == 'sell_order' %}
+                                <div style="display: flex; flex-direction: column; gap: 0.1rem;">
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #60a5fa; font-size: 0.85rem;">
+                                        {{ shortage.reference_id }}
+                                    </span>
+                                    <span style="font-size: 0.7rem; color: var(--text-dim);">Customer demand gap</span>
+                                </div>
+                            {% else %}
+                                <span style="color: var(--text-dim); font-size: 0.85rem;">{{ shortage.reference_id|default:"Direct Request" }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.875rem;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span>{{ shortage.created_at|date:"d M Y" }}</span>
+                                <span style="font-size: 0.725rem; color: var(--text-muted); margin-top: 0.1rem;">{{ shortage.created_at|timesince }} ago</span>
+                            </div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem;">
+                            {% if shortage.status == 'pending' %}
+                                <span class="badge badge-pending">Pending</span>
+                            {% elif shortage.status == 'po_created' %}
+                                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                    <span class="badge badge-po">PO Created</span>
+                                    {% if shortage.purchase_order %}
+                                        <a href="{% url 'procurement:purchase-order-detail' shortage.purchase_order.pk %}" style="text-decoration: none; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 600; border-bottom: 1px dashed rgba(16, 185, 129, 0.4); display: inline-block; width: max-content;">
+                                            {{ shortage.purchase_order.document_no }}
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% elif shortage.status == 'cancelled' %}
+                                <span class="badge badge-cancelled">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.85rem; font-style: italic; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {{ shortage.note|default:"---" }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding: 4rem; text-align: center;">
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--text-muted);">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.2;">
+                                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                                    <line x1="12" x2="12" y1="9" y2="13"/>
+                                    <line x1="12" x2="12.01" y1="17" y2="17"/>
+                                </svg>
+                                <p style="font-size: 0.95rem;">No material shortages found.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <div style="padding: 1rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.005);">
+            <div style="color: var(--text-dim); font-size: 0.8rem;">
+                Showing <span style="color: var(--text-main); font-weight: 600;">{{ page_obj.start_index }}</span> to <span style="color: var(--text-main); font-weight: 600;">{{ page_obj.end_index }}</span> of <span style="color: var(--text-main); font-weight: 600;">{{ paginator.count }}</span> shortages
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status != 'all' %}&status={{ current_status }}{% endif %}" class="pag-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </a>
+                {% else %}
+                    <span class="pag-btn disabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </span>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <span class="pag-btn active">{{ num }}</span>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if current_status != 'all' %}&status={{ current_status }}{% endif %}" class="pag-btn">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if current_status != 'all' %}&status={{ current_status }}{% endif %}" class="pag-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </a>
+                {% else %}
+                    <span class="pag-btn disabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-card label {
+        font-size: 0.725rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+    .stat-card .sub {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.25rem;
+    }
+    .table-row:hover {
+        background: rgba(255,255,255,0.02);
+    }
+    .badge {
+        display: inline-flex;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border: 1px solid transparent;
+    }
+    .badge-pending {
+        background: rgba(239, 68, 68, 0.08);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.15);
+    }
+    .badge-po {
+        background: rgba(16, 185, 129, 0.08);
+        color: var(--primary-light);
+        border-color: rgba(16, 185, 129, 0.15);
+    }
+    .badge-cancelled {
+        background: rgba(148, 163, 184, 0.08);
+        color: #94a3b8;
+        border-color: rgba(148, 163, 184, 0.15);
+    }
+    .tab-link {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        text-decoration: none;
+        padding: 0.45rem 1rem;
+        border-radius: 6px;
+        transition: var(--transition);
+    }
+    .tab-link:hover {
+        color: var(--text-main);
+        background: rgba(255,255,255,0.03);
+    }
+    .tab-link.active {
+        color: var(--primary-light);
+        background: rgba(255,255,255,0.06);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .pag-btn {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.01);
+        color: var(--text-dim);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: var(--transition);
+    }
+    .pag-btn:hover:not(.disabled):not(.active) {
+        background: rgba(255,255,255,0.05);
+        color: var(--text-main);
+    }
+    .pag-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    .pag-btn.disabled {
+        opacity: 0.25;
+        cursor: not-allowed;
+    }
+    .glass-input:focus {
+        outline: none;
+        border-color: var(--primary-light) !important;
+        background: rgba(255,255,255,0.05) !important;
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}

@@ -39,4 +39,7 @@ urlpatterns = [
     path('arrivals/reservations/create/', views.ArrivalReservationCreateView.as_view(), name='arrival-reservation-create'),
     path('arrivals/reservations/<int:pk>/', views.ArrivalReservationDetailView.as_view(), name='arrival-reservation-detail'),
     path('arrivals/reservations/<int:pk>/release/', views.ArrivalReservationReleaseView.as_view(), name='arrival-reservation-release'),
+    
+    # Material Shortages
+    path('shortages/', views.ShortageListView.as_view(), name='shortage-list'),
 ]

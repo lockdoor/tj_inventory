@@ -138,6 +138,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'badge': 'Procurement'
             },
             {
+                'title': 'Material Shortages',
+                'description': 'View active material shortage gaps created from customer sales orders.',
+                'url': 'procurement:shortage-list',
+                'icon_name': 'alert-triangle',
+                'badge': 'Shortages'
+            },
+            {
                 'title': 'Product Catalog',
                 'description': 'View item specifications and media (Read-Only).',
                 'url': 'catalog:catalog-overview',

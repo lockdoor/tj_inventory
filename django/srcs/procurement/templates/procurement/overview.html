@@ -67,7 +67,21 @@
             </div>
         </a>
 
-
+        <!-- Material Shortages Card -->
+        <a href="{% url 'procurement:shortage-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
+            <div class="card-icon shortage-icon" style="background: rgba(239, 68, 68, 0.08); color: #f87171; border: 1px dashed rgba(239, 68, 68, 0.2);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                    <line x1="12" x2="12" y1="9" y2="13"/>
+                    <line x1="12" x2="12.01" y1="17" y2="17"/>
+                </svg>
+            </div>
+            <h3>Material Shortages</h3>
+            <p>Monitor active product shortage gaps created by sales order allocations to make purchasing decisions.</p>
+            <div class="card-footer">
+                <span class="status-pill" style="color: #fb7185; background: rgba(244, 63, 94, 0.06);">Gaps</span>
+            </div>
+        </a>
     </div>
 </div>
 

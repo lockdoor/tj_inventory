@@ -31,3 +31,4 @@ from .reservation_views import (
     ArrivalReservationDetailView,
     ArrivalReservationReleaseView
 )
+from .shortage_views import ShortageListView
