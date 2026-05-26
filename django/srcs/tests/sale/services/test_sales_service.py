@@ -181,7 +181,7 @@ class TestSalesServiceAllocation:
         SalesService.manual_allocate_stock(order_item, stock_b, 40)
 
         # 3. Verify
-        # Total should be 100. 40 is manual (Stock B), 60 is auto (Stock A)
+        # Under new bypass rules: 40 is manual (Stock B), remaining 60 bypasses Stock A and goes straight to Shortage
         assert order_item.allocations.count() == 2
         
         manual_alloc = order_item.allocations.get(is_manual=True)
@@ -189,5 +189,5 @@ class TestSalesServiceAllocation:
         assert manual_alloc.quantity == 40
 
         auto_alloc = order_item.allocations.get(is_manual=False)
-        assert auto_alloc.physical_reservation.stock == stock_a
+        assert auto_alloc.source_type == SalesAllocation.SourceType.SHORTAGE
         assert auto_alloc.quantity == 60

@@ -12,7 +12,7 @@ class ShortageService:
         return Shortage.objects.filter(is_deleted=False)
 
     @staticmethod
-    def create(*, item, request_qty, user, reference_type='other', reference_id='', note=''):
+    def create(*, item, request_qty, user, reference_type='other', reference_id='', expected_date=None, note=''):
         """
         Record a new shortage.
         """
@@ -21,6 +21,7 @@ class ShortageService:
             request_qty=request_qty,
             reference_type=reference_type,
             reference_id=reference_id,
+            expected_date=expected_date,
             note=note,
             created_by=user,
             status=Shortage.Status.PENDING

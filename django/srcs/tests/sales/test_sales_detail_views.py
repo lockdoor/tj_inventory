@@ -442,5 +442,173 @@ class TestSalesOrderDetailAndRefreshViews:
         # 3. No physical allocation is present from stock_B (it was bypassed!)
         assert item_line.allocations.filter(physical_reservation__stock=stock_B).exists() is False
 
+    def test_sales_order_edit_view_get_draft(self, client, test_user, sales_order):
+        # By default sales_order status is 'draft' when created in create_order
+        assert sales_order.status == SalesOrder.Status.DRAFT
+
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-edit', kwargs={'pk': sales_order.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response.context['page_title'] == f"Edit Sales Order: {sales_order.document_no}"
+        assert response.context['breadcrumb_title'] == "Edit Sales Order"
+        assert response.context['submit_button_text'] == "Save Sales Order Changes"
+        assert 'prepopulated_items_json' in response.context
+        
+        # Parse prepopulated cart items and verify matches
+        import json
+        prepopulated = json.loads(response.context['prepopulated_items_json'])
+        assert len(prepopulated) == 1
+        assert prepopulated[0]['item_id'] == sales_order.items.first().item.pk
+
+    def test_sales_order_edit_view_get_non_draft_blocked(self, client, test_user, sales_order):
+        # Cancel order so it's not draft
+        from sales.services.sales_service import SalesService
+        SalesService.cancel_order(sales_order, user=test_user)
+        assert sales_order.status == SalesOrder.Status.CANCELLED
+
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-edit', kwargs={'pk': sales_order.pk})
+        response = client.get(url)
+
+        # Redirect to details page
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+    def test_sales_order_edit_view_post_success(self, client, test_user, sales_order, category):
+        # Create second item and customer
+        item2 = Item.objects.create(sku="SKU-2", name="Second Item", unit="pcs", category=category, created_by=test_user)
+        customer2 = Partner.objects.create(name="Customer Corp 2", code="CUST02", is_customer=True, created_by=test_user)
+
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-edit', kwargs={'pk': sales_order.pk})
+
+        import json
+        cart_payload = [
+            {
+                'item_id': item2.pk,
+                'requested_qty': "5.00",
+                'unit_price': "120.00"
+            }
+        ]
+        
+        payload = {
+            'partner': customer2.pk,
+            'order_type': SalesOrder.OrderType.PREORDER,
+            'order_date': '2026-06-01',
+            'document_no': 'SO-EDITED-NO',
+            'note': 'This order has been successfully modified.',
+            'items_json': json.dumps(cart_payload)
+        }
+
+        response = client.post(url, data=payload)
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+        # Reload sales order and assert new values
+        sales_order.refresh_from_db()
+        assert sales_order.document_no == 'SO-EDITED-NO'
+        assert sales_order.partner == customer2
+        assert sales_order.order_type == SalesOrder.OrderType.PREORDER
+        assert sales_order.note == 'This order has been successfully modified.'
+        
+        # Verify old items deleted and new items created
+        assert sales_order.items.count() == 1
+        new_item_line = sales_order.items.first()
+        assert new_item_line.item == item2
+        assert new_item_line.requested_qty == Decimal("5.00")
+        assert new_item_line.unit_price == Decimal("120.00")
+
+    def test_manual_allocate_view_soft_deleted_arrival_ignored(self, client, test_user, sales_order, category, warehouse):
+        # Fetch existing order item line
+        item_line = sales_order.items.first()
+        item = item_line.item
+
+        # 1. Create a PO and a soft-deleted Arrival expected BEFORE the order expected date
+        from procurement.models import PurchaseOrder, Arrival, ArrivalItem
+        from datetime import date
+        po = PurchaseOrder.objects.create(
+            document_no="PO-DELETED-TEST",
+            partner=sales_order.partner,
+            expected_date=date(2026, 5, 20),
+            created_by=test_user
+        )
+        deleted_arrival = Arrival.objects.create(
+            document_no="ARR-DELETED-TEST",
+            purchase_order=po,
+            partner=sales_order.partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 5, 20),
+            status=Arrival.Status.SCHEDULED,
+            is_deleted=True,  # SOFT-DELETED
+            created_by=test_user
+        )
+        arrival_item = ArrivalItem.objects.create(
+            arrival=deleted_arrival,
+            item=item,
+            expected_qty=Decimal("100.00")
+        )
+
+        client.force_login(test_user)
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+
+        # 2. Assert GET view ignores soft-deleted arrivals
+        response = client.get(url_alloc)
+        assert response.status_code == 200
+        assert list(response.context['arrival_items']) == []  # Completely excluded!
+
+        # 3. Assert POST view blocks manual reservations for soft-deleted arrivals (redirects gracefully with error)
+        response = client.post(url_alloc, data={f"arrival_qty_{arrival_item.pk}": "5.00"})
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+        # 4. Assert smart allocation engine auto-sourcing also ignores soft-deleted arrivals
+        # Reset allocations to force dynamic sourcing run
+        from sales.services.sales_service import SalesService
+        item_line.allocations.all().delete()
+        SalesService.refresh_allocation(item_line)
+        
+        # Remaining gap must go to dynamic shortage, bypassing the deleted arrival!
+        allocations = list(item_line.allocations.all())
+        assert len(allocations) == 1
+        assert allocations[0].source_type == SalesAllocation.SourceType.SHORTAGE
+        assert allocations[0].quantity == item_line.requested_qty
+
+    def test_manual_allocate_view_post_empty_forces_shortage(self, client, test_user, sales_order, item, warehouse):
+        # Create physical stock so we can verify the auto-sourcing is bypassed
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-AUTO-TEST",
+            balance=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+
+        # POST an empty payload (neither stock nor arrival selected)
+        payload = {}
+        response = client.post(url, data=payload)
+        assert response.status_code == 302
+
+        # Reload item line and assert it's manual and has ONLY shortage allocations (bypassed physical stock completely!)
+        item_line.refresh_from_db()
+        assert item_line.is_manual_allocate is True
+        assert item_line.status == SalesOrderItem.Status.PENDING  # 0 physical allocated
+
+        allocations = list(item_line.allocations.all())
+        assert len(allocations) == 1
+        assert allocations[0].source_type == SalesAllocation.SourceType.SHORTAGE
+        assert allocations[0].quantity == item_line.requested_qty
+        assert allocations[0].is_manual is False
+        assert allocations[0].shortage is not None
+        sales_order.refresh_from_db()
+        assert allocations[0].shortage.expected_date == sales_order.order_date
+
+
 
 

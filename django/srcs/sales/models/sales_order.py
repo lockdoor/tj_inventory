@@ -110,6 +110,11 @@ class SalesOrderItem(models.Model):
         default=Status.PENDING
     )
 
+    is_manual_allocate = models.BooleanField(
+        default=False,
+        help_text="Designates whether this item has been manually allocated, bypassing automatic stock sourcing (FEFO)"
+    )
+
     class Meta:
         verbose_name = "Sales Order Item"
         verbose_name_plural = "Sales Order Items"
@@ -120,7 +125,7 @@ class SalesOrderItem(models.Model):
 
     @property
     def has_manual_allocations(self):
-        return self.allocations.filter(is_manual=True).exists()
+        return self.is_manual_allocate
 
     def __str__(self):
         return f"{self.order.document_no} - {self.item.sku} ({self.requested_qty})"

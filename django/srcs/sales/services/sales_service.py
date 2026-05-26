@@ -41,6 +41,50 @@ class SalesService:
 
     @staticmethod
     @transaction.atomic
+    def update_order(order: SalesOrder, *, document_no, partner, user, order_date=None, order_type=SalesOrder.OrderType.NORMAL, items=None, note=''):
+        """
+        Update an existing draft Sales Order and its item lines.
+        """
+        if order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError("Only draft sales orders can be edited.")
+
+        # Update basic header info
+        order.document_no = document_no
+        order.partner = partner
+        order.order_type = order_type
+        order.note = note
+        order.updated_by = user
+        if order_date:
+            order.order_date = order_date
+        order.save()
+
+        # Release allocations and delete previous items cleanly
+        for item in list(order.items.all()):
+            for allocation in list(item.allocations.all()):
+                if allocation.source_type == SalesAllocation.SourceType.STOCK:
+                    if allocation.physical_reservation:
+                        from inventory.services import ReservationService
+                        ReservationService.release(allocation.physical_reservation)
+                elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
+                    if allocation.arrival_reservation:
+                        from procurement.services import ArrivalReservationService
+                        ArrivalReservationService.release(allocation.arrival_reservation)
+                elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
+                    if allocation.shortage:
+                        if allocation.shortage.status == 'pending':
+                            allocation.shortage.delete()
+                allocation.delete()
+            item.delete()
+
+        # Re-create item lines
+        if items:
+            for item_data in items:
+                SalesService.add_item(order, **item_data)
+
+        return order
+
+    @staticmethod
+    @transaction.atomic
     def cancel_order(order, user):
         """
         Fully cancel an order and release all associated holds.
@@ -49,6 +93,7 @@ class SalesService:
             item.requested_qty = 0
             # Note: We must clear manual flags during cancellation to release everything
             item.allocations.update(is_manual=False)
+            item.is_manual_allocate = False
             item.status = SalesOrderItem.Status.CANCELLED
             item.save()
             SalesService.refresh_allocation(item)
@@ -103,6 +148,9 @@ class SalesService:
             is_manual=True # PROTECT THIS FROM AUTO-REFRESH
         )
         
+        order_item.is_manual_allocate = True
+        order_item.save(update_fields=['is_manual_allocate'])
+        
         # Refresh to fill any remaining gaps automatically
         SalesService.refresh_allocation(order_item)
 
@@ -130,6 +178,9 @@ class SalesService:
             is_manual=True # PROTECT THIS FROM AUTO-REFRESH
         )
         
+        order_item.is_manual_allocate = True
+        order_item.save(update_fields=['is_manual_allocate'])
+        
         # Refresh to fill any remaining gaps automatically
         SalesService.refresh_allocation(order_item)
 
@@ -143,12 +194,6 @@ class SalesService:
         3. Fills the gap with Stock (FEFO) -> Arrivals.
         """
         remaining_qty = order_item.requested_qty
-        
-        # Check if there are any manual stock allocations present initially
-        has_manual_stock = order_item.allocations.filter(
-            is_manual=True,
-            source_type=SalesAllocation.SourceType.STOCK
-        ).exists()
         
         # 1. CLEANUP & PRESERVATION
         for allocation in list(order_item.allocations.all()):
@@ -183,7 +228,7 @@ class SalesService:
                 allocation.delete()
  
         # 2. AUTO-SOURCING: ACTUAL STOCK (FEFO)
-        if remaining_qty > 0 and not has_manual_stock:
+        if remaining_qty > 0 and not order_item.is_manual_allocate:
             available_stocks = Stock.objects.filter(
                 item=order_item.item,
                 balance__gt=F('reserved_qty')
@@ -216,10 +261,11 @@ class SalesService:
                     remaining_qty -= take
 
         # 3. AUTO-SOURCING: ARRIVALS
-        if remaining_qty > 0:
+        if remaining_qty > 0 and not order_item.is_manual_allocate:
             pending_arrivals = ArrivalItem.objects.filter(
                 item=order_item.item,
                 arrival__status__in=['scheduled', 'receiving'],
+                arrival__is_deleted=False,  # Exclude deleted arrivals
                 arrival__expected_date__lte=order_item.order.order_date, # MUST ARRIVE BEFORE SO DATE
                 expected_qty__gt=F('reserved_qty')
             ).order_by('arrival__expected_date')
@@ -262,6 +308,7 @@ class SalesService:
                 user=order_item.order.created_by,
                 reference_type=Shortage.ReferenceType.SELL_ORDER,
                 reference_id=order_item.order.document_no,
+                expected_date=order_item.order.order_date,
                 note=f"Automatic shortage for {order_item.order.document_no}"
             )
             
