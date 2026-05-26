@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Allocate Sourcing: {{ item.sku }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'sales:overview' %}" style="color: var(--primary-light); text-decoration: none;">Sales</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'sales:sales-order-list' %}" style="color: var(--primary-light); text-decoration: none;">Sales Orders</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'sales:sales-order-detail' order.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ order.document_no }}</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Allocate {{ item.sku }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="margin-bottom: 5rem;">
+    <!-- Welcome Header -->
+    <div style="margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+                Manual Sourcing & Reservation
+            </h1>
+            <p style="color: var(--text-dim); font-size: 1.1rem;">Customize manual reservation overrides for physical stock and expected arrivals.</p>
+        </div>
+        <a href="{% url 'sales:sales-order-item-reset-allocation' order_item.pk %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem; text-decoration: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+            Cancel and Return
+        </a>
+    </div>
+
+    <form id="allocate-form" method="post" action="{% url 'sales:sales-order-item-allocate' order_item.pk %}">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: 360px 1fr; gap: 2rem; align-items: start;">
+            <!-- Left Panel: Sourcing Context -->
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- Product Information Card -->
+                <div class="glass-card" style="padding: 1.75rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0 0 1.25rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.75rem;">
+                        Product Information
+                    </h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">SKU Code</label>
+                            <div style="color: var(--primary-light); font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.15rem;">{{ item.sku }}</div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Product Name</label>
+                            <div style="color: var(--text-main); font-weight: 600;">{{ item.name }}</div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Requested Quantity</label>
+                            <div style="color: var(--text-main); font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1.25rem;">
+                                <span id="requested-qty-val">{{ order_item.requested_qty|floatformat:2 }}</span>
+                                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">{{ item.unit|default:"pcs" }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Unit Selling Price</label>
+                            <div style="color: var(--text-main); font-weight: 600;">฿{{ order_item.unit_price|floatformat:2 }}</div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Line Subtotal</label>
+                            <div style="color: #60a5fa; font-weight: 700; font-size: 1.15rem;">฿{{ order_item.subtotal|floatformat:2 }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Order Context Card -->
+                <div class="glass-card" style="padding: 1.75rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0 0 1.25rem 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.75rem;">
+                        Sales Order Details
+                    </h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Order Document No</label>
+                            <div style="color: var(--text-main); font-weight: 600;">{{ order.document_no }}</div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Customer / Partner</label>
+                            <div style="color: var(--text-main); font-weight: 600;">{{ order.partner.name }}</div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Expected Fulfillment Date</label>
+                            <div style="color: var(--text-main); font-weight: 600;">{{ order.order_date|date:"l, d M Y" }}</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Workspace: Sourcing Tables & Input Fields -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                
+                <!-- Physical Stock Lots Table -->
+                <div class="glass-card" style="padding: 2rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-light)">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                        1. Physical Stock Lots (Warehouse)
+                    </h3>
+
+                    {% if stocks %}
+                        <div style="overflow-x: auto;">
+                            <table class="glass-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">
+                                        <th style="padding: 1rem 0.75rem;">Warehouse</th>
+                                        <th style="padding: 1rem 0.75rem;">Lot Number</th>
+                                        <th style="padding: 1rem 0.75rem;">Expiration Date</th>
+                                        <th style="padding: 1rem 0.75rem; text-align: right;">Total Available Balance</th>
+                                        <th style="padding: 1rem 0.75rem; text-align: right; width: 180px;">Qty to Reserve</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stock in stocks %}
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background-color 0.2s;">
+                                            <td style="padding: 1rem 0.75rem; font-weight: 600; color: var(--text-main);">
+                                                {{ stock.warehouse.code }}
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--primary-light);">
+                                                {{ stock.lot_number }}
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; color: var(--text-dim);">
+                                                {{ stock.exp_date|date:"Y-m-d"|default:"N/A" }}
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">
+                                                <span class="max-available-val" id="max_stock_val_{{ stock.pk }}">
+                                                    {{ stock.available_qty|floatformat:2 }}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; text-align: right;">
+                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+                                                    <input type="number" 
+                                                           name="stock_qty_{{ stock.pk }}" 
+                                                           class="glass-input qty-selector stock-qty-selector" 
+                                                           min="0" 
+                                                           step="0.01" 
+                                                           value="{% if stock.allocated_qty > 0 %}{{ stock.allocated_qty|floatformat:2 }}{% endif %}" 
+                                                           placeholder="0.00" 
+                                                           style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
+                                                           data-max-allowed="{{ stock.available_qty }}"
+                                                           data-field-name="Stock Lot {{ stock.lot_number }}">
+                                                    <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                        Max
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-style: italic;">
+                            No physical stock balances are currently on hand in the warehouse for this product.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Scheduled Procurement Arrivals Table -->
+                <div class="glass-card" style="padding: 2rem; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-light)">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                        2. Scheduled Procurement Arrivals (Future Expected)
+                    </h3>
+
+                    {% if arrival_items %}
+                        <div style="overflow-x: auto;">
+                            <table class="glass-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">
+                                        <th style="padding: 1rem 0.75rem;">Arrival No</th>
+                                        <th style="padding: 1rem 0.75rem;">Warehouse</th>
+                                        <th style="padding: 1rem 0.75rem;">Expected Date</th>
+                                        <th style="padding: 1rem 0.75rem; text-align: right;">Total Available Expected</th>
+                                        <th style="padding: 1rem 0.75rem; text-align: right; width: 180px;">Qty to Reserve</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for arrival_item in arrival_items %}
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background-color 0.2s;">
+                                            <td style="padding: 1rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
+                                                <span style="color: var(--primary-light);">{{ arrival_item.arrival.document_no }}</span>
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; font-weight: 600; color: var(--text-main);">
+                                                {{ arrival_item.arrival.warehouse.code }}
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; color: var(--text-dim);">
+                                                {{ arrival_item.arrival.expected_date|date:"Y-m-d" }}
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">
+                                                <span class="max-available-val" id="max_arrival_val_{{ arrival_item.pk }}">
+                                                    {{ arrival_item.available_qty|floatformat:2 }}
+                                                </span>
+                                            </td>
+                                            <td style="padding: 1rem 0.75rem; text-align: right;">
+                                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+                                                    <input type="number" 
+                                                           name="arrival_qty_{{ arrival_item.pk }}" 
+                                                           class="glass-input qty-selector arrival-qty-selector" 
+                                                           min="0" 
+                                                           step="0.01" 
+                                                           value="{% if arrival_item.allocated_qty > 0 %}{{ arrival_item.allocated_qty|floatformat:2 }}{% endif %}" 
+                                                           placeholder="0.00" 
+                                                           style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
+                                                           data-max-allowed="{{ arrival_item.available_qty }}"
+                                                           data-field-name="Arrival Item in {{ arrival_item.arrival.document_no }}">
+                                                    <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                        Max
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 2.5rem; color: var(--text-muted); font-style: italic;">
+                            No incoming scheduled arrivals are currently registered for this product.
+                        </div>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Sticky Interactive Summation Status Bar -->
+        <div class="glass-card sticky-status-bar">
+            
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; flex-grow: 1;">
+                <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <span style="color: var(--text-muted); font-weight: 600;">Requested: <span style="font-family: 'JetBrains Mono', monospace; color: var(--text-main); font-weight: 700;">{{ order_item.requested_qty|floatformat:2 }} pcs</span></span>
+                        <span style="color: var(--text-muted); font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+                            Selected: 
+                            <span id="selected-sum-badge" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; transition: color 0.2s;">
+                                0.00
+                            </span>
+                            / {{ order_item.requested_qty|floatformat:2 }} pcs
+                        </span>
+                    </div>
+                    
+                    <span id="remaining-gap-label" style="font-size: 0.8rem; font-weight: 600;"></span>
+                </div>
+
+                <!-- Progress Bar matching HSL colors -->
+                <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; position: relative;">
+                    <div id="selection-progress-bar" style="height: 100%; width: 0%; border-radius: 4px; transition: width 0.3s ease, background 0.3s ease;"></div>
+                </div>
+
+                <div id="shortage-notice-box" style="font-size: 0.775rem; color: var(--text-muted); font-style: italic; transition: color 0.2s; display: none;"></div>
+            </div>
+
+            <!-- Submit and Reset Buttons -->
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-shrink: 0;">
+                <button type="submit" id="save-allocation-btn" class="btn btn-primary" style="background: var(--primary-light); color: #111827; border: none; font-weight: 700; border-radius: 0.75rem; padding: 0.75rem 1.5rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Save Reservations
+                </button>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const requestedQty = parseFloat("{{ order_item.requested_qty }}");
+    const qtyInputs = document.querySelectorAll('.qty-selector');
+    const selectedSumBadge = document.getElementById('selected-sum-badge');
+    const remainingGapLabel = document.getElementById('remaining-gap-label');
+    const progressBar = document.getElementById('selection-progress-bar');
+    const saveButton = document.getElementById('save-allocation-btn');
+    const shortageNotice = document.getElementById('shortage-notice-box');
+    const maxBtns = document.querySelectorAll('.fill-max-btn');
+
+    // 1. Live Summation Logic
+    function updateCalculations() {
+        let total = 0.0;
+        qtyInputs.forEach(input => {
+            const val = parseFloat(input.value);
+            if (!isNaN(val) && val > 0) {
+                total += val;
+            }
+        });
+
+        // Format to 2 decimal places
+        const formattedTotal = total.toFixed(2);
+        selectedSumBadge.textContent = formattedTotal;
+
+        // Validation & Progress Bar Calculations
+        const pct = Math.min(100, (total / requestedQty) * 100);
+        progressBar.style.width = pct + '%';
+
+        // Color and state thresholds
+        if (total === requestedQty) {
+            // Perfect Match
+            selectedSumBadge.style.color = '#34d399'; // Green
+            progressBar.style.background = '#34d399';
+            remainingGapLabel.innerHTML = `<span style="color: #34d399;">✓ Exact Match</span>`;
+            remainingGapLabel.style.color = '#34d399';
+            saveButton.removeAttribute('disabled');
+            saveButton.style.opacity = '1';
+            shortageNotice.style.display = 'block';
+            shortageNotice.innerHTML = `Perfect fulfillment: 100% sourced. No procurement shortage will be recorded.`;
+            shortageNotice.style.color = '#34d399';
+        } else if (total > requestedQty) {
+            // Over-allocated
+            selectedSumBadge.style.color = '#f87171'; // Red
+            progressBar.style.background = '#f87171';
+            const excess = (total - requestedQty).toFixed(2);
+            remainingGapLabel.innerHTML = `⚠️ Exceeds Requested Qty by ${excess} pcs`;
+            remainingGapLabel.style.color = '#f87171';
+            // Disable saving to prevent system corruption
+            saveButton.setAttribute('disabled', 'true');
+            saveButton.style.opacity = '0.5';
+            shortageNotice.style.display = 'block';
+            shortageNotice.innerHTML = `Over-allocation error: Please reduce reservation values to fit the customer requirement.`;
+            shortageNotice.style.color = '#f87171';
+        } else {
+            // Under-allocated (Sourcing Gap)
+            selectedSumBadge.style.color = '#fbbf24'; // Yellow
+            progressBar.style.background = '#fbbf24';
+            const gap = (requestedQty - total).toFixed(2);
+            remainingGapLabel.innerHTML = `Sourcing Gap: ${gap} pcs`;
+            remainingGapLabel.style.color = '#fbbf24';
+            saveButton.removeAttribute('disabled');
+            saveButton.style.opacity = '1';
+            shortageNotice.style.display = 'block';
+            shortageNotice.innerHTML = `⚠️ Sourcing gap details: The remaining <strong>${gap} pcs</strong> will be dynamically logged in procurement as a pending supplier shortage.`;
+            shortageNotice.style.color = '#fbbf24';
+        }
+    }
+
+    // Bind inputs to summation calculator
+    qtyInputs.forEach(input => {
+        // Enforce max validation strictly in the UI
+        input.addEventListener('input', function() {
+            const maxVal = parseFloat(this.getAttribute('data-max-allowed'));
+            let currentVal = parseFloat(this.value);
+
+            if (currentVal < 0) {
+                this.value = '0.00';
+            } else if (currentVal > maxVal) {
+                alert(`Cannot exceed maximum available level (${maxVal.toFixed(2)} pcs) for ${this.getAttribute('data-field-name')}`);
+                this.value = maxVal.toFixed(2);
+            }
+            updateCalculations();
+        });
+    });
+
+    // 2. Max Filling Actions
+    maxBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tr = this.closest('tr');
+            const input = tr.querySelector('.qty-selector');
+            const maxVal = parseFloat(input.getAttribute('data-max-allowed'));
+            
+            // Check how much is currently selected elsewhere
+            let currentOtherTotal = 0;
+            qtyInputs.forEach(inp => {
+                if (inp !== input) {
+                    const val = parseFloat(inp.value);
+                    if (!isNaN(val) && val > 0) {
+                        currentOtherTotal += val;
+                    }
+                }
+            });
+
+            // Target to fill up to requested total or maximum available for this lot
+            const remainingToRequest = Math.max(0, requestedQty - currentOtherTotal);
+            const fillQty = Math.min(maxVal, remainingToRequest);
+
+            input.value = fillQty.toFixed(2);
+            updateCalculations();
+        });
+    });
+
+    // Initial Trigger
+    updateCalculations();
+});
+</script>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(15px);
+        border-radius: 16px;
+    }
+    
+    .glass-input {
+        background: rgba(0, 0, 0, 0.25) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        color: var(--text-main) !important;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .glass-input:focus {
+        border-color: var(--primary-light) !important;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+    
+    .glass-table th {
+        font-weight: 700;
+        color: var(--text-muted);
+    }
+    
+    .glass-table tr:hover {
+        background: rgba(255, 255, 255, 0.015);
+    }
+
+    .sticky-status-bar {
+        position: sticky; 
+        bottom: 2rem; 
+        padding: 1.25rem 2rem; 
+        z-index: 1000; 
+        border: 1px solid rgba(255,255,255,0.08); 
+        border-radius: 1rem; 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        gap: 2rem; 
+        backdrop-filter: blur(20px);
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}

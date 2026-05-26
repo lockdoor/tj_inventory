@@ -149,3 +149,298 @@ class TestSalesOrderDetailAndRefreshViews:
         # Verify no items were allocated
         item_line = sales_order.items.first()
         assert item_line.status == SalesOrderItem.Status.CANCELLED
+
+    def test_manual_allocate_view_get(self, client, test_user, sales_order):
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response.context['order_item'] == item_line
+        assert response.context['order'] == sales_order
+        assert 'stocks' in response.context
+        assert 'arrival_items' in response.context
+
+    def test_manual_allocate_view_post_success(self, client, test_user, sales_order, item, warehouse):
+        # Create physical stock (exactly 6.00 so manual allocation uses all of it)
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-MANUAL",
+            balance=Decimal("6.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+
+        # Create incoming arrival
+        supplier = Partner.objects.create(name="Supplier Corp", code="SUPP01", is_supplier=True, created_by=test_user)
+        from django.utils import timezone
+        arrival = Arrival.objects.create(
+            document_no="ARR-2026-999",
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=timezone.now().date(),
+            status='scheduled',
+            created_by=test_user
+        )
+        arrival_item = ArrivalItem.objects.create(
+            arrival=arrival,
+            item=item,
+            expected_qty=Decimal("2.00"),
+            reserved_qty=Decimal("0.00"),
+        )
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+
+        payload = {
+            f"stock_qty_{stock.pk}": "6.00",
+            f"arrival_qty_{arrival_item.pk}": "2.00",
+        }
+        response = client.post(url, data=payload)
+
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+        # Reload allocations and assert manual picks and gap shortage are correct
+        item_line.refresh_from_db()
+        assert item_line.status == SalesOrderItem.Status.PARTIAL
+        assert item_line.allocated_qty == Decimal("10.00") # 6 (stock) + 2 (arrival) + 2 (shortage)
+        
+        allocations = list(item_line.allocations.all().order_by('source_type'))
+        assert len(allocations) == 3
+
+        # Assert manual picks are registered as manual
+        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        assert stock_alloc.quantity == Decimal("6.00")
+        assert stock_alloc.is_manual is True
+        assert stock_alloc.physical_reservation.quantity == Decimal("6.00")
+
+        arrival_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL)
+        assert arrival_alloc.quantity == Decimal("2.00")
+        assert arrival_alloc.is_manual is True
+        assert arrival_alloc.arrival_reservation.quantity == Decimal("2.00")
+
+        # Assert remaining gap is auto-sourced as a dynamic shortage (is_manual=False)
+        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE)
+        assert shortage_alloc.quantity == Decimal("2.00")
+        assert shortage_alloc.is_manual is False
+        assert shortage_alloc.shortage is not None
+
+    def test_manual_allocate_view_post_blocked_cancelled(self, client, test_user, sales_order):
+        # Cancel order
+        from sales.services.sales_service import SalesService
+        SalesService.cancel_order(sales_order, user=test_user)
+        assert sales_order.status == SalesOrder.Status.CANCELLED
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        
+        response = client.post(url, data={})
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+    def test_reset_allocation_view_post(self, client, test_user, sales_order, item, warehouse):
+        # Setup manual reservations
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-RESET-TEST",
+            balance=Decimal("20.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+
+        # Allocate manually first
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        response = client.post(url_alloc, data={f"stock_qty_{stock.pk}": "5.00"})
+        assert response.status_code == 302
+
+        item_line.refresh_from_db()
+        assert item_line.allocations.filter(is_manual=True).exists() is True
+
+        # Now post to reset allocation
+        url_reset = reverse('sales:sales-order-item-reset-allocation', kwargs={'item_pk': item_line.pk})
+        response = client.post(url_reset)
+
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+        item_line.refresh_from_db()
+        # All allocations should be reset to automatic (is_manual=False)
+        for alloc in item_line.allocations.all():
+            assert alloc.is_manual is False
+
+    def test_manual_allocate_view_late_arrival_ignored_and_blocked(self, client, test_user, sales_order, item, warehouse):
+        supplier = Partner.objects.create(name="Supplier Corp 2", code="SUPP02", is_supplier=True, created_by=test_user)
+        from django.utils import timezone
+        import datetime
+        
+        # 1. Create an on-time arrival (expected today)
+        arrival_ontime = Arrival.objects.create(
+            document_no="ARR-ONTIME",
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=timezone.now().date(),
+            status='scheduled',
+            created_by=test_user
+        )
+        item_ontime = ArrivalItem.objects.create(
+            arrival=arrival_ontime,
+            item=item,
+            expected_qty=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+        )
+
+        # 2. Create a late arrival (expected in 5 days)
+        arrival_late = Arrival.objects.create(
+            document_no="ARR-LATE",
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=timezone.now().date() + datetime.timedelta(days=5),
+            status='scheduled',
+            created_by=test_user
+        )
+        item_late = ArrivalItem.objects.create(
+            arrival=arrival_late,
+            item=item,
+            expected_qty=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+        )
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+
+        # Test GET: ARR-ONTIME should be in context, ARR-LATE should NOT
+        response = client.get(url)
+        assert response.status_code == 200
+        arrival_items_in_context = list(response.context['arrival_items'])
+        
+        assert item_ontime in arrival_items_in_context
+        assert item_late not in arrival_items_in_context
+
+        # Test POST: submitting late arrival should throw validation error & display error flash message
+        payload = {
+            f"arrival_qty_{item_late.pk}": "5.00"
+        }
+        response = client.post(url, data=payload)
+        assert response.status_code == 302 # Redirects to detail view on failure with flash error
+        
+        # Verify no allocations were registered (transaction rolled back)
+        item_line.refresh_from_db()
+        assert item_line.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists() is False
+
+    def test_manual_allocate_view_get_releases_allocations(self, client, test_user, sales_order, item, warehouse):
+        # Create some stock so we have active automatic allocations
+        Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-GET-RELEASE",
+            balance=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        from sales.services.sales_service import SalesService
+        SalesService.refresh_allocation(item_line)
+
+        # Assert we have active allocations before GET
+        assert item_line.allocations.exists() is True
+
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        response = client.get(url)
+        assert response.status_code == 200
+
+        # Assert GET successfully released and deleted all active allocations
+        item_line.refresh_from_db()
+        assert item_line.allocations.count() == 0
+
+    def test_manual_allocate_view_cancel_rebuilds_auto(self, client, test_user, sales_order, item, warehouse):
+        Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-CANCEL-REBUILD",
+            balance=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+
+        # Load GET (releases allocations)
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        client.get(url_alloc)
+        item_line.refresh_from_db()
+        assert item_line.allocations.count() == 0
+
+        # Cancel by calling the GET reset endpoint
+        url_cancel = reverse('sales:sales-order-item-reset-allocation', kwargs={'item_pk': item_line.pk})
+        response = client.get(url_cancel)
+
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+
+        # Reload and assert allocations are rebuilt
+        item_line.refresh_from_db()
+        assert item_line.allocations.count() > 0
+        assert item_line.allocations.filter(is_manual=False).exists() is True
+
+    def test_smart_allocator_ignores_physical_stock_if_has_manual(self, client, test_user, sales_order, item, warehouse):
+        # stock_A: exactly 3.00
+        stock_A = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-A",
+            balance=Decimal("3.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        # stock_B: 20.00 available
+        stock_B = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-B",
+            balance=Decimal("20.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+
+        # POST to allocate 3.00 manually from stock_A
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        response = client.post(url_alloc, data={f"stock_qty_{stock_A.pk}": "3.00"})
+        assert response.status_code == 302
+
+        # Reload and assert manual allocation preserved, but auto-sourcing on stock_B was SKIPPED
+        # Sourcing gap of 7.00 fell straight to dynamic shortage!
+        item_line.refresh_from_db()
+        
+        allocations = list(item_line.allocations.all().order_by('source_type'))
+        assert len(allocations) == 2
+
+        # 1. Manual stock allocation from stock_A is kept
+        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        assert stock_alloc.quantity == Decimal("3.00")
+        assert stock_alloc.is_manual is True
+        assert stock_alloc.physical_reservation.stock == stock_A
+
+        # 2. Dynamic shortage gap is logged for 7.00
+        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE)
+        assert shortage_alloc.quantity == Decimal("7.00")
+        assert shortage_alloc.is_manual is False
+        assert shortage_alloc.shortage is not None
+
+        # 3. No physical allocation is present from stock_B (it was bypassed!)
+        assert item_line.allocations.filter(physical_reservation__stock=stock_B).exists() is False
+
+
+

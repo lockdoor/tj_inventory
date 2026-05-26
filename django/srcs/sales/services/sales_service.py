@@ -144,6 +144,12 @@ class SalesService:
         """
         remaining_qty = order_item.requested_qty
         
+        # Check if there are any manual stock allocations present initially
+        has_manual_stock = order_item.allocations.filter(
+            is_manual=True,
+            source_type=SalesAllocation.SourceType.STOCK
+        ).exists()
+        
         # 1. CLEANUP & PRESERVATION
         for allocation in list(order_item.allocations.all()):
             allocation: SalesAllocation
@@ -175,9 +181,9 @@ class SalesService:
             
             if is_volatile:
                 allocation.delete()
-
+ 
         # 2. AUTO-SOURCING: ACTUAL STOCK (FEFO)
-        if remaining_qty > 0:
+        if remaining_qty > 0 and not has_manual_stock:
             available_stocks = Stock.objects.filter(
                 item=order_item.item,
                 balance__gt=F('reserved_qty')

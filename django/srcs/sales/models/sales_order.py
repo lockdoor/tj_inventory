@@ -118,5 +118,9 @@ class SalesOrderItem(models.Model):
     def subtotal(self):
         return self.requested_qty * self.unit_price
 
+    @property
+    def has_manual_allocations(self):
+        return self.allocations.filter(is_manual=True).exists()
+
     def __str__(self):
         return f"{self.order.document_no} - {self.item.sku} ({self.requested_qty})"
