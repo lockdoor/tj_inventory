@@ -1,10 +1,10 @@
 import json
-from django.views.generic import ListView
+from django.views.generic import ListView, DetailView
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Q
 from django.db import transaction, IntegrityError
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -306,4 +306,75 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'order_types': SalesOrder.OrderType.choices,
         }
         return render(request, self.template_name, context)
+
+
+class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+    """
+    Detailed diagnostic view for a single Sales Order.
+    Shows customers info, total finances, and nested items allocation status (Physical/Future/Shortage).
+    """
+    model = SalesOrder
+    template_name = 'sales/sales_order_detail.html'
+    context_object_name = 'sales_order'
+    permission_required = 'sales.view_salesorder'
+    raise_exception = True
+
+    def get_queryset(self):
+        return SalesOrder.objects.filter(is_deleted=False).select_related(
+            'partner',
+            'created_by',
+            'updated_by'
+        ).prefetch_related(
+            'items__item',
+            'items__allocations__physical_reservation__stock__warehouse',
+            'items__allocations__arrival_reservation__arrival_item__arrival__warehouse',
+            'items__allocations__shortage'
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        order = self.object
+        context['page_title'] = f"Sales Order: {order.document_no}"
+        
+        # Compute order total financial metrics
+        total_amount = sum(item.requested_qty * item.unit_price for item in order.items.all())
+        context['total_amount'] = float(total_amount)
+        
+        # Calculate overall order allocation status progress
+        total_items = order.items.count()
+        allocated_items = order.items.filter(status='allocated').count()
+        context['allocated_items'] = allocated_items
+        context['total_items'] = total_items
+        
+        return context
+
+
+class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    POST-only action to trigger the smart allocation engine (gap filler)
+    for all items within the Sales Order.
+    """
+    permission_required = 'sales.change_salesorder'
+    raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+        order_id = self.kwargs.get('pk')
+        order = get_object_or_404(SalesOrder, pk=order_id, is_deleted=False)
+        
+        # Gating: Cancelled and Shipped orders cannot have allocations refreshed
+        if order.status in [SalesOrder.Status.CANCELLED, SalesOrder.Status.SHIPPED]:
+            messages.error(request, f"Cannot refresh allocations for {order.get_status_display()} orders.")
+            return redirect('sales:sales-order-detail', pk=order.pk)
+
+        # Trigger refresh on each item line within transaction
+        try:
+            with transaction.atomic():
+                for item in order.items.all():
+                    SalesService.refresh_allocation(item)
+            messages.success(request, f"Allocations for Sales Order {order.document_no} successfully refreshed!")
+        except Exception as e:
+            messages.error(request, f"Error refreshing allocations: {str(e)}")
+
+        return redirect('sales:sales-order-detail', pk=order.pk)
+
 

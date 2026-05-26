@@ -53,7 +53,7 @@
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
                     <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Document No</th>
                     <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Customer</th>
-                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Order Date</th>
+                    <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Expected Fulfillment Date</th>
                     <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Order Type</th>
                     <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Items</th>
                     <th style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Status</th>
@@ -63,9 +63,9 @@
                 {% for order in sales_orders %}
                 <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
                     <td style="padding: 1.25rem 1.5rem;">
-                        <span style="color: var(--text-main); font-weight: 600; font-family: 'JetBrains Mono', monospace;">
+                        <a href="{% url 'sales:sales-order-detail' order.pk %}" style="color: var(--primary-light); font-weight: 600; font-family: 'JetBrains Mono', monospace; text-decoration: none;">
                             {{ order.document_no }}
-                        </span>
+                        </a>
                     </td>
                     <td style="padding: 1.25rem 1.5rem;">
                         <div style="display: flex; flex-direction: column;">

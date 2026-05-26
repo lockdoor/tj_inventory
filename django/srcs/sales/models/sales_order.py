@@ -41,7 +41,10 @@ class SalesOrder(AuditableMixin):
         choices=OrderType.choices,
         default=OrderType.NORMAL
     )
-    order_date = models.DateField(default=timezone.now)
+    order_date = models.DateField(
+        default=timezone.now,
+        help_text="Target timeline expected to fulfill the order"
+    )
     note = models.TextField(blank=True, default='')
 
     class Meta:

@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Order Detail: {{ sales_order.document_no }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'sales:overview' %}" style="color: var(--primary-light); text-decoration: none;">Sales</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'sales:sales-order-list' %}" style="color: var(--primary-light); text-decoration: none;">Sales Orders</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ sales_order.document_no }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in">
+    <!-- Header Section -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3rem; gap: 2rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            <div style="width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.1); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 1.25rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.15);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+                    <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0;">{{ sales_order.document_no }}</h1>
+                    <!-- Status Badge -->
+                    {% if sales_order.status == 'draft' %}
+                        <span class="badge-status badge-draft">Draft</span>
+                    {% elif sales_order.status == 'preorder' %}
+                        <span class="badge-status badge-preorder">Pre-order</span>
+                    {% elif sales_order.status == 'confirmed' %}
+                        <span class="badge-status badge-confirmed">Confirmed</span>
+                    {% elif sales_order.status == 'processing' %}
+                        <span class="badge-status badge-processing">Processing</span>
+                    {% elif sales_order.status == 'shipped' %}
+                        <span class="badge-status badge-shipped">Shipped</span>
+                    {% elif sales_order.status == 'cancelled' %}
+                        <span class="badge-status badge-cancelled">Cancelled</span>
+                    {% endif %}
+                </div>
+                <div style="color: var(--text-dim); font-size: 0.95rem;">
+                    {{ sales_order.partner.name }} — Customer Order #{{ sales_order.pk }}
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <!-- Refresh Allocations Button -->
+            {% if sales_order.status != 'cancelled' and sales_order.status != 'shipped' %}
+                <form action="{% url 'sales:sales-order-refresh-allocations' sales_order.pk %}" method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" style="background: var(--primary-light); color: #111827; border: none; font-weight: 700; border-radius: 0.75rem; padding: 0.65rem 1.25rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                        Refresh Allocations
+                    </button>
+                </form>
+            {% endif %}
+
+            <a href="{% url 'sales:sales-order-list' %}" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.75rem; padding: 0.6rem 1.2rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m15 18-6-6 6-6"/>
+                </svg>
+                Back to List
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+        <div class="glass-card stat-card" style="border: 1px solid rgba(59, 130, 246, 0.15); box-shadow: 0 10px 30px rgba(59, 130, 246, 0.05);">
+            <label style="color: #60a5fa;">Order Total</label>
+            <div class="value" style="color: #60a5fa;">฿{{ total_amount|floatformat:2 }}</div>
+            <div class="sub">Financial value of order</div>
+        </div>
+        <div class="glass-card stat-card">
+            <label>Allocation Status</label>
+            <div class="value" style="color: var(--primary-light);">{{ allocated_items }} / {{ total_items }}</div>
+            <div class="sub">Fully allocated item lines</div>
+        </div>
+        <div class="glass-card stat-card">
+            <label>Expected Fulfillment Date</label>
+            <div class="value" style="font-size: 1.8rem; margin: 0.25rem 0;">
+                {{ sales_order.order_date|date:"d M Y" }}
+            </div>
+            <div class="sub">Expected target to fulfill the order</div>
+        </div>
+        <div class="glass-card stat-card">
+            <label>Order Type</label>
+            <div class="value" style="font-size: 1.6rem; margin: 0.25rem 0;">
+                {% if sales_order.order_type == 'preorder' %}
+                    <span style="color: #fbbf24;">Pre-order</span>
+                {% else %}
+                    <span style="color: var(--text-dim);">Normal Sale</span>
+                {% endif %}
+            </div>
+            <div class="sub">Fulfillment strategy type</div>
+        </div>
+    </div>
+
+    <!-- Main Content: 2-Column Grid -->
+    <div style="display: grid; grid-template-columns: 340px 1fr; gap: 2rem; margin-bottom: 2.5rem; align-items: start;">
+        
+        <!-- Left: Sales Order Document Info & Audit -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- Document Details Card -->
+            <div class="glass-card" style="padding: 1.75rem; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 1.5rem;">
+                <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem;">
+                    Order Details
+                </h2>
+
+                <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.9rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Customer / Partner</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.partner.name }}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">Code: {{ sales_order.partner.code }}</div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Order Type</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.get_order_type_display }}</div>
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Expected Fulfillment Date</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.order_date|date:"l, d M Y" }}</div>
+                    </div>
+
+                    {% if sales_order.note %}
+                    <div style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Note / Terms</label>
+                        <p style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin: 0; font-style: italic;">
+                            "{{ sales_order.note }}"
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Audit Trail Card -->
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="margin: 0 0 1rem 0; font-size: 0.85rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    Audit Trail
+                </h4>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.8rem;">
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.65rem; text-transform: uppercase;">Created By</span>
+                        <span style="color: var(--text-main); font-weight: 500;">
+                            {{ sales_order.created_by.first_name }} {{ sales_order.created_by.last_name }}
+                            (<span style="color: var(--primary-light);">@{{ sales_order.created_by.username|default:"system" }}</span>)
+                        </span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.65rem; text-transform: uppercase;">System Logged Date</span>
+                        <span style="color: var(--text-dim);">{{ sales_order.created_at|date:"d M Y H:i:s" }}</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.65rem; text-transform: uppercase;">Last Updated</span>
+                        <span style="color: var(--text-dim);">
+                            {% if sales_order.updated_by %}
+                                {{ sales_order.updated_at|date:"d M Y H:i" }} by @{{ sales_order.updated_by.username }}
+                            {% else %}
+                                {{ sales_order.updated_at|date:"d M Y H:i" }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.65rem; text-transform: uppercase;">Version</span>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">v{{ sales_order.version }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Ordered Lines & Dynamic Allocation Diagnostic Grid -->
+        <div class="glass-card" style="padding: 0; border: 1px solid rgba(255,255,255,0.05); overflow: hidden;">
+            <div style="padding: 1.25rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-main);">Ordered Products & Sourcing Diagnostics</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">{{ sales_order.items.count }} Lines</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column;">
+                {% for item in sales_order.items.all %}
+                <div style="padding: 2rem; border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Line Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; color: var(--primary-light);">{{ item.item.sku }}</span>
+                                {% if item.status == 'pending' %}
+                                    <span class="badge-status-mini badge-pending-mini">Pending Allocation</span>
+                                {% elif item.status == 'partial' %}
+                                    <span class="badge-status-mini badge-partial-mini">Partially Allocated</span>
+                                {% elif item.status == 'allocated' %}
+                                    <span class="badge-status-mini badge-allocated-mini">Fully Allocated</span>
+                                {% elif item.status == 'shipped' %}
+                                    <span class="badge-status-mini badge-shipped-mini">Shipped</span>
+                                {% elif item.status == 'cancelled' %}
+                                    <span class="badge-status-mini badge-cancelled-mini">Cancelled</span>
+                                {% endif %}
+                            </div>
+                            <span style="color: var(--text-main); font-weight: 600; font-size: 0.95rem;">{{ item.item.name }}</span>
+                        </div>
+
+                        <div style="text-align: right; display: flex; gap: 1.5rem;">
+                            <div>
+                                <span style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Unit Price</span>
+                                <span style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">฿{{ item.unit_price|floatformat:2 }}</span>
+                            </div>
+                            <div>
+                                <span style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Requested</span>
+                                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main); font-size: 1rem;">{{ item.requested_qty|floatformat:0 }} <span style="font-size: 0.8rem; color: var(--text-muted);">{{ item.item.unit|default:"pcs" }}</span></span>
+                            </div>
+                            <div>
+                                <span style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Allocated</span>
+                                <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--primary-light); font-size: 1rem;">{{ item.allocated_qty|floatformat:0 }} <span style="font-size: 0.8rem; color: var(--text-muted);">pcs</span></span>
+                            </div>
+                            <div>
+                                <span style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Subtotal</span>
+                                <span style="font-weight: 700; color: var(--text-main); font-size: 1.05rem; color: #60a5fa;">฿{{ item.subtotal|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Allocations Diagnostics Panel -->
+                    <div style="background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.03); border-radius: 0.75rem; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <span style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                            Sourcing Allocations Diagnostics
+                        </span>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                            {% for alloc in item.allocations.all %}
+                                <div class="alloc-row" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 0.5rem; font-size: 0.85rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                        {% if alloc.source_type == 'stock' %}
+                                            <span class="alloc-badge alloc-badge-stock" title="Actual Stock on Hand">Stock</span>
+                                            <div>
+                                                <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">Warehouse Location</span>
+                                                <span style="font-weight: 600; color: var(--text-main);">
+                                                    Code: <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--primary-light);">{{ alloc.physical_reservation.stock.warehouse.code }}</span>
+                                                    {% if alloc.physical_reservation.stock.lot_number %}
+                                                        | Lot: <span style="background: rgba(255,255,255,0.05); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">{{ alloc.physical_reservation.stock.lot_number }}</span>
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        {% elif alloc.source_type == 'arrival' %}
+                                            <span class="alloc-badge alloc-badge-arrival" title="Incoming Procurement Delivery">Arrival</span>
+                                            <div>
+                                                <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">Procurement Inbound</span>
+                                                <span style="font-weight: 600; color: var(--text-main);">
+                                                    Doc: 
+                                                    {% if alloc.arrival_reservation.arrival_item.arrival %}
+                                                        <a href="{% url 'procurement:arrival-detail' alloc.arrival_reservation.arrival_item.arrival.pk %}" style="color: var(--primary-light); text-decoration: none; font-weight: 700; font-family: 'JetBrains Mono', monospace; border-bottom: 1px dashed rgba(16, 185, 129, 0.4);">
+                                                            {{ alloc.arrival_reservation.arrival_item.arrival.document_no }}
+                                                        </a>
+                                                    {% else %}
+                                                        <span style="color: var(--text-dim); font-style: italic;">In-Transit Arrival</span>
+                                                    {% endif %}
+                                                    {% if alloc.arrival_reservation.arrival_item.arrival.expected_date %}
+                                                        — Est: <span style="color: var(--text-dim);">{{ alloc.arrival_reservation.arrival_item.arrival.expected_date|date:"d M Y" }}</span>
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        {% elif alloc.source_type == 'shortage' %}
+                                            <span class="alloc-badge alloc-badge-shortage" title="Recorded Shortage (Needs Supplier PO)">Shortage</span>
+                                            <div>
+                                                <span style="color: var(--text-muted); font-size: 0.75rem; display: block;">Ledger Gap record</span>
+                                                <span style="font-weight: 600; color: var(--text-main);">
+                                                    Shortage: 
+                                                    {% if alloc.shortage %}
+                                                        <a href="{% url 'procurement:shortage-detail' alloc.shortage.pk %}" style="color: #f87171; text-decoration: none; font-weight: 700; font-family: 'JetBrains Mono', monospace; border-bottom: 1px dashed rgba(239, 68, 68, 0.4);">
+                                                            #{{ alloc.shortage.pk }}
+                                                        </a>
+                                                        <span style="margin-left: 0.5rem;">
+                                                            {% if alloc.shortage.status == 'pending' %}
+                                                                <span class="badge-status-micro badge-pending-micro">Pending</span>
+                                                            {% elif alloc.shortage.status == 'po_created' %}
+                                                                <span class="badge-status-micro badge-po-micro">PO Created</span>
+                                                            {% elif alloc.shortage.status == 'cancelled' %}
+                                                                <span class="badge-status-micro badge-cancelled-micro">Cancelled</span>
+                                                            {% endif %}
+                                                        </span>
+                                                    {% else %}
+                                                        <span style="color: var(--text-dim); font-style: italic;">Ledger Record Missing</span>
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main); font-size: 0.9rem;">
+                                        {{ alloc.quantity|floatformat:2 }} pcs
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div style="color: var(--text-muted); font-size: 0.8rem; font-style: italic; text-align: center; padding: 1rem 0;">
+                                    No sourcing allocations are bound to this item. Refresh allocations to auto-run the gap-filler engine.
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+    .stat-card label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card .value {
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--text-main);
+        line-height: 1;
+    }
+    .stat-card .sub {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 0.25rem;
+    }
+
+    /* Status Badges */
+    .badge-status {
+        display: inline-flex;
+        padding: 0.3rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        align-items: center;
+    }
+    .badge-draft {
+        background: rgba(148, 163, 184, 0.12);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .badge-preorder {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    .badge-confirmed {
+        background: rgba(59, 130, 246, 0.12);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .badge-processing {
+        background: rgba(167, 139, 250, 0.12);
+        color: #c084fc;
+        border: 1px solid rgba(167, 139, 250, 0.2);
+    }
+    .badge-shipped {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .badge-cancelled {
+        background: rgba(239, 68, 68, 0.12);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* Sales Order Item status mini badge */
+    .badge-status-mini {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .badge-pending-mini { background: rgba(245, 158, 11, 0.08); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.15); }
+    .badge-partial-mini { background: rgba(167, 139, 250, 0.08); color: #c084fc; border: 1px solid rgba(167, 139, 250, 0.15); }
+    .badge-allocated-mini { background: rgba(16, 185, 129, 0.08); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.15); }
+    .badge-shipped-mini { background: rgba(59, 130, 246, 0.08); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.15); }
+    .badge-cancelled-mini { background: rgba(239, 68, 68, 0.08); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.15); }
+
+    /* Allocation badge styles */
+    .alloc-badge {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        min-width: 65px;
+        text-align: center;
+        display: inline-block;
+    }
+    .alloc-badge-stock { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .alloc-badge-arrival { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .alloc-badge-shortage { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    /* Micro status badges */
+    .badge-status-micro {
+        font-size: 0.55rem;
+        padding: 0.05rem 0.3rem;
+        border-radius: 3px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .badge-pending-micro { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .badge-po-micro { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-cancelled-micro { background: rgba(107, 114, 128, 0.1); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.2); }
+
+    .alloc-row:hover {
+        background: rgba(255,255,255,0.02) !important;
+        border-color: rgba(255,255,255,0.05) !important;
+    }
+
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}
