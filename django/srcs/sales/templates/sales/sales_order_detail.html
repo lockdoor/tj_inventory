@@ -150,6 +150,66 @@
                 </div>
             </div>
 
+            <!-- Supporting Documents Card -->
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><path d="M14 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Supporting Documents
+                </h4>
+                
+                <!-- Existing Attachments -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; {% if attachments %}margin-bottom: 1.5rem;{% endif %}">
+                    {% for file in attachments %}
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                            <a href="{{ file.document_file.url }}" target="_blank" style="text-decoration: none; display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0;">
+                                <div style="color: var(--primary-light);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="color: var(--text-main); font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ file.file_name }}">
+                                        {{ file.file_name }}
+                                    </div>
+                                    {% if file.note %}
+                                        <div style="color: var(--text-dim); font-size: 0.75rem;">{{ file.note }}</div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% if sales_order.status != 'cancelled' and sales_order.status != 'shipped' %}
+                            <button type="button" onclick="openDeleteAttachmentModal('{{ file.file_name|escapejs }}', '{% url 'sales:sales-order-attachment-delete' file.pk %}')" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem; opacity: 0.7; transition: 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7" title="Remove Attachment">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                            {% endif %}
+                        </div>
+                    {% empty %}
+                        <div style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0;">
+                            No documents attached yet.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Upload Form -->
+                {% if sales_order.status != 'cancelled' and sales_order.status != 'shipped' %}
+                <div style="padding-top: 1.25rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                    <form action="{% url 'sales:sales-order-attachment-upload' sales_order.pk %}" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div class="form-group-mini">
+                                <label style="display: block; font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.35rem;">Upload New File</label>
+                                {{ attachment_form.document_file }}
+                            </div>
+                            <div class="form-group-mini">
+                                {{ attachment_form.note }}
+                            </div>
+                            <button type="submit" class="btn-secondary-glass" style="width: 100%; padding: 0.6rem; font-size: 0.85rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; color: var(--text-main); border: 1px solid rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.05);">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 0.5rem; vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Upload Document
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
             <!-- Audit Trail Card -->
             <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">
                 <h4 style="margin: 0 0 1rem 0; font-size: 0.85rem; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
@@ -469,7 +529,108 @@
         border-color: rgba(255,255,255,0.05) !important;
     }
 
+    .btn-danger-glass {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        transition: all 0.3s ease;
+    }
+    .btn-danger-glass:hover {
+        background: rgba(239, 68, 68, 0.85);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        transform: translateY(-2px);
+    }
+    .btn-danger-glass:disabled {
+        background: rgba(239, 68, 68, 0.05) !important;
+        border-color: rgba(239, 68, 68, 0.1) !important;
+        color: rgba(248, 113, 113, 0.4) !important;
+        cursor: not-allowed !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+
+<!-- Delete Attachment Verification Modal -->
+<div id="delete-attachment-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card animate-fade-in" style="width: 100%; max-width: 450px; padding: 2.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.9);">
+        <div style="color: #f87171; margin-bottom: 1.5rem; display: flex; justify-content: center;">
+            <div style="background: rgba(248, 113, 113, 0.1); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(248, 113, 113, 0.2);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+        </div>
+        
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; text-align: center;">Remove Attachment</h2>
+        <p style="color: var(--text-dim); text-align: center; margin-bottom: 2rem; line-height: 1.6; font-size: 0.9rem;">
+            This action will permanently remove the supporting document from this Sales Order.
+        </p>
+
+        <div style="background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.25rem; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 2rem;">
+            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; text-align: center;">
+                Type the filename to confirm:
+            </label>
+            <div style="color: var(--text-main); font-weight: 700; font-family: monospace; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.5rem; text-align: center; margin-bottom: 1rem; word-break: break-all; font-size: 0.85rem;" id="target-attachment-name"></div>
+            <input type="text" id="attachment-verification-input" placeholder="Enter attachment filename" autocomplete="off"
+                   style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 0.85rem; color: var(--text-main); font-family: monospace; text-align: center; outline: none; transition: var(--transition);">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <button type="button" onclick="closeDeleteAttachmentModal()" class="btn-secondary-glass" style="padding: 0.85rem; font-weight: 600; border-radius: 0.75rem; color: var(--text-main); cursor: pointer;">Cancel</button>
+            <form id="delete-attachment-form" method="post" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" id="confirm-delete-attachment-btn" disabled class="btn-danger-glass" style="width: 100%; padding: 0.85rem; border: none; border-radius: 0.75rem; font-weight: 700; cursor: not-allowed; opacity: 0.5; color: #fff; height: 100%;">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentAttachmentName = '';
+
+function openDeleteAttachmentModal(fileName, actionUrl) {
+    currentAttachmentName = fileName;
+    const modal = document.getElementById('delete-attachment-modal');
+    const form = document.getElementById('delete-attachment-form');
+    const targetSpan = document.getElementById('target-attachment-name');
+    const input = document.getElementById('attachment-verification-input');
+    const confirmBtn = document.getElementById('confirm-delete-attachment-btn');
+
+    targetSpan.textContent = fileName;
+    form.action = actionUrl;
+    input.value = '';
+    confirmBtn.disabled = true;
+    confirmBtn.style.cursor = 'not-allowed';
+    confirmBtn.style.opacity = '0.5';
+
+    modal.style.display = 'flex';
+    input.focus();
+
+    input.oninput = function() {
+        if (this.value.trim() === currentAttachmentName) {
+            confirmBtn.disabled = false;
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.opacity = '1';
+        } else {
+            confirmBtn.disabled = true;
+            confirmBtn.style.cursor = 'not-allowed';
+            confirmBtn.style.opacity = '0.5';
+        }
+    };
+}
+
+function closeDeleteAttachmentModal() {
+    document.getElementById('delete-attachment-modal').style.display = 'none';
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDeleteAttachmentModal();
+});
+</script>
 {% endblock %}

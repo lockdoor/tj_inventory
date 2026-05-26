@@ -638,6 +638,11 @@ class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         context['allocated_items'] = allocated_items
         context['total_items'] = total_items
         
+        # Attachments context
+        context['attachments'] = order.attachments.filter(is_deleted=False)
+        from sales.forms.attachment_forms import SalesOrderAttachmentForm
+        context['attachment_form'] = SalesOrderAttachmentForm()
+        
         return context
 
 

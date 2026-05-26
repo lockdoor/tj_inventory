@@ -8,4 +8,8 @@ from .sales_order_views import (
     SalesOrderItemAllocateView,
     SalesOrderItemResetAllocationView,
 )
+from .attachment_views import (
+    SalesOrderAttachmentUploadView,
+    SalesOrderAttachmentDeleteView,
+)
 

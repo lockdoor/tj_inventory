@@ -9,6 +9,8 @@ srcs/media/inventory/attachments/*
 !srcs/media/inventory/attachments/.gitkeep
 srcs/media/procurement/*
 !srcs/media/procurement/.gitkeep
+srcs/media/sales/*
+!srcs/media/sales/.gitkeep
 migrate/data/*
 !migrate/data/.gitkeep
 migrate/notebook/*

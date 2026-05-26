@@ -609,6 +609,48 @@ class TestSalesOrderDetailAndRefreshViews:
         sales_order.refresh_from_db()
         assert allocations[0].shortage.expected_date == sales_order.order_date
 
+    def test_sales_order_attachment_upload_success(self, client, test_user, sales_order):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-attachment-upload', kwargs={'pk': sales_order.pk})
+        
+        document = SimpleUploadedFile("po_doc.pdf", b"pdf_content", content_type="application/pdf")
+        response = client.post(url, data={
+            'document_file': document,
+            'note': 'Customer PO attachment note'
+        })
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+        
+        # Verify saved attachment
+        assert sales_order.attachments.count() == 1
+        attachment = sales_order.attachments.first()
+        assert attachment.file_name == 'po_doc.pdf'
+        assert attachment.note == 'Customer PO attachment note'
+
+    def test_sales_order_attachment_delete_success(self, client, test_user, sales_order):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from sales.models.attachment import SalesOrderAttachment
+        
+        # Pre-create attachment
+        document = SimpleUploadedFile("to_delete.pdf", b"pdf_content", content_type="application/pdf")
+        attachment = SalesOrderAttachment.objects.create(
+            sales_order=sales_order,
+            document_file=document,
+            note='To be deleted remark',
+            created_by=test_user
+        )
+        assert sales_order.attachments.count() == 1
+        
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-attachment-delete', kwargs={'pk': attachment.pk})
+        response = client.post(url)
+        assert response.status_code == 302
+        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+        
+        # Verify soft-deleted
+        assert sales_order.attachments.filter(is_deleted=False).count() == 0
+
 
 
 

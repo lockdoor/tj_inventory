@@ -12,5 +12,7 @@ urlpatterns = [
     path('orders/<int:pk>/refresh-allocations/', views.SalesOrderRefreshAllocationView.as_view(), name='sales-order-refresh-allocations'),
     path('orders/items/<int:item_pk>/allocate/', views.SalesOrderItemAllocateView.as_view(), name='sales-order-item-allocate'),
     path('orders/items/<int:item_pk>/reset-allocation/', views.SalesOrderItemResetAllocationView.as_view(), name='sales-order-item-reset-allocation'),
+    path('orders/<int:pk>/attachment/upload/', views.SalesOrderAttachmentUploadView.as_view(), name='sales-order-attachment-upload'),
+    path('orders/attachment/<int:pk>/delete/', views.SalesOrderAttachmentDeleteView.as_view(), name='sales-order-attachment-delete'),
 ]
 
