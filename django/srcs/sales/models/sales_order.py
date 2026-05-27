@@ -127,5 +127,12 @@ class SalesOrderItem(models.Model):
     def has_manual_allocations(self):
         return self.is_manual_allocate
 
+    @property
+    def real_allocated_qty(self):
+        from sales.models import SalesAllocation
+        return self.allocations.exclude(
+            source_type=SalesAllocation.SourceType.SHORTAGE
+        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+
     def __str__(self):
         return f"{self.order.document_no} - {self.item.sku} ({self.requested_qty})"

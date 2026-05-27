@@ -1,6 +1,6 @@
 # Sales Order Lifecycle & Status Workflow
 
-This document defines the lifecycle, state transitions, and business rules for the six statuses of a Sales Order (`SalesOrder.Status`) in the TJ Inventory system.
+This document defines the lifecycle, state transitions, and business rules for the statuses of a Sales Order (`SalesOrder.Status`) in the TJ Inventory system.
 
 ---
 
@@ -15,14 +15,17 @@ stateDiagram-v2
         Auto_Allocate --> Manual_Allocate : Sourcing Override
     }
     
-    Draft --> Confirmed : Fully Allocated (Physical Stock)
-    Draft --> PreOrder : Partially Sourced / Shortage (Future Inbounds)
+    Draft --> Confirmed : 100% Physical Stock (0 Arrivals, 0 Shortages)
+    Draft --> PreOrder : 100% Allocated (Stock + Arrivals, 0 Shortages)
     
-    PreOrder --> Confirmed : Inbound Arrives & Receives
+    PreOrder --> Confirmed : Inbound Arrives & Receives (Arrivals convert to Physical)
+    Confirmed --> Draft : Shortages Generated (e.g. Stock released)
+    PreOrder --> Draft : Shortages Generated (e.g. Arrival cancelled)
     
-    Confirmed --> Processing : Release Pick List / Start Packing
+    Confirmed --> Processing : Release Pick List / Start WMS Picking
     
-    Processing --> Shipped : Goods Depart (Carrier Handoff)
+    Processing --> Shipped : WMS Completed (Goods Depart)
+    Processing --> Processing : Revert Completed Movement (Restores Reservations)
     
     Draft --> Cancelled : Cancel & Release Holds
     PreOrder --> Cancelled : Cancel & Release Holds
@@ -33,40 +36,44 @@ stateDiagram-v2
 ```
 
 ### 1. Draft (`draft`)
-* **Definition**: The planning and sourcing stage. The order is recorded in the system, but not yet committed to the warehouse floor or suppliers.
+* **Definition**: The planning, sourcing, and shortage stage. The order is recorded, but it has not yet been committed for warehouse execution.
+* **Shortage Gating Rule**: 
+  > [!IMPORTANT]
+  > If an order has **any outstanding shortages** (meaning the total requested quantity is not fully satisfied by physical stock or scheduled arrivals), the order **MUST remain or be demoted to `DRAFT` status**. Sourcing shortages are not considered fulfillment; therefore, the order cannot transition to `CONFIRMED` or `PREORDER`.
 * **Behavior & Actions**:
   * Planners can fully edit order header fields (Customer, note, dates).
   * Planners can add, edit, or delete items inside the shopping cart.
-  * The smart allocation engine dynamically matches items to physical stock lots (FEFO), arrivals, or logs shortages.
+  * The smart allocation engine dynamically matches items to physical stock lots (FEFO), scheduled arrivals, or logs shortages.
   * Planners have full access to the **Manual Sourcing Workspace** to customize holds.
   * The order can be cleanly **Cancelled** at any time.
 
 ### 2. Pre-order (`preorder`)
-* **Definition**: The customer order is formally accepted, but it **cannot be fully satisfied by physical stock on hand**. Sourcing relies on future procurement expected arrivals or supplier purchase orders ( shortages ).
+* **Definition**: Sourcing is 100% complete but relies on future incoming inventory. **Every single item line is fully allocated with a combination of actual stock and scheduled procurement arrivals, with EXACTLY ZERO shortages**.
 * **Behavior & Actions**:
   * Item edits and quantities are locked.
-  * Expected arrivals are reserved to this order document. Remaining gaps are recorded in the material shortages ledger.
-  * Can be **Cancelled** (which purges all arrival holds and dynamic pending shortages).
-  * Automatically transitions to **Confirmed** once all dynamic shortage lines are addressed and matching expected arrivals are marked as `Received` (adding to actual physical balances).
+  * Scheduled expected arrivals are reserved to this order document.
+  * Can be **Cancelled** (releasing arrival holds cleanly).
+  * Can be reverted to **Draft** at any time via the "Revert to Draft" action.
+  * Automatically transitions to **Confirmed** once the matching expected arrivals are marked as `Received` (which automatically converts arrival reservations to physical stock lot reservations).
+  * **Demotion to Draft**: If an allocation refresh creates a shortage (e.g., if a linked arrival is cancelled or delayed past the expected fulfillment date), the order is dynamically demoted back to `DRAFT` status.
 
 ### 3. Confirmed (`confirmed`)
-* **Definition**: Sourcing is 100% complete. **Every single item line is fully allocated with actual physical stock lots on hand** in the warehouse. Sourcing gaps and shortages are zero.
+* **Definition**: Sourcing is 100% physically complete. **Every single item line is fully allocated with actual physical stock lots on hand** in the warehouse. Future arrivals are zero and shortages are zero.
 * **Behavior & Actions**:
   * The order is ready for warehouse release.
   * Inventory is strictly committed in the database (`reserved_qty` is increased on physical stock records).
   * Can be **Cancelled** (releasing physical locks to restore available warehouse stock balances).
+  * Can be reverted to **Draft** at any time via the "Revert to Draft" action.
+  * **Demotion to Draft**: If physical stock is released (e.g., via manual override or stock balance updates), generating a shortage, the order is dynamically demoted back to `DRAFT` status.
 
 ### 4. Processing (`processing`) — *Picking & Packing*
-* **Definition**: The operational bridge between planning and logistics. **The order has been handed off to the warehouse floor for physical execution**.
+* **Definition**: The operational picking phase. **The order has been handed off to the warehouse floor for physical execution via a Pick Slip/Outbound Movement**.
 * **When to transition to `processing`**:
-  * Transition a `CONFIRMED` sales order to `PROCESSING` when:
-    1. A warehouse stock controller prints the **Pick Slips** or **Packing Slips**.
-    2. Physical stock picks are actively assigned to warehouse floor operators.
-    3. The goods are being gathered from aisles, verified, packaged, or boxed at staging stations.
+  * Gated strictly to `CONFIRMED` sales orders. Transitioning to `PROCESSING` auto-generates draft outbound movements split by warehouse.
 * **Why this state is critical**:
-  * **Edits Blocked**: It prevents planners from editing or canceling an order in the office while a warehouse operator is already holding the items on the floor.
-  * **Inventory Security**: It signifies that the stock is no longer on shelves, preventing stockouts or double-picking during physical operations.
-  * **Logistics Tracking**: Gives sales reps real-time visibility that the order is actively being prepared for delivery.
+  * **Edits Blocked**: Edits are locked to protect physical picking.
+  * **Inventory Security**: Reservations remain strictly locked, preventing double-picking.
+  * **WMS Synchronization**: Discarding the draft pick slips demotes the order back to `CONFIRMED`, while completing picking shippables transitions it to `SHIPPED`.
 
 ### 5. Shipped (`shipped`)
 * **Definition**: Sourcing is finalized. The carrier has physically loaded the packages, and the goods have departed the warehouse.
@@ -97,12 +104,17 @@ The following matrix defines what actions are permitted in each status stage:
 
 ---
 
-## 3. Recommended Implementation Paths for "Processing"
+## 3. Order Gating and Confirmation Flow
 
-To implement the operational `PROCESSING` workflow in the sales application, we recommend creating a secure action handler:
+To guarantee complete compliance with our sourcing constraints, the following check logic must run during any confirmation attempt or allocation refresh:
 
-1. **Warehouse Release Controller**:
-   * Add a POST action button **"Release to Warehouse"** (gated under `warehouse.change_stock` or `sales.change_salesorder` permissions) visible on the detail page when the status is `CONFIRMED`.
-   * Triggering this action updates the status to `PROCESSING` and generates a printable pick slip.
-2. **Cancellation Gating**:
-   * If a planner attempts to cancel an order that is `PROCESSING`, show a warning explaining that pick slips must be rolled back on the warehouse floor first, requiring supervisor authorization before returning the order to `CONFIRMED` or `CANCELLED`.
+```mermaid
+graph TD
+    A[Start Confirm/Refresh] --> B[Run Sourcing smart allocator refresh_allocation]
+    B --> C{Any Shortages generated?}
+    C -- Yes --> D[Set/Demote status to DRAFT]
+    D --> E[Display warning: Outstanding Shortages Exist]
+    C -- No --> F{Any Future Arrivals allocated?}
+    F -- Yes --> G[Confirm status as PREORDER]
+    F -- No --> H[Confirm status as CONFIRMED]
+```

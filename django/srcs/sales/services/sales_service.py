@@ -195,6 +195,16 @@ class SalesService:
         """
         remaining_qty = order_item.requested_qty
         
+        # Look up any existing pending shortage record for this order item to reuse/update instead of deleting and recreating.
+        from procurement.models import Shortage
+        existing_shortage = Shortage.objects.filter(
+            reference_id=order_item.order.document_no,
+            reference_type=Shortage.ReferenceType.SELL_ORDER,
+            item=order_item.item,
+            status=Shortage.Status.PENDING,
+            is_deleted=False
+        ).first()
+        
         # 1. CLEANUP & PRESERVATION
         for allocation in list(order_item.allocations.all()):
             allocation: SalesAllocation
@@ -218,7 +228,8 @@ class SalesService:
             elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                 if allocation.shortage:
                     if allocation.shortage.status == 'pending':
-                        allocation.shortage.delete()
+                        # We delete the volatile allocation record, but let refresh_allocation handle the shortage record update/delete below!
+                        pass
                     else:
                         # PO already created! KEEP THIS ALLOCATION
                         is_volatile = False
@@ -297,20 +308,24 @@ class SalesService:
                     )
                     remaining_qty -= take
 
-        # 4. MARK AS NEW SHORTAGE
+        # 4. MARK/UPDATE SHORTAGE
         if remaining_qty > 0:
-            from procurement.services import ShortageService
-            from procurement.models import Shortage
-            
-            gap_record = ShortageService.create(
-                item=order_item.item,
-                request_qty=remaining_qty,
-                user=order_item.order.created_by,
-                reference_type=Shortage.ReferenceType.SELL_ORDER,
-                reference_id=order_item.order.document_no,
-                expected_date=order_item.order.order_date,
-                note=f"Automatic shortage for {order_item.order.document_no}"
-            )
+            if existing_shortage:
+                # Reuse and update existing pending shortage record to keep IDs stable
+                existing_shortage.request_qty = remaining_qty
+                existing_shortage.save(update_fields=['request_qty', 'updated_at'])
+                gap_record = existing_shortage
+            else:
+                from procurement.services import ShortageService
+                gap_record = ShortageService.create(
+                    item=order_item.item,
+                    request_qty=remaining_qty,
+                    user=order_item.order.created_by,
+                    reference_type=Shortage.ReferenceType.SELL_ORDER,
+                    reference_id=order_item.order.document_no,
+                    expected_date=order_item.order.order_date,
+                    note=f"Automatic shortage for {order_item.order.document_no}"
+                )
             
             SalesAllocation.objects.create(
                 order_item=order_item,
@@ -319,6 +334,10 @@ class SalesService:
                 quantity=remaining_qty,
                 is_manual=False # System-picked
             )
+        else:
+            # If remaining_qty is 0, any existing pending shortage is no longer needed
+            if existing_shortage:
+                existing_shortage.delete()
 
         # 5. SYNC SUMMARY BACK TO ORDER ITEM
         total_allocated = order_item.allocations.aggregate(total=Sum('quantity'))['total'] or 0

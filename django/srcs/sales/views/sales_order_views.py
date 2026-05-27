@@ -656,32 +656,47 @@ class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
 
 def check_and_promote_order_status(order):
     """
-    Checks if all items are fully allocated with physical stock (no shortages or arrivals).
-    If yes, and the status is DRAFT or PREORDER, promotes it to CONFIRMED.
+    Evaluates order-level status based on allocations:
+    - If shortages exist: order status MUST be/remain DRAFT.
+    - If no shortages but arrivals exist: order status is PREORDER (if it was CONFIRMED/PREORDER).
+    - If no shortages and no arrivals: order status is promoted to CONFIRMED.
     """
     from sales.models import SalesAllocation
     
-    if order.status not in [order.Status.DRAFT, order.Status.PREORDER]:
+    # We only auto-promote/auto-demote orders in DRAFT, PREORDER, or CONFIRMED statuses
+    if order.status not in [order.Status.DRAFT, order.Status.PREORDER, order.Status.CONFIRMED]:
         return False
         
-    has_shortages_or_arrivals = False
+    has_shortages = False
+    has_arrivals = False
     for item in order.items.all():
-        if item.allocated_qty < item.requested_qty:
-            has_shortages_or_arrivals = True
-            break
-        for allocation in item.allocations.all():
-            if allocation.source_type in [SalesAllocation.SourceType.ARRIVAL, SalesAllocation.SourceType.SHORTAGE]:
-                has_shortages_or_arrivals = True
-                break
-        if has_shortages_or_arrivals:
-            break
+        if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE).exists():
+            has_shortages = True
+        if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists():
+            has_arrivals = True
             
-    if not has_shortages_or_arrivals and order.items.exists():
-        order.status = order.Status.CONFIRMED
-        order.save(update_fields=['status', 'updated_at', 'version'])
-        return True
-        
-    return False
+    if has_shortages:
+        if order.status != order.Status.DRAFT:
+            order.status = order.Status.DRAFT
+            order.save(update_fields=['status', 'updated_at', 'version'])
+            return True
+        return False
+    elif has_arrivals:
+        if order.status == order.Status.DRAFT:
+            # We don't auto-confirm a draft order to preorder without explicit action
+            return False
+        elif order.status != order.Status.PREORDER:
+            order.status = order.Status.PREORDER
+            order.save(update_fields=['status', 'updated_at', 'version'])
+            return True
+        return False
+    else:
+        # 100% physically allocated
+        if order.status in [order.Status.DRAFT, order.Status.PREORDER] and order.items.exists():
+            order.status = order.Status.CONFIRMED
+            order.save(update_fields=['status', 'updated_at', 'version'])
+            return True
+        return False
 
 
 class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -704,14 +719,22 @@ class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixi
         # Trigger refresh on each item line within transaction
         try:
             with transaction.atomic():
+                old_status = order.status
+                
                 for item in order.items.all():
                     SalesService.refresh_allocation(item)
                 
-                # Check for status promotion
-                promoted = check_and_promote_order_status(order)
+                # Check for status changes
+                status_changed = check_and_promote_order_status(order)
+                new_status = order.status
                 
-            if promoted:
-                messages.success(request, f"Allocations refreshed! Sales Order {order.document_no} is now fully allocated and promoted to CONFIRMED status.")
+            if status_changed:
+                if new_status == SalesOrder.Status.DRAFT:
+                    messages.warning(request, f"Allocations refreshed! Sales Order {order.document_no} has outstanding shortages and has been demoted to DRAFT status.")
+                elif new_status == SalesOrder.Status.CONFIRMED:
+                    messages.success(request, f"Allocations refreshed! Sales Order {order.document_no} is now fully allocated and promoted to CONFIRMED status.")
+                elif new_status == SalesOrder.Status.PREORDER:
+                    messages.success(request, f"Allocations refreshed! Sales Order {order.document_no} status updated to Pre-order.")
             else:
                 messages.success(request, f"Allocations for Sales Order {order.document_no} successfully refreshed!")
         except Exception as e:
@@ -724,7 +747,7 @@ class SalesOrderConfirmView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """
     POST-only action to explicitly confirm a DRAFT Sales Order.
     If all items are physical stock, transitions to CONFIRMED.
-    Otherwise, transitions to PREORDER.
+    Otherwise, transitions to PREORDER (if arrivals exist) or remains DRAFT (if shortages exist).
     """
     permission_required = 'sales.change_salesorder'
     raise_exception = True
@@ -743,18 +766,32 @@ class SalesOrderConfirmView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 for item in order.items.all():
                     SalesService.refresh_allocation(item)
 
-                # 2. Check for promotion
-                promoted = check_and_promote_order_status(order)
-                if not promoted:
-                    # If not promoted, it means we have shortages/arrivals, so it becomes PREORDER
-                    order.status = SalesOrder.Status.PREORDER
+                # 2. Check for shortages or arrivals
+                from sales.models import SalesAllocation
+                has_shortages = False
+                has_arrivals = False
+                for item in order.items.all():
+                    if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE).exists():
+                        has_shortages = True
+                    if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists():
+                        has_arrivals = True
+
+                if has_shortages:
+                    # Shortage is not fulfill! Block confirmation and keep as DRAFT
+                    msg = f"Sales Order {order.document_no} cannot be confirmed because it has outstanding shortages. Order remains in Draft."
+                    messages.error(request, msg)
+                else:
+                    if has_arrivals:
+                        order.status = SalesOrder.Status.PREORDER
+                        msg = f"Sales Order {order.document_no} confirmed as Pre-order due to outstanding scheduled arrivals."
+                    else:
+                        order.status = SalesOrder.Status.CONFIRMED
+                        msg = f"Sales Order {order.document_no} confirmed and locked successfully as Confirmed!"
+                    
                     order.updated_by = request.user
                     order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
-                    msg = f"Sales Order {order.document_no} confirmed as Pre-order due to outstanding shortages or scheduled arrivals."
-                else:
-                    msg = f"Sales Order {order.document_no} confirmed and locked successfully as Confirmed!"
+                    messages.success(request, msg)
 
-            messages.success(request, msg)
         except Exception as e:
             messages.error(request, f"Error confirming order: {str(e)}")
 
@@ -844,7 +881,8 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                     elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                         if allocation.shortage:
                             if allocation.shortage.status == 'pending':
-                                allocation.shortage.delete()
+                                # Let refresh_allocation handle the shortage record update/delete
+                                pass
                     allocation.delete()
                 order_item.is_manual_allocate = False
                 order_item.save(update_fields=['is_manual_allocate'])
@@ -909,11 +947,11 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                     elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                         if allocation.shortage:
                             if allocation.shortage.status == 'pending':
-                                allocation.shortage.delete()
+                                # Let refresh_allocation handle the shortage record update/delete
+                                pass
                     allocation.delete()
 
                 # 2. Register manual selections
-                has_any_manual = False
                 for key, val in request.POST.items():
                     if not val or val.strip() == '':
                         continue
@@ -945,7 +983,6 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                             quantity=qty,
                             is_manual=True
                         )
-                        has_any_manual = True
 
                     elif key.startswith('arrival_qty_'):
                         arrival_item_id = key.split('_')[-1]
@@ -973,7 +1010,6 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                             quantity=qty,
                             is_manual=True
                         )
-                        has_any_manual = True
 
                 order_item.is_manual_allocate = True
                 order_item.save(update_fields=['is_manual_allocate'])
@@ -1018,7 +1054,8 @@ class SalesOrderItemResetAllocationView(LoginRequiredMixin, PermissionRequiredMi
                     elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                         if allocation.shortage:
                             if allocation.shortage.status == 'pending':
-                                allocation.shortage.delete()
+                                # Let refresh_allocation handle the shortage record update/delete
+                                pass
                     allocation.delete()
 
                 order_item.is_manual_allocate = False
@@ -1054,45 +1091,26 @@ class SalesOrderRevertToDraftView(LoginRequiredMixin, PermissionRequiredMixin, V
 
         try:
             with transaction.atomic():
-                # 1. Release any StockReservations for this order directly (to safely clear any dangling reservations)
-                from inventory.models import StockReservation
-                from inventory.services import ReservationService
-                order_reservations = StockReservation.objects.filter(
-                    reference_no=order.document_no,
-                    reference_type=StockReservation.ReferenceType.SALES_ORDER
-                )
-                for res in list(order_reservations):
-                    ReservationService.release(res)
-
+                # We PRESERVE all allocations and reservations intact!
+                # We only reset fulfilled_qty to 0.00 and restore appropriate item statuses based on allocations
                 for item in order.items.all():
-                    # 2. Release all allocations (reservations, dynamic shortages, scheduled arrivals)
-                    for allocation in list(item.allocations.all()):
-                        if allocation.source_type == SalesAllocation.SourceType.STOCK:
-                            if allocation.physical_reservation:
-                                ReservationService.release(allocation.physical_reservation)
-                        elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
-                            if allocation.arrival_reservation:
-                                from procurement.services import ArrivalReservationService
-                                ArrivalReservationService.release(allocation.arrival_reservation)
-                        elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
-                            if allocation.shortage:
-                                if allocation.shortage.status == 'pending':
-                                    allocation.shortage.delete()
-                        allocation.delete()
-                    
-                    # 3. Reset item attributes
-                    item.status = SalesOrderItem.Status.PENDING
-                    item.is_manual_allocate = False
-                    item.allocated_qty = 0.00
                     item.fulfilled_qty = 0.00
-                    item.save(update_fields=['status', 'is_manual_allocate', 'allocated_qty', 'fulfilled_qty'])
+                    
+                    if item.allocated_qty >= item.requested_qty:
+                        item.status = SalesOrderItem.Status.ALLOCATED
+                    elif item.allocated_qty > 0:
+                        item.status = SalesOrderItem.Status.PARTIAL
+                    else:
+                        item.status = SalesOrderItem.Status.PENDING
+                    
+                    item.save(update_fields=['status', 'fulfilled_qty'])
                 
-                # 4. Transition order status back to DRAFT
+                # Transition order status back to DRAFT
                 order.status = SalesOrder.Status.DRAFT
                 order.updated_by = request.user
                 order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
 
-            messages.success(request, f"Sales Order {order.document_no} successfully reverted to Draft. All reservations and allocations have been released.")
+            messages.success(request, f"Sales Order {order.document_no} successfully reverted to Draft. Allocations and reservations have been preserved.")
         except Exception as e:
             messages.error(request, f"Error reverting order to Draft: {str(e)}")
 

@@ -209,7 +209,7 @@ class TestSalesOrderWarehouseIntegration:
         # Since physical stock (100) is greater than requested (10), it should be fully physical stock, hence CONFIRMED!
         assert order.status == SalesOrder.Status.CONFIRMED
 
-    def test_confirm_order_with_shortage_becomes_preorder(self, client):
+    def test_confirm_order_with_shortage_remains_draft(self, client):
         client.login(username="warehouse_user", password="password123")
 
         # Create draft order requesting more than available physical stock (100)
@@ -230,8 +230,8 @@ class TestSalesOrderWarehouseIntegration:
         assert response.status_code == 302
 
         order.refresh_from_db()
-        # Since there is shortage, it transitions to PREORDER
-        assert order.status == SalesOrder.Status.PREORDER
+        # Since there is a shortage, it cannot be confirmed and remains in DRAFT
+        assert order.status == SalesOrder.Status.DRAFT
 
     def test_refresh_allocations_promotes_preorder_to_confirmed(self, client):
         client.login(username="warehouse_user", password="password123")
@@ -482,21 +482,20 @@ class TestSalesOrderWarehouseIntegration:
         assert response.status_code == 302
         assert response.url == reverse("sales:sales-order-detail", kwargs={"pk": order.pk})
 
-        # 3. Assert status and allocations are fully cleared
+        # 3. Assert status and allocations are preserved
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.DRAFT
         
-        # Verify reservations released
-        assert not StockReservation.objects.filter(reference_no=order.document_no).exists()
+        # Verify reservations preserved
+        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
         self.stock.refresh_from_db()
-        assert self.stock.reserved_qty == 0.00
+        assert self.stock.reserved_qty == 10.00
 
-        # Verify items status returned to pending and manual/fulfilled qty cleared
+        # Verify items status remains ALLOCATED and fulfilled qty cleared, but allocated_qty preserved
         item = order.items.first()
-        assert item.status == SalesOrderItem.Status.PENDING
-        assert not item.is_manual_allocate
+        assert item.status == SalesOrderItem.Status.ALLOCATED
         assert item.fulfilled_qty == 0.00
-        assert item.allocated_qty == 0.00
+        assert item.allocated_qty == 10.00
 
     def test_revert_preorder_order_to_draft_releases_shortages(self, client):
         client.login(username="warehouse_user", password="password123")
@@ -524,10 +523,10 @@ class TestSalesOrderWarehouseIntegration:
         response = client.post(revert_url)
         assert response.status_code == 302
 
-        # Assert status is draft and shortage is gone (soft-deleted)
+        # Assert status is draft and shortage is preserved
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.DRAFT
-        assert not Shortage.objects.filter(reference_id=order.document_no, is_deleted=False).exists()
+        assert Shortage.objects.filter(reference_id=order.document_no, is_deleted=False).exists()
 
     def test_revert_reverted_movement_order_to_draft_releases_reservations(self, client):
         client.login(username="warehouse_user", password="password123")
@@ -584,7 +583,7 @@ class TestSalesOrderWarehouseIntegration:
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.CONFIRMED
 
-        # 5. Revert the Sales Order to Draft (demotes order to DRAFT and should cleanly release restored reservations)
+        # 5. Revert the Sales Order to Draft (demotes order to DRAFT and should preserve allocations)
         revert_url = reverse("sales:sales-order-revert-to-draft", kwargs={"pk": order.pk})
         response = client.post(revert_url)
         assert response.status_code == 302
@@ -592,17 +591,16 @@ class TestSalesOrderWarehouseIntegration:
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.DRAFT
 
-        # 6. Verify restored reservations are successfully released/deleted!
-        assert not StockReservation.objects.filter(reference_no=order.document_no).exists()
+        # 6. Verify restored reservations are successfully preserved
+        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
         self.stock.refresh_from_db()
-        assert self.stock.reserved_qty == 0.00
+        assert self.stock.reserved_qty == 10.00
 
-        # Verify item attributes are cleanly reset
+        # Verify item attributes are preserved
         item = order.items.first()
-        assert item.status == SalesOrderItem.Status.PENDING
-        assert not item.is_manual_allocate
+        assert item.status == SalesOrderItem.Status.ALLOCATED
         assert item.fulfilled_qty == 0.00
-        assert item.allocated_qty == 0.00
+        assert item.allocated_qty == 10.00
 
 
 
