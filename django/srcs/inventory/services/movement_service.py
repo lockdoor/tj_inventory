@@ -152,9 +152,24 @@ class MovementService:
         movement.save()
 
     @staticmethod
+    @transaction.atomic
     def delete_draft(movement, *, user):
         """Soft-delete the entire movement draft."""
         MovementService._ensure_draft(movement)
+        
+        # Restore linked Sales Order status to CONFIRMED if OUTBOUND and status is PROCESSING
+        if (movement.reference_type == InventoryMovement.ReferenceType.SALES_ORDER 
+            and movement.type == InventoryMovement.MovementType.OUTBOUND):
+            from sales.models import SalesOrder
+            try:
+                sales_order = SalesOrder.objects.get(document_no=movement.reference_no, is_deleted=False)
+                if sales_order.status == SalesOrder.Status.PROCESSING:
+                    sales_order.status = SalesOrder.Status.CONFIRMED
+                    sales_order.updated_by = user
+                    sales_order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
+            except SalesOrder.DoesNotExist:
+                pass
+                
         movement.delete(user=user)
 
     @staticmethod
@@ -432,7 +447,7 @@ class MovementService:
                             lot_number=item_line.lot_number
                         ).first()
                         if stock:
-                            ReservationService.reserve(
+                            res = ReservationService.reserve(
                                 stock=stock,
                                 quantity=item_line.quantity,
                                 reference_no=sales_order.document_no,
@@ -440,6 +455,25 @@ class MovementService:
                                 sales_item=sales_item,
                                 note="Restored during inventory movement reversion to draft."
                             )
+                            
+                            # Link to SalesAllocation to maintain strict database integrity
+                            from sales.models import SalesAllocation
+                            alloc = SalesAllocation.objects.filter(
+                                order_item=sales_item,
+                                source_type=SalesAllocation.SourceType.STOCK,
+                                physical_reservation__isnull=True
+                            ).first()
+                            if alloc:
+                                alloc.physical_reservation = res
+                                alloc.save(update_fields=['physical_reservation'])
+                            else:
+                                SalesAllocation.objects.create(
+                                    order_item=sales_item,
+                                    source_type=SalesAllocation.SourceType.STOCK,
+                                    physical_reservation=res,
+                                    quantity=item_line.quantity,
+                                    is_manual=False
+                                )
 
                     # Demote SalesOrder status back from SHIPPED to PROCESSING
                     if sales_order.status == SalesOrder.Status.SHIPPED:

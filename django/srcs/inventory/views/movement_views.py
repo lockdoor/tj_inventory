@@ -41,12 +41,42 @@ class MovementDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     model = InventoryMovement
     permission_required = 'inventory.delete_inventorymovement'
 
+    def has_permission(self):
+        user = self.request.user
+        if user.is_superuser:
+            return True
+        # Check standard permission
+        if user.has_perm(self.permission_required):
+            return True
+        # Check group membership
+        if user.groups.filter(name='warehouse_admin').exists():
+            return True
+        # Check if the user is the creator of the movement
+        try:
+            movement = self.get_object()
+            if movement.created_by == user:
+                return True
+        except Exception:
+            pass
+        return False
+
     def post(self, request, *args, **kwargs):
         movement = self.get_object()
         try:
             doc_no = movement.document_no
+            
+            # Determine redirect next page before deletion
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if not next_url:
+                referer = request.META.get('HTTP_REFERER')
+                if referer and 'sales/orders/' in referer:
+                    next_url = referer
+
             MovementService.delete_draft(movement, user=request.user)
-            messages.info(request, f"Document {doc_no} has been discarded.")
+            messages.info(request, f"Pick slip document {doc_no} has been discarded. Order status returned to Confirmed.")
+            
+            if next_url:
+                return redirect(next_url)
             return redirect('inventory:movement-list')
         except Exception as e:
             messages.error(request, f"Error discarding document: {str(e)}")

@@ -94,6 +94,21 @@
                 </form>
             {% endif %}
 
+            {% if sales_order.status == 'confirmed' or sales_order.status == 'preorder' %}
+                <form action="{% url 'sales:sales-order-revert-to-draft' sales_order.pk %}" method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline" style="background: rgba(248, 113, 113, 0.05); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); font-weight: 700; border-radius: 0.75rem; padding: 0.65rem 1.25rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;"
+                            onmouseover="this.style.background='rgba(248, 113, 113, 0.15)'; this.style.borderColor='rgba(248, 113, 113, 0.6)'"
+                            onmouseout="this.style.background='rgba(248, 113, 113, 0.05)'; this.style.borderColor='rgba(248, 113, 113, 0.3)'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                        Revert to Draft
+                    </button>
+                </form>
+            {% endif %}
+
             <a href="{% url 'sales:sales-order-list' %}" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.75rem; padding: 0.6rem 1.2rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="m15 18-6-6 6-6"/>
@@ -197,9 +212,24 @@
                                     Warehouse: {{ movement.warehouse.code }}
                                 </span>
                             </div>
-                            <div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 {% if movement.status == 'draft' %}
                                     <span class="badge-status badge-draft" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">Draft</span>
+                                    
+                                    <!-- Discard Pick Slip Button -->
+                                    <button type="button" 
+                                            onclick="openDiscardWmsModal('{{ movement.document_no|escapejs }}', '{% url 'inventory:movement-delete' movement.pk %}')"
+                                            style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0.25rem; opacity: 0.7; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center;"
+                                            onmouseover="this.style.opacity=1"
+                                            onmouseout="this.style.opacity=0.7"
+                                            title="Discard Pick Slip">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                                        </svg>
+                                    </button>
                                 {% else %}
                                     <span class="badge-status badge-shipped" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">Completed</span>
                                 {% endif %}
@@ -648,11 +678,52 @@
         </div>
     </div>
 </div>
+
+<!-- Discard WMS Document Verification Modal -->
+<div id="discard-wms-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card animate-fade-in" style="width: 100%; max-width: 450px; padding: 2.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.9);">
+        <div style="color: #f87171; margin-bottom: 1.5rem; display: flex; justify-content: center;">
+            <div style="background: rgba(248, 113, 113, 0.1); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(248, 113, 113, 0.2);">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+            </div>
+        </div>
+        
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem; text-align: center;">Discard Pick Slip</h2>
+        <p style="color: var(--text-dim); text-align: center; margin-bottom: 2rem; line-height: 1.6; font-size: 0.9rem;">
+            This action will discard the draft pick slip and transition this Sales Order back to <strong>Confirmed</strong>.
+        </p>
+
+        <div style="background: rgba(255,255,255,0.03); border-radius: 1rem; padding: 1.25rem; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 2rem;">
+            <label style="display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; text-align: center;">
+                Type the document number to confirm:
+            </label>
+            <div style="color: var(--text-main); font-weight: 700; font-family: monospace; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 0.5rem; text-align: center; margin-bottom: 1rem; word-break: break-all; font-size: 0.85rem;" id="target-wms-doc-no"></div>
+            <input type="text" id="wms-verification-input" placeholder="Enter document number" autocomplete="off"
+                   style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; padding: 0.85rem; color: var(--text-main); font-family: monospace; text-align: center; outline: none; transition: var(--transition);">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <button type="button" onclick="closeDiscardWmsModal()" class="btn-secondary-glass" style="padding: 0.85rem; font-weight: 600; border-radius: 0.75rem; color: var(--text-main); cursor: pointer;">Cancel</button>
+            <form id="discard-wms-form" method="post" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" id="confirm-discard-wms-btn" disabled class="btn-danger-glass" style="width: 100%; padding: 0.85rem; border: none; border-radius: 0.75rem; font-weight: 700; cursor: not-allowed; opacity: 0.5; color: #fff; height: 100%;">
+                    Discard
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let currentAttachmentName = '';
+let currentWmsDocNo = '';
 
 function openDeleteAttachmentModal(fileName, actionUrl) {
     currentAttachmentName = fileName;
@@ -689,8 +760,46 @@ function closeDeleteAttachmentModal() {
     document.getElementById('delete-attachment-modal').style.display = 'none';
 }
 
+function openDiscardWmsModal(docNo, actionUrl) {
+    currentWmsDocNo = docNo;
+    const modal = document.getElementById('discard-wms-modal');
+    const form = document.getElementById('discard-wms-form');
+    const targetSpan = document.getElementById('target-wms-doc-no');
+    const input = document.getElementById('wms-verification-input');
+    const confirmBtn = document.getElementById('confirm-discard-wms-btn');
+
+    targetSpan.textContent = docNo;
+    form.action = actionUrl;
+    input.value = '';
+    confirmBtn.disabled = true;
+    confirmBtn.style.cursor = 'not-allowed';
+    confirmBtn.style.opacity = '0.5';
+
+    modal.style.display = 'flex';
+    input.focus();
+
+    input.oninput = function() {
+        if (this.value.trim() === currentWmsDocNo) {
+            confirmBtn.disabled = false;
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.opacity = '1';
+        } else {
+            confirmBtn.disabled = true;
+            confirmBtn.style.cursor = 'not-allowed';
+            confirmBtn.style.opacity = '0.5';
+        }
+    };
+}
+
+function closeDiscardWmsModal() {
+    document.getElementById('discard-wms-modal').style.display = 'none';
+}
+
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeDeleteAttachmentModal();
+    if (e.key === 'Escape') {
+        closeDeleteAttachmentModal();
+        closeDiscardWmsModal();
+    }
 });
 </script>
 {% endblock %}

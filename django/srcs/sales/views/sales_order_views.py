@@ -1040,4 +1040,64 @@ class SalesOrderItemResetAllocationView(LoginRequiredMixin, PermissionRequiredMi
         return self.post(request, *args, **kwargs)
 
 
+class SalesOrderRevertToDraftView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """POST-only action to revert a Confirmed or Pre-order Sales Order back to Draft status."""
+    permission_required = 'sales.change_salesorder'
+    raise_exception = True
+
+    def post(self, request, pk):
+        order = get_object_or_404(SalesOrder, pk=pk, is_deleted=False)
+
+        if order.status not in [SalesOrder.Status.CONFIRMED, SalesOrder.Status.PREORDER]:
+            messages.error(request, "Only Confirmed or Pre-order orders can be reverted to draft.")
+            return redirect('sales:sales-order-detail', pk=order.pk)
+
+        try:
+            with transaction.atomic():
+                # 1. Release any StockReservations for this order directly (to safely clear any dangling reservations)
+                from inventory.models import StockReservation
+                from inventory.services import ReservationService
+                order_reservations = StockReservation.objects.filter(
+                    reference_no=order.document_no,
+                    reference_type=StockReservation.ReferenceType.SALES_ORDER
+                )
+                for res in list(order_reservations):
+                    ReservationService.release(res)
+
+                for item in order.items.all():
+                    # 2. Release all allocations (reservations, dynamic shortages, scheduled arrivals)
+                    for allocation in list(item.allocations.all()):
+                        if allocation.source_type == SalesAllocation.SourceType.STOCK:
+                            if allocation.physical_reservation:
+                                ReservationService.release(allocation.physical_reservation)
+                        elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
+                            if allocation.arrival_reservation:
+                                from procurement.services import ArrivalReservationService
+                                ArrivalReservationService.release(allocation.arrival_reservation)
+                        elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
+                            if allocation.shortage:
+                                if allocation.shortage.status == 'pending':
+                                    allocation.shortage.delete()
+                        allocation.delete()
+                    
+                    # 3. Reset item attributes
+                    item.status = SalesOrderItem.Status.PENDING
+                    item.is_manual_allocate = False
+                    item.allocated_qty = 0.00
+                    item.fulfilled_qty = 0.00
+                    item.save(update_fields=['status', 'is_manual_allocate', 'allocated_qty', 'fulfilled_qty'])
+                
+                # 4. Transition order status back to DRAFT
+                order.status = SalesOrder.Status.DRAFT
+                order.updated_by = request.user
+                order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
+
+            messages.success(request, f"Sales Order {order.document_no} successfully reverted to Draft. All reservations and allocations have been released.")
+        except Exception as e:
+            messages.error(request, f"Error reverting order to Draft: {str(e)}")
+
+        return redirect('sales:sales-order-detail', pk=order.pk)
+
+
+
 
