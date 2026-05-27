@@ -68,6 +68,30 @@
                     </svg>
                     Edit Order
                 </a>
+
+                <form action="{% url 'sales:sales-order-confirm' sales_order.pk %}" method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, var(--primary-light), #10b981); color: #111827; border: none; font-weight: 700; border-radius: 0.75rem; padding: 0.65rem 1.25rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Confirm Order
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if sales_order.status == 'confirmed' %}
+                <form action="{% url 'sales:sales-order-release' sales_order.pk %}" method="post" style="margin: 0;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #ffffff; border: none; font-weight: 700; border-radius: 0.75rem; padding: 0.65rem 1.25rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.25);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                        Release to Warehouse
+                    </button>
+                </form>
             {% endif %}
 
             <a href="{% url 'sales:sales-order-list' %}" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.75rem; padding: 0.6rem 1.2rem;">
@@ -149,6 +173,42 @@
                     {% endif %}
                 </div>
             </div>
+
+            <!-- WMS Outbound Documents Card -->
+            {% if wms_movements %}
+            <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(59, 130, 246, 0.15);">
+                <h4 style="margin: 0 0 1.25rem 0; font-size: 0.9rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="3" width="15" height="13" rx="2" ry="2"/>
+                        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                        <circle cx="5.5" cy="18.5" r="2.5"/>
+                        <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                    WMS Outbound Documents
+                </h4>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for movement in wms_movements %}
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.5rem; justify-content: space-between;">
+                            <div style="min-width: 0; flex: 1;">
+                                <a href="{% url 'inventory:movement-detail' movement.pk %}" style="text-decoration: none; color: var(--primary-light); font-size: 0.85rem; font-weight: 700; font-family: monospace; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ movement.document_no }}">
+                                    {{ movement.document_no }}
+                                </a>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 0.15rem;">
+                                    Warehouse: {{ movement.warehouse.code }}
+                                </span>
+                            </div>
+                            <div>
+                                {% if movement.status == 'draft' %}
+                                    <span class="badge-status badge-draft" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">Draft</span>
+                                {% else %}
+                                    <span class="badge-status badge-shipped" style="font-size: 0.7rem; padding: 0.2rem 0.5rem;">Completed</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Supporting Documents Card -->
             <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">

@@ -643,7 +643,45 @@ class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         from sales.forms.attachment_forms import SalesOrderAttachmentForm
         context['attachment_form'] = SalesOrderAttachmentForm()
         
+        # Linked Outbound Movements (WMS)
+        from inventory.models import InventoryMovement
+        context['wms_movements'] = InventoryMovement.objects.filter(
+            reference_type=InventoryMovement.ReferenceType.SALES_ORDER,
+            reference_no=order.document_no,
+            is_deleted=False
+        ).select_related('warehouse').order_by('-created_at')
+        
         return context
+
+
+def check_and_promote_order_status(order):
+    """
+    Checks if all items are fully allocated with physical stock (no shortages or arrivals).
+    If yes, and the status is DRAFT or PREORDER, promotes it to CONFIRMED.
+    """
+    from sales.models import SalesAllocation
+    
+    if order.status not in [order.Status.DRAFT, order.Status.PREORDER]:
+        return False
+        
+    has_shortages_or_arrivals = False
+    for item in order.items.all():
+        if item.allocated_qty < item.requested_qty:
+            has_shortages_or_arrivals = True
+            break
+        for allocation in item.allocations.all():
+            if allocation.source_type in [SalesAllocation.SourceType.ARRIVAL, SalesAllocation.SourceType.SHORTAGE]:
+                has_shortages_or_arrivals = True
+                break
+        if has_shortages_or_arrivals:
+            break
+            
+    if not has_shortages_or_arrivals and order.items.exists():
+        order.status = order.Status.CONFIRMED
+        order.save(update_fields=['status', 'updated_at', 'version'])
+        return True
+        
+    return False
 
 
 class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -668,9 +706,95 @@ class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixi
             with transaction.atomic():
                 for item in order.items.all():
                     SalesService.refresh_allocation(item)
-            messages.success(request, f"Allocations for Sales Order {order.document_no} successfully refreshed!")
+                
+                # Check for status promotion
+                promoted = check_and_promote_order_status(order)
+                
+            if promoted:
+                messages.success(request, f"Allocations refreshed! Sales Order {order.document_no} is now fully allocated and promoted to CONFIRMED status.")
+            else:
+                messages.success(request, f"Allocations for Sales Order {order.document_no} successfully refreshed!")
         except Exception as e:
             messages.error(request, f"Error refreshing allocations: {str(e)}")
+
+        return redirect('sales:sales-order-detail', pk=order.pk)
+
+
+class SalesOrderConfirmView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    POST-only action to explicitly confirm a DRAFT Sales Order.
+    If all items are physical stock, transitions to CONFIRMED.
+    Otherwise, transitions to PREORDER.
+    """
+    permission_required = 'sales.change_salesorder'
+    raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+        order_id = self.kwargs.get('pk')
+        order = get_object_or_404(SalesOrder, pk=order_id, is_deleted=False)
+
+        if order.status != SalesOrder.Status.DRAFT:
+            messages.error(request, "Only Draft orders can be confirmed.")
+            return redirect('sales:sales-order-detail', pk=order.pk)
+
+        try:
+            with transaction.atomic():
+                # 1. Refresh allocations to get latest status
+                for item in order.items.all():
+                    SalesService.refresh_allocation(item)
+
+                # 2. Check for promotion
+                promoted = check_and_promote_order_status(order)
+                if not promoted:
+                    # If not promoted, it means we have shortages/arrivals, so it becomes PREORDER
+                    order.status = SalesOrder.Status.PREORDER
+                    order.updated_by = request.user
+                    order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
+                    msg = f"Sales Order {order.document_no} confirmed as Pre-order due to outstanding shortages or scheduled arrivals."
+                else:
+                    msg = f"Sales Order {order.document_no} confirmed and locked successfully as Confirmed!"
+
+            messages.success(request, msg)
+        except Exception as e:
+            messages.error(request, f"Error confirming order: {str(e)}")
+
+        return redirect('sales:sales-order-detail', pk=order.pk)
+
+
+class SalesOrderReleaseToWarehouseView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    POST-only action to release a CONFIRMED Sales Order to the warehouse.
+    Atomically updates status to PROCESSING and generates a Draft Outbound Movement.
+    """
+    permission_required = 'sales.change_salesorder'
+    raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+        order_id = self.kwargs.get('pk')
+        order = get_object_or_404(SalesOrder, pk=order_id, is_deleted=False)
+
+        if order.status != SalesOrder.Status.CONFIRMED:
+            messages.error(request, f"Cannot release Sales Order {order.document_no} because its status is '{order.get_status_display()}'. Only Confirmed orders can be released to the warehouse.")
+            return redirect('sales:sales-order-detail', pk=order.pk)
+
+        try:
+            from inventory.services.movement_service import MovementService
+            with transaction.atomic():
+                # 1. Update status to PROCESSING
+                order.status = SalesOrder.Status.PROCESSING
+                order.updated_by = request.user
+                order.save(update_fields=['status', 'updated_by', 'updated_at', 'version'])
+
+                # 2. Trigger Draft Movement generation
+                movements = MovementService.create_outbound_from_reservations(order, request.user)
+
+            messages.success(
+                request, 
+                f"Sales Order {order.document_no} successfully released to warehouse! "
+                f"Draft Outbound Movement(s) generated for picking."
+            )
+        except Exception as e:
+            messages.error(request, f"Error releasing order to warehouse: {str(e)}")
 
         return redirect('sales:sales-order-detail', pk=order.pk)
 

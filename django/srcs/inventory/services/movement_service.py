@@ -172,6 +172,75 @@ class MovementService:
         movement.save()
         return movement
 
+    @staticmethod
+    @transaction.atomic
+    def create_outbound_from_reservations(sales_order, user):
+        """
+        Generates a Draft Outbound Inventory Movement from the active StockReservation records
+        of the given SalesOrder. Grouped by Warehouse.
+        """
+        from inventory.models import StockReservation, InventoryMovement, InventoryMovementItem
+        from django.utils import timezone
+        
+        # 1. Query active reservations for the Sales Order
+        reservations = StockReservation.objects.filter(
+            reference_no=sales_order.document_no,
+            reference_type=StockReservation.ReferenceType.SALES_ORDER
+        ).select_related('stock__warehouse', 'sales_item__item')
+
+        if not reservations.exists():
+            raise ValidationError(
+                f"Cannot release Sales Order '{sales_order.document_no}' to warehouse because it has no active stock reservations."
+            )
+
+        # 2. Group reservations by warehouse
+        warehouse_groups = {}
+        for res in reservations:
+            wh = res.stock.warehouse
+            if wh not in warehouse_groups:
+                warehouse_groups[wh] = []
+            warehouse_groups[wh].append(res)
+
+        created_movements = []
+
+        # 3. Create one outbound InventoryMovement per warehouse
+        for warehouse, wh_reservations in warehouse_groups.items():
+            doc_no = f"OUT-{sales_order.document_no}-{warehouse.code}".upper()
+            
+            # Avoid creating duplicates if the button was clicked multiple times or already exists
+            if InventoryMovement.objects.filter(document_no=doc_no, is_deleted=False).exists():
+                movement = InventoryMovement.objects.filter(document_no=doc_no, is_deleted=False).first()
+                created_movements.append(movement)
+                continue
+
+            movement = InventoryMovement.objects.create(
+                document_no=doc_no,
+                type=InventoryMovement.MovementType.OUTBOUND,
+                status=InventoryMovement.Status.DRAFT,
+                date=timezone.now().date(),
+                warehouse=warehouse,
+                partner=sales_order.partner,
+                reference_type=InventoryMovement.ReferenceType.SALES_ORDER,
+                reference_no=sales_order.document_no,
+                created_by=user
+            )
+
+            # Create items under this movement for each reservation
+            for res in wh_reservations:
+                InventoryMovementItem.objects.create(
+                    movement=movement,
+                    item=res.stock.item,
+                    lot_number=res.stock.lot_number,
+                    quantity=res.quantity,
+                    mfg_date=res.stock.mfg_date,
+                    exp_date=res.stock.exp_date,
+                    note=f"Transferred from Sales Order reservation hold."
+                )
+            
+            created_movements.append(movement)
+
+        return created_movements
+
     # --- Completion & Reversion Logic ---
 
     @staticmethod
@@ -230,6 +299,53 @@ class MovementService:
             movement.updated_by = user
             movement.save()
 
+            # 5b. Update linked Sales Order if reference matches
+            if (movement.reference_type == InventoryMovement.ReferenceType.SALES_ORDER 
+                and movement.type == InventoryMovement.MovementType.OUTBOUND):
+                from sales.models import SalesOrder, SalesOrderItem
+                from inventory.models import StockReservation
+                from inventory.services import ReservationService
+
+                try:
+                    sales_order = SalesOrder.objects.get(document_no=movement.reference_no, is_deleted=False)
+                except SalesOrder.DoesNotExist:
+                    sales_order = None
+
+                if sales_order:
+                    # Update each sales order item and release reservations
+                    for item_line in items:
+                        sales_item = SalesOrderItem.objects.filter(
+                            order=sales_order,
+                            item=item_line.item
+                        ).first()
+                        if sales_item:
+                            sales_item.fulfilled_qty += item_line.quantity
+                            if sales_item.fulfilled_qty >= sales_item.requested_qty:
+                                sales_item.status = SalesOrderItem.Status.SHIPPED
+                            else:
+                                sales_item.status = SalesOrderItem.Status.PARTIAL
+                            sales_item.save(update_fields=['fulfilled_qty', 'status'])
+
+                        # Release corresponding reservations matching this warehouse, item, and lot
+                        matching_reservations = StockReservation.objects.filter(
+                            reference_no=sales_order.document_no,
+                            reference_type=StockReservation.ReferenceType.SALES_ORDER,
+                            stock__item=item_line.item,
+                            stock__lot_number=item_line.lot_number,
+                            stock__warehouse=movement.warehouse
+                        )
+                        for res in matching_reservations:
+                            ReservationService.release(res)
+
+                    # Update overall sales order status to SHIPPED if all items are fully shipped or cancelled
+                    total_items_count = sales_order.items.count()
+                    shipped_or_cancelled_count = sales_order.items.filter(
+                        status__in=[SalesOrderItem.Status.SHIPPED, SalesOrderItem.Status.CANCELLED]
+                    ).count()
+                    if shipped_or_cancelled_count == total_items_count:
+                        sales_order.status = SalesOrder.Status.SHIPPED
+                        sales_order.save(update_fields=['status'])
+
     @staticmethod
     def revert_to_draft(movement, *, user):
         """
@@ -282,3 +398,50 @@ class MovementService:
             movement.status = InventoryMovement.Status.DRAFT
             movement.updated_by = user
             movement.save()
+
+            # 6b. Revert linked Sales Order transitions & restore reservations
+            if (movement.reference_type == InventoryMovement.ReferenceType.SALES_ORDER 
+                and movement.type == InventoryMovement.MovementType.OUTBOUND):
+                from sales.models import SalesOrder, SalesOrderItem
+                from inventory.models import StockReservation
+                from inventory.services import ReservationService
+
+                try:
+                    sales_order = SalesOrder.objects.get(document_no=movement.reference_no, is_deleted=False)
+                except SalesOrder.DoesNotExist:
+                    sales_order = None
+
+                if sales_order:
+                    for item_line in items:
+                        sales_item = SalesOrderItem.objects.filter(
+                            order=sales_order,
+                            item=item_line.item
+                        ).first()
+                        if sales_item:
+                            sales_item.fulfilled_qty = max(0, sales_item.fulfilled_qty - item_line.quantity)
+                            if sales_item.fulfilled_qty == 0:
+                                sales_item.status = SalesOrderItem.Status.ALLOCATED
+                            else:
+                                sales_item.status = SalesOrderItem.Status.PARTIAL
+                            sales_item.save(update_fields=['fulfilled_qty', 'status'])
+
+                        # Re-create the reservation hold for the item lot
+                        stock = Stock.objects.filter(
+                            warehouse=movement.warehouse,
+                            item=item_line.item,
+                            lot_number=item_line.lot_number
+                        ).first()
+                        if stock:
+                            ReservationService.reserve(
+                                stock=stock,
+                                quantity=item_line.quantity,
+                                reference_no=sales_order.document_no,
+                                reference_type=StockReservation.ReferenceType.SALES_ORDER,
+                                sales_item=sales_item,
+                                note="Restored during inventory movement reversion to draft."
+                            )
+
+                    # Demote SalesOrder status back from SHIPPED to PROCESSING
+                    if sales_order.status == SalesOrder.Status.SHIPPED:
+                        sales_order.status = SalesOrder.Status.PROCESSING
+                        sales_order.save(update_fields=['status'])

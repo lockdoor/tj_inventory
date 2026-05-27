@@ -17,6 +17,7 @@ class InventoryMovement(AuditableMixin, StatusMixin):
         NONE = 'none', 'None'
         PRODUCTION = 'production', 'Production Order'
         STOCK_ARRIVAL = 'stock_arrival', 'Stock Arrival Schedule'
+        SALES_ORDER = 'sales_order', 'Sales Order'
         OTHER = 'other', 'Other'
 
     document_no = models.CharField(
