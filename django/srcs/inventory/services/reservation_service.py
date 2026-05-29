@@ -17,7 +17,9 @@ class ReservationService:
         Handles optimistic locking by refreshing the version before saving.
         """
         total_reserved = StockReservation.objects.filter(
-            stock=stock
+            stock=stock,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
         ).aggregate(total=Sum('quantity'))['total'] or 0
         
         # To handle optimistic locking (AuditableMixin.version), 
@@ -35,8 +37,21 @@ class ReservationService:
         if quantity <= 0:
             raise ValidationError("Quantity must be greater than zero")
 
+        # Fallback system/superuser if created_by is None
+        if not created_by:
+            from django.contrib.auth.models import User
+            created_by = User.objects.filter(is_superuser=True).first()
+            if not created_by:
+                created_by = User.objects.filter(username="system").first()
+            if not created_by:
+                created_by = User.objects.create_user(username="system", email="system@example.com")
+
         # Check availability: balance - current reservations
-        reserved = StockReservation.objects.filter(stock=stock).aggregate(total=Sum('quantity'))['total'] or 0
+        reserved = StockReservation.objects.filter(
+            stock=stock,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
+        ).aggregate(total=Sum('quantity'))['total'] or 0
         available = stock.balance - reserved
 
         if quantity > available:
@@ -63,18 +78,20 @@ class ReservationService:
 
     @staticmethod
     @transaction.atomic
-    def update_reservation(reservation, new_quantity):
+    def update_reservation(reservation, new_quantity, user=None):
         """
         Update the quantity of an existing reservation.
         """
         if new_quantity <= 0:
-            return ReservationService.release(reservation)
+            return ReservationService.release(reservation, user=user)
 
         diff = new_quantity - reservation.quantity
         if diff > 0:
             # If increasing, check availability again
             reserved = StockReservation.objects.filter(
-                stock=reservation.stock
+                stock=reservation.stock,
+                is_deleted=False,
+                status=StockReservation.ReservationStatus.RESERVED
             ).exclude(pk=reservation.pk).aggregate(total=Sum('quantity'))['total'] or 0
             
             available = reservation.stock.balance - reserved
@@ -82,6 +99,8 @@ class ReservationService:
                 raise ValidationError(f"Insufficient available stock to increase reservation to {new_quantity}")
 
         reservation.quantity = new_quantity
+        if user:
+            reservation.updated_by = user
         reservation.save()
         
         # Explicitly sync the stock record
@@ -91,12 +110,13 @@ class ReservationService:
 
     @staticmethod
     @transaction.atomic
-    def release(reservation):
+    def release(reservation, user=None):
         """
         Permanently remove a reservation (unlock the stock).
         """
         stock = reservation.stock
-        reservation.delete()
+        reservation.status = StockReservation.ReservationStatus.RELEASED
+        reservation.delete(user=user)
         
         # Explicitly sync the stock record
         ReservationService._sync_stock_reserved_qty(stock)
@@ -105,24 +125,34 @@ class ReservationService:
 
     @staticmethod
     @transaction.atomic
-    def delete_by_reference(reference_no, reference_type):
+    def complete(reservation, user=None):
+        """
+        Mark a reservation as completed (stock successfully shipped/moved).
+        """
+        stock = reservation.stock
+        reservation.status = StockReservation.ReservationStatus.COMPLETED
+        if user:
+            reservation.updated_by = user
+        reservation.save()
+        
+        # Explicitly sync the stock record
+        ReservationService._sync_stock_reserved_qty(stock)
+        
+        return True
+
+    @staticmethod
+    @transaction.atomic
+    def delete_by_reference(reference_no, reference_type, user=None):
         """
         Release all reservations associated with a specific document.
         """
-        # Find all affected stocks first
-        affected_stocks = list(Stock.objects.filter(
-            reservations__reference_no=reference_no,
-            reservations__reference_type=reference_type
-        ).distinct())
-        
-        # Delete the reservations
-        StockReservation.objects.filter(
+        reservations = StockReservation.objects.filter(
             reference_no=reference_no,
-            reference_type=reference_type
-        ).delete()
+            reference_type=reference_type,
+            is_deleted=False
+        )
         
-        # Sync each affected stock
-        for stock in affected_stocks:
-            ReservationService._sync_stock_reserved_qty(stock)
+        for res in list(reservations):
+            ReservationService.release(res, user=user)
             
         return True

@@ -42,7 +42,7 @@ class ArrivalReservation(models.Model):
     # Using string to avoid circular dependency
     sales_item = models.ForeignKey(
         'sales.SalesOrderItem',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='arrival_reservations'
@@ -50,7 +50,7 @@ class ArrivalReservation(models.Model):
     
     created_by = models.ForeignKey(
         'auth.User',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name='arrival_reservations',
         null=True,
         blank=True,

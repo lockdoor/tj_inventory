@@ -28,11 +28,15 @@ class StockReservationListView(LoginRequiredMixin, PermissionRequiredMixin, List
         """
         Optimize database retrieval with select_related and support search query.
         """
-        queryset = StockReservation.objects.select_related(
+        queryset = StockReservation.objects.filter(
+            is_deleted=False
+        ).exclude(
+            status=StockReservation.ReservationStatus.RELEASED
+        ).select_related(
             'stock__item',
             'stock__warehouse',
             'sales_item__order'
-        ).all().order_by('-created_at')
+        ).order_by('-created_at')
 
         q = self.request.GET.get('q')
         if q:
@@ -137,7 +141,7 @@ class StockReservationReleaseView(LoginRequiredMixin, PermissionRequiredMixin, V
             raise PermissionDenied("Only the creator of the reservation or an executive can release this lock.")
 
         reference_no = reservation.reference_no
-        ReservationService.release(reservation)
+        ReservationService.release(reservation, user=request.user)
         messages.success(request, f"Reservation {reference_no} has been successfully released.")
         return redirect('inventory:reservation-list')
 

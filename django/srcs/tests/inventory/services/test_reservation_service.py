@@ -32,16 +32,20 @@ def stock_setup(test_user):
     return stock
 
 @pytest.mark.django_db
-def test_successful_reservation(stock_setup):
+def test_successful_reservation(stock_setup, test_user):
     """Test reserving valid quantity updates stock correctly."""
     res = ReservationService.reserve(
         stock=stock_setup,
         quantity=Decimal("30.00"),
-        reference_no="SO-001"
+        reference_no="SO-001",
+        created_by=test_user
     )
     
     assert res.quantity == Decimal("30.00")
     assert res.reference_no == "SO-001"
+    assert res.status == StockReservation.ReservationStatus.RESERVED
+    assert res.created_by == test_user
+    assert res.is_deleted is False
     
     stock_setup.refresh_from_db()
     assert stock_setup.reserved_qty == Decimal("30.00")
@@ -74,15 +78,21 @@ def test_update_reservation_insufficient(stock_setup):
         ReservationService.update_reservation(res, Decimal("110.00"))
 
 @pytest.mark.django_db
-def test_release_reservation(stock_setup):
+def test_release_reservation(stock_setup, test_user):
     """Test releasing (deleting) a reservation."""
-    res = ReservationService.reserve(stock_setup, Decimal("40.00"), "SO-001")
+    res = ReservationService.reserve(stock_setup, Decimal("40.00"), "SO-001", created_by=test_user)
     
-    ReservationService.release(res)
+    ReservationService.release(res, user=test_user)
     
     stock_setup.refresh_from_db()
     assert stock_setup.reserved_qty == Decimal("0.00")
-    assert StockReservation.objects.count() == 0
+    
+    # Assert row is soft-deleted but preserved with status RELEASED
+    assert StockReservation.objects.filter(is_deleted=False).count() == 0
+    res.refresh_from_db()
+    assert res.is_deleted is True
+    assert res.status == StockReservation.ReservationStatus.RELEASED
+    assert res.deleted_by == test_user
 
 @pytest.mark.django_db
 def test_delete_by_reference(stock_setup, test_user):
@@ -99,12 +109,56 @@ def test_delete_by_reference(stock_setup, test_user):
     ReservationService.reserve(stock_setup, Decimal("10.00"), "SO-999")
     ReservationService.reserve(stock2, Decimal("20.00"), "SO-999")
     
-    assert StockReservation.objects.filter(reference_no="SO-999").count() == 2
+    assert StockReservation.objects.filter(reference_no="SO-999", is_deleted=False).count() == 2
     
-    ReservationService.delete_by_reference("SO-999", StockReservation.ReferenceType.SALES_ORDER)
+    ReservationService.delete_by_reference("SO-999", StockReservation.ReferenceType.SALES_ORDER, user=test_user)
     
     stock_setup.refresh_from_db()
     stock2.refresh_from_db()
     assert stock_setup.reserved_qty == Decimal("0.00")
     assert stock2.reserved_qty == Decimal("0.00")
-    assert StockReservation.objects.count() == 0
+    assert StockReservation.objects.filter(is_deleted=False).count() == 0
+    
+    # Assert historical audit rows
+    for r in StockReservation.objects.filter(reference_no="SO-999"):
+        assert r.is_deleted is True
+        assert r.status == StockReservation.ReservationStatus.RELEASED
+        assert r.deleted_by == test_user
+
+@pytest.mark.django_db
+def test_complete_reservation(stock_setup, test_user):
+    """Test completing a reservation updates status and adjusts reserved stock quantity."""
+    res = ReservationService.reserve(stock_setup, Decimal("30.00"), "SO-001", created_by=test_user)
+    
+    ReservationService.complete(res, user=test_user)
+    
+    # Assert row is kept, status completed, not soft-deleted
+    res.refresh_from_db()
+    assert res.is_deleted is False
+    assert res.status == StockReservation.ReservationStatus.COMPLETED
+    assert res.updated_by == test_user
+    
+    # Assert completed reservation no longer counts towards reserved quantity
+    stock_setup.refresh_from_db()
+    assert stock_setup.reserved_qty == Decimal("0.00")
+    assert stock_setup.available_qty == Decimal("100.00")
+
+@pytest.mark.django_db
+def test_auditable_history_trail(stock_setup, test_user):
+    """Test simple history tracks modifications to the reservation."""
+    res = ReservationService.reserve(stock_setup, Decimal("25.00"), "SO-001", created_by=test_user)
+    
+    # Check that creation history was recorded
+    assert res.history.count() == 1
+    
+    # Update quantity
+    ReservationService.update_reservation(res, Decimal("40.00"), user=test_user)
+    
+    # Check history count incremented
+    assert res.history.count() == 2
+    
+    # Validate old version quantity is preserved in history
+    history_entries = list(res.history.all().order_by('history_date'))
+    assert history_entries[0].quantity == Decimal("25.00")
+    assert history_entries[1].quantity == Decimal("40.00")
+

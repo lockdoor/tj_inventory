@@ -200,7 +200,9 @@ class MovementService:
         # 1. Query active reservations for the Sales Order
         reservations = StockReservation.objects.filter(
             reference_no=sales_order.document_no,
-            reference_type=StockReservation.ReferenceType.SALES_ORDER
+            reference_type=StockReservation.ReferenceType.SALES_ORDER,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
         ).select_related('stock__warehouse', 'sales_item__item')
 
         if not reservations.exists():
@@ -341,16 +343,18 @@ class MovementService:
                                 sales_item.status = SalesOrderItem.Status.PARTIAL
                             sales_item.save(update_fields=['fulfilled_qty', 'status'])
 
-                        # Release corresponding reservations matching this warehouse, item, and lot
+                        # Complete corresponding reservations matching this warehouse, item, and lot
                         matching_reservations = StockReservation.objects.filter(
                             reference_no=sales_order.document_no,
                             reference_type=StockReservation.ReferenceType.SALES_ORDER,
                             stock__item=item_line.item,
                             stock__lot_number=item_line.lot_number,
-                            stock__warehouse=movement.warehouse
+                            stock__warehouse=movement.warehouse,
+                            is_deleted=False,
+                            status=StockReservation.ReservationStatus.RESERVED
                         )
                         for res in matching_reservations:
-                            ReservationService.release(res)
+                            ReservationService.complete(res, user=user)
 
                     # Update overall sales order status to SHIPPED if all items are fully shipped or cancelled
                     total_items_count = sales_order.items.count()
@@ -440,40 +444,56 @@ class MovementService:
                                 sales_item.status = SalesOrderItem.Status.PARTIAL
                             sales_item.save(update_fields=['fulfilled_qty', 'status'])
 
-                        # Re-create the reservation hold for the item lot
+                        # Re-create or reactivate the reservation hold for the item lot
                         stock = Stock.objects.filter(
                             warehouse=movement.warehouse,
                             item=item_line.item,
                             lot_number=item_line.lot_number
                         ).first()
                         if stock:
-                            res = ReservationService.reserve(
-                                stock=stock,
-                                quantity=item_line.quantity,
+                            res = StockReservation.objects.filter(
                                 reference_no=sales_order.document_no,
                                 reference_type=StockReservation.ReferenceType.SALES_ORDER,
-                                sales_item=sales_item,
-                                note="Restored during inventory movement reversion to draft."
-                            )
-                            
-                            # Link to SalesAllocation to maintain strict database integrity
-                            from sales.models import SalesAllocation
-                            alloc = SalesAllocation.objects.filter(
-                                order_item=sales_item,
-                                source_type=SalesAllocation.SourceType.STOCK,
-                                physical_reservation__isnull=True
+                                stock=stock,
+                                status=StockReservation.ReservationStatus.COMPLETED,
+                                is_deleted=False
                             ).first()
-                            if alloc:
-                                alloc.physical_reservation = res
-                                alloc.save(update_fields=['physical_reservation'])
+                            
+                            if res:
+                                res.status = StockReservation.ReservationStatus.RESERVED
+                                if user:
+                                    res.updated_by = user
+                                res.save()
+                                ReservationService._sync_stock_reserved_qty(stock)
                             else:
-                                SalesAllocation.objects.create(
+                                res = ReservationService.reserve(
+                                    stock=stock,
+                                    quantity=item_line.quantity,
+                                    reference_no=sales_order.document_no,
+                                    reference_type=StockReservation.ReferenceType.SALES_ORDER,
+                                    sales_item=sales_item,
+                                    note="Restored during inventory movement reversion to draft.",
+                                    created_by=user
+                                )
+                                
+                                # Link to SalesAllocation to maintain strict database integrity
+                                from sales.models import SalesAllocation
+                                alloc = SalesAllocation.objects.filter(
                                     order_item=sales_item,
                                     source_type=SalesAllocation.SourceType.STOCK,
-                                    physical_reservation=res,
-                                    quantity=item_line.quantity,
-                                    is_manual=False
-                                )
+                                    physical_reservation__isnull=True
+                                ).first()
+                                if alloc:
+                                    alloc.physical_reservation = res
+                                    alloc.save(update_fields=['physical_reservation'])
+                                else:
+                                    SalesAllocation.objects.create(
+                                        order_item=sales_item,
+                                        source_type=SalesAllocation.SourceType.STOCK,
+                                        physical_reservation=res,
+                                        quantity=item_line.quantity,
+                                        is_manual=False
+                                    )
 
                     # Demote SalesOrder status back from SHIPPED to PROCESSING
                     if sales_order.status == SalesOrder.Status.SHIPPED:

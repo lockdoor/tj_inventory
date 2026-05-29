@@ -130,7 +130,11 @@ class TestSalesOrderWarehouseIntegration:
         assert self.stock.reserved_qty == 0.00
 
         # B. Releases StockReservations
-        assert not StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert not StockReservation.objects.filter(
+            reference_no=order.document_no,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
+        ).exists()
 
         # C. Transitions Sales Order status to SHIPPED
         order.refresh_from_db()
@@ -564,13 +568,21 @@ class TestSalesOrderWarehouseIntegration:
         MovementService.complete_movement(movement, user=self.user)
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.SHIPPED
-        assert not StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert not StockReservation.objects.filter(
+            reference_no=order.document_no,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
+        ).exists()
 
         # 4. Revert the completed movement back to Draft (transitions order back to PROCESSING and restores the reservation)
         MovementService.revert_to_draft(movement, user=self.user)
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.PROCESSING
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(
+            reference_no=order.document_no,
+            is_deleted=False,
+            status=StockReservation.ReservationStatus.RESERVED
+        ).exists()
 
         # Give the user delete permission for inventory movement
         delete_mv_perm = Permission.objects.get(codename="delete_inventorymovement")

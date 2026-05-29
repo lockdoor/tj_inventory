@@ -1,7 +1,8 @@
 from django.db import models
+from common.mixins import AuditableMixin
 
 
-class StockReservation(models.Model):
+class StockReservation(AuditableMixin):
     """
     Physical Hold ledger for Actual Stock.
     Warehouse Admin uses this to know which physical lots are locked.
@@ -11,6 +12,12 @@ class StockReservation(models.Model):
         PRODUCTION = 'production', 'Production'
         INTERNAL = 'internal', 'Internal Transfer'
         HOLD = 'hold', 'Quality/Maintenance Hold'
+        ARRIVAL = 'arrival', 'Arrival Allocation'
+
+    class ReservationStatus(models.TextChoices):
+        RESERVED = 'reserved', 'Reserved'
+        COMPLETED = 'completed', 'Completed'
+        RELEASED = 'released', 'Released'
 
     # Physical Link (Required)
     stock = models.ForeignKey(
@@ -40,21 +47,19 @@ class StockReservation(models.Model):
     # Specific Link back to Sales (Optional)
     sales_item = models.ForeignKey(
         'sales.SalesOrderItem',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='physical_reservations'
     )
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(
-        'auth.User',
-        on_delete=models.CASCADE,
-        related_name='stock_reservations',
-        null=True,
-        blank=True,
-        help_text="User who created this reservation"
+    status = models.CharField(
+        max_length=20,
+        choices=ReservationStatus.choices,
+        default=ReservationStatus.RESERVED,
+        help_text="Current lifecycle state of the reservation"
     )
+    
     note = models.TextField(blank=True, default='')
 
 
@@ -64,4 +69,4 @@ class StockReservation(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"HOLD: {self.reference_no} | {self.stock.lot_number} ({self.quantity})"
+        return f"HOLD ({self.status}): {self.reference_no} | {self.stock.lot_number} ({self.quantity})"

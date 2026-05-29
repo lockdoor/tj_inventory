@@ -287,8 +287,10 @@ class TestStockReservationReleaseView:
         assert response.status_code == 302
         assert response.url == reverse('inventory:reservation-list')
         
-        # Verify db deletion
-        assert not StockReservation.objects.filter(pk=res1.pk).exists()
+        # Verify db soft-deletion
+        res_record = StockReservation.objects.get(pk=res1.pk)
+        assert res_record.is_deleted is True
+        assert res_record.status == StockReservation.ReservationStatus.RELEASED
         
         # Verify stock synced back to 0
         stock1.refresh_from_db()
@@ -322,7 +324,10 @@ class TestStockReservationReleaseView:
         url = reverse('inventory:reservation-release', kwargs={'pk': res1.pk})
         response = client.post(url)
         assert response.status_code == 302
-        assert not StockReservation.objects.filter(pk=res1.pk).exists()
+        # Verify db soft-deletion
+        res_record = StockReservation.objects.get(pk=res1.pk)
+        assert res_record.is_deleted is True
+        assert res_record.status == StockReservation.ReservationStatus.RELEASED
 
     def test_superuser_can_release_other_user_reservation_success(self, client, db, reservation_setup):
         # Create a superuser
@@ -334,5 +339,8 @@ class TestStockReservationReleaseView:
         url = reverse('inventory:reservation-release', kwargs={'pk': res1.pk})
         response = client.post(url)
         assert response.status_code == 302
-        assert not StockReservation.objects.filter(pk=res1.pk).exists()
+        # Verify db soft-deletion
+        res_record = StockReservation.objects.get(pk=res1.pk)
+        assert res_record.is_deleted is True
+        assert res_record.status == StockReservation.ReservationStatus.RELEASED
 
