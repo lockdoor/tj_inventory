@@ -105,63 +105,106 @@
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start;">
-        <!-- Main Column: Item List -->
-        <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="padding: 1.5rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <!-- Main Column: Item Cards -->
+        <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: transparent; box-shadow: none;">
+            <div style="padding: 1.5rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0; background-color: rgba(15, 23, 42, 0.3); backdrop-filter: blur(10px);">
                 <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Order Items</h3>
                 <span style="font-size: 0.85rem; color: var(--text-muted);">{{ items|length }} Items</span>
             </div>
             
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <th style="padding: 1rem 2rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px;">SKU</th>
-                        <th style="padding: 1rem 2rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em;">Item Name</th>
-                        <th style="padding: 1rem 2rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 100px; text-align: center;">Qty</th>
-                        <th style="padding: 1rem 2rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px; text-align: right;">Unit Cost</th>
-                        <th style="padding: 1rem 2rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 140px; text-align: right;">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                            <td style="padding: 1.25rem 2rem;">
-                                <span style="font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 600; font-size: 0.85rem;">{{ item.item.sku }}</span>
-                            </td>
-                            <td style="padding: 1.25rem 2rem;">
-                                <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">{{ item.item.name }}</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; padding: 1.5rem; background: rgba(15, 23, 42, 0.15);">
+                {% for item in items %}
+                    <div class="item-card animate-fade-in" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 14px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.3s ease; position: relative; overflow: hidden; backdrop-filter: blur(5px);">
+                        <!-- SKU & Subtotal Row -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem;">
+                            <span style="font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 700; font-size: 0.8rem; background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.15);">
+                                {{ item.item.sku }}
+                            </span>
+                            <span style="font-weight: 800; color: var(--text-main); font-size: 1.05rem;">
+                                ฿{{ item.subtotal|floatformat:2 }}
+                            </span>
+                        </div>
+
+                        <!-- Item Name & Packaging -->
+                        <div style="margin-bottom: 1.25rem;">
+                            <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; line-height: 1.4;">
+                                {{ item.item.name }}
+                            </div>
+                            {% if item.packaging %}
+                                <div style="font-size: 0.75rem; color: #10b981; font-weight: 600; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.3rem;">
+                                    <i data-lucide="package" style="width: 12px; height: 12px;"></i>
+                                    Ordered in {{ item.packaging.name }} ({{ item.packaging.quantity }} pcs/unit)
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Quantities Divider Grid -->
+                        <div style="background: rgba(255, 255, 255, 0.01); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 10px; padding: 0.85rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
+                            <!-- Ordered Qty -->
+                            <div style="border-right: 1px dashed rgba(255, 255, 255, 0.08); padding-right: 0.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Ordered</div>
+                                <div style="font-weight: 800; color: var(--text-main); font-size: 1.25rem; display: flex; align-items: baseline; justify-content: center; gap: 0.15rem;">
+                                    {{ item.order_qty|floatformat:0 }}
+                                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">
+                                        {% if item.packaging %}{{ item.packaging.name }}{% else %}{{ item.item.unit|default:"pcs" }}{% endif %}
+                                    </span>
+                                </div>
                                 {% if item.packaging %}
-                                    <div style="font-size: 0.75rem; color: #10b981; font-weight: 500; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.3rem;">
-                                        <i data-lucide="package" style="width: 12px; height: 12px;"></i>
-                                        Ordered in {{ item.packaging.name }} ({{ item.packaging.quantity }} pcs/unit)
+                                    <div style="margin-top: 0.25rem;">
+                                        <span style="font-size: 0.65rem; color: #10b981; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.15); padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 700; white-space: nowrap;">
+                                            {{ item.order_pieces|floatformat:0 }} pcs
+                                        </span>
                                     </div>
                                 {% endif %}
-                            </td>
-                            <td style="padding: 1.25rem 2rem; text-align: center;">
-                                <span style="font-weight: 700; color: var(--text-main); font-size: 1rem;">{{ item.order_qty }}</span>
-                            </td>
-                            <td style="padding: 1.25rem 2rem; text-align: right;">
-                                <span style="color: var(--text-dim); font-size: 0.9rem;">฿{{ item.unit_cost|floatformat:2 }}</span>
-                            </td>
-                            <td style="padding: 1.25rem 2rem; text-align: right;">
-                                <span style="font-weight: 700; color: var(--text-main); font-size: 1rem;">฿{{ item.subtotal|floatformat:2 }}</span>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" style="padding: 4rem 2rem; text-align: center; color: var(--text-muted);">
-                                No items found in this purchase order.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-                <tfoot>
-                    <tr style="background: rgba(16, 185, 129, 0.05);">
-                        <td colspan="4" style="padding: 1.5rem 2rem; text-align: right; color: var(--primary-light); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em;">Total Amount</td>
-                        <td style="padding: 1.5rem 2rem; text-align: right; color: var(--text-main); font-weight: 800; font-size: 1.4rem;">฿{{ po.total_amount|floatformat:2 }}</td>
-                    </tr>
-                </tfoot>
-            </table>
+                            </div>
+                            <!-- Arrival Qty + Sufficiency Check -->
+                            <div style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem;">
+                                <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Expected Arrival</div>
+                                <div style="font-weight: 800; color: #60a5fa; font-size: 1.25rem; display: flex; align-items: baseline; justify-content: center; gap: 0.15rem;">
+                                    {{ item.arrival_qty|floatformat:0 }}
+                                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">
+                                        {% if item.packaging %}{{ item.packaging.name }}{% else %}{{ item.item.unit|default:"pcs" }}{% endif %}
+                                    </span>
+                                </div>
+                                {% if item.packaging %}
+                                    <div>
+                                        <span style="font-size: 0.65rem; color: #60a5fa; background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.15); padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 700; white-space: nowrap;">
+                                            {{ item.arrival_pieces|floatformat:0 }} pcs
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                {% if item.arrival_qty >= item.order_qty %}
+                                    <span style="font-size: 0.6rem; color: #10b981; background: rgba(16, 185, 129, 0.1); padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.15rem;" title="Expected arrival quantity is sufficient">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        Sufficient
+                                    </span>
+                                {% else %}
+                                    <span style="font-size: 0.6rem; color: #fbbf24; background: rgba(251, 191, 36, 0.1); padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.15rem;" title="Supply shortfall">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                        Shortfall
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Unit Cost Info -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.75rem;">
+                            <span>Unit Cost:</span>
+                            <span style="font-weight: 600; color: var(--text-main);">฿{{ item.unit_cost|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.01); border-radius: 14px; border: 1px dashed rgba(255,255,255,0.05);">
+                        No items found in this purchase order.
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- Summary / Total Bar -->
+            <div style="padding: 1.5rem 2rem; background: rgba(16, 185, 129, 0.05); border-top: 1px solid rgba(16, 185, 129, 0.1); display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 16px 16px; backdrop-filter: blur(10px);">
+                <span style="color: var(--primary-light); font-weight: 700; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em;">Total Amount</span>
+                <span style="color: var(--text-main); font-weight: 800; font-size: 1.5rem;">฿{{ po.total_amount|floatformat:2 }}</span>
+            </div>
         </div>
 
         <!-- Sidebar Column: Document Info -->
@@ -416,6 +459,16 @@
 
     .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .item-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .item-card:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-color: rgba(16, 185, 129, 0.2) !important;
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(16, 185, 129, 0.05);
+    }
 </style>
 {% endblock %}
 

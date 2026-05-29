@@ -105,3 +105,26 @@ class PurchaseOrderItem(models.Model):
         if self.order_qty and self.unit_cost:
             return self.order_qty * self.unit_cost
         return 0
+
+    @property
+    def arrival_qty(self):
+        """Sum of expected arrival quantity across all active linked arrivals."""
+        return self.arrival_items.filter(
+            arrival__is_deleted=False
+        ).exclude(
+            arrival__status='cancelled'
+        ).aggregate(total=models.Sum('expected_qty'))['total'] or 0
+
+    @property
+    def order_pieces(self):
+        """Total ordered quantity in base pieces."""
+        if self.packaging:
+            return self.order_qty * self.packaging.quantity
+        return self.order_qty
+
+    @property
+    def arrival_pieces(self):
+        """Total expected arrival quantity in base pieces."""
+        if self.packaging:
+            return self.arrival_qty * self.packaging.quantity
+        return self.arrival_qty

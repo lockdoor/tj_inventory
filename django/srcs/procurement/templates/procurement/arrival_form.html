@@ -135,9 +135,18 @@
 
                             <!-- Expected Qty -->
                             <div>
-                                <label class="label-mini">Expected Qty</label>
+                                <label class="label-mini">Supplier Committed Qty</label>
                                 {{ item_form.expected_qty }}
                                 {% if item_form.expected_qty.errors %}<div class="error-msg">{{ item_form.expected_qty.errors.0 }}</div>{% endif %}
+                                <div class="po-qty-context" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 0.35rem; display: none;">
+                                    <span style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 6px; font-weight: 500;">
+                                        <span style="display: inline-flex; align-items: center; gap: 0.15rem;"><i data-lucide="info" style="width: 11px; height: 11px; color: var(--primary-light);"></i> PO: <span class="po-qty-value" style="font-weight: 700; color: var(--primary-light);">0</span></span>
+                                        <span style="opacity: 0.3;">|</span>
+                                        <span>Prev. Scheduled: <span class="po-prev-value" style="font-weight: 700; color: #60a5fa;">0</span></span>
+                                        <span style="opacity: 0.3;">|</span>
+                                        <span>Remaining: <span class="po-rem-value" style="font-weight: 700; color: #fbbf24;">0</span></span>
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- Received Qty -->
@@ -212,6 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tbody = document.getElementById('formset-tbody');
     const addButton = document.getElementById('add-item-btn');
     const totalForms = document.querySelector('input[id$="-TOTAL_FORMS"]');
+    const currentArrivalId = '{% if object %}{{ object.id }}{% else %}{% endif %}';
 
     function updatePackagingOptions(row, itemId, selectedPackagingId = null) {
         const packagingSelect = row.querySelector('.packaging-select');
@@ -289,13 +299,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 const packagingSelect = firstRow.querySelector('.packaging-select');
                 if (packagingSelect) packagingSelect.innerHTML = '<option value="">---------</option>';
+                
+                // Hide context
+                const poQtyContext = firstRow.querySelector('.po-qty-context');
+                if (poQtyContext) poQtyContext.style.display = 'none';
             }
             
             if (partnerSelect) partnerSelect.value = '';
+            updateItemSelectionState();
             return;
         }
 
-        fetch(`/procurement/purchase-orders/${poId}/items-api/`)
+        const url = currentArrivalId ? `/procurement/purchase-orders/${poId}/items-api/?exclude_arrival=${currentArrivalId}` : `/procurement/purchase-orders/${poId}/items-api/`;
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 if (data.partner_id && partnerSelect) {
@@ -326,13 +342,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     const poItemInput = row.querySelector('input[name$="-po_item"]');
                     
                     if (itemSelect) itemSelect.value = item.id;
-                    if (qtyInput) qtyInput.value = item.order_qty;
+                    if (qtyInput) qtyInput.value = item.remaining_qty;
                     if (poItemInput) poItemInput.value = item.po_item_id;
+
+                    const poQtyContext = row.querySelector('.po-qty-context');
+                    const poQtyValue = row.querySelector('.po-qty-value');
+                    const poPrevValue = row.querySelector('.po-prev-value');
+                    const poRemValue = row.querySelector('.po-rem-value');
+                    if (poQtyContext) {
+                        const unitLabel = item.packaging_name ? item.packaging_name : (item.unit || 'pcs');
+                        if (poQtyValue) poQtyValue.textContent = `${parseInt(item.order_qty)} ${unitLabel}`;
+                        if (poPrevValue) poPrevValue.textContent = `${parseInt(item.arrival_qty)} ${unitLabel}`;
+                        if (poRemValue) poRemValue.textContent = `${parseInt(item.remaining_qty)} ${unitLabel}`;
+                        poQtyContext.style.display = 'block';
+                    }
                     
                     if (itemSelect) {
                         updatePackagingOptions(row, item.id, item.packaging_id);
                     }
                 });
+                updateItemSelectionState();
             })
             .catch(err => console.error('Error fetching PO items:', err));
         
@@ -364,6 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
         totalForms.value = count + 1;
         setupRowListeners(newRow);
         lucide.createIcons();
+        updateItemSelectionState();
     });
 
     document.querySelectorAll('.item-row').forEach(setupRowListeners);
@@ -372,6 +402,52 @@ document.addEventListener('DOMContentLoaded', function() {
     const poSelect = document.querySelector('select[name="purchase_order"]');
     const partnerSelect = document.querySelector('select[name="partner"]');
 
+    function updateItemSelectionState() {
+        const poId = poSelect ? poSelect.value : '';
+        const itemSelects = document.querySelectorAll('select[name$="-item"]');
+        itemSelects.forEach(select => {
+            if (poId) {
+                select.style.pointerEvents = 'none';
+                select.style.opacity = '0.7';
+                select.style.background = 'rgba(255, 255, 255, 0.03)';
+                select.setAttribute('tabindex', '-1');
+            } else {
+                select.style.pointerEvents = 'auto';
+                select.style.opacity = '1';
+                select.style.background = '';
+                select.removeAttribute('tabindex');
+            }
+        });
+    }
+
+    function loadPOContextOnly(poId) {
+        if (!poId) return;
+        const url = currentArrivalId ? `/procurement/purchase-orders/${poId}/items-api/?exclude_arrival=${currentArrivalId}` : `/procurement/purchase-orders/${poId}/items-api/`;
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const rows = Array.from(tbody.querySelectorAll('.item-row'));
+                data.items.forEach((item, index) => {
+                    const row = rows[index];
+                    if (row) {
+                        const poQtyContext = row.querySelector('.po-qty-context');
+                        const poQtyValue = row.querySelector('.po-qty-value');
+                        const poPrevValue = row.querySelector('.po-prev-value');
+                        const poRemValue = row.querySelector('.po-rem-value');
+                        if (poQtyContext) {
+                            const unitLabel = item.packaging_name ? item.packaging_name : (item.unit || 'pcs');
+                            if (poQtyValue) poQtyValue.textContent = `${parseInt(item.order_qty)} ${unitLabel}`;
+                            if (poPrevValue) poPrevValue.textContent = `${parseInt(item.arrival_qty)} ${unitLabel}`;
+                            if (poRemValue) poRemValue.textContent = `${parseInt(item.remaining_qty)} ${unitLabel}`;
+                            poQtyContext.style.display = 'block';
+                        }
+                    }
+                });
+                lucide.createIcons();
+            })
+            .catch(err => console.error('Error fetching PO context:', err));
+    }
+
     if (poSelect) {
         {% if not object %}
         if (poSelect.value) {
@@ -379,6 +455,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         {% endif %}
         poSelect.addEventListener('change', () => setupItemRow(poSelect.value));
+    }
+
+    // Initialize state on page load
+    updateItemSelectionState();
+    if (poSelect && poSelect.value) {
+        loadPOContextOnly(poSelect.value);
     }
 });
 </script>

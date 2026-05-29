@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from procurement.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from partners.models.partner import Partner
 from catalog.models import Item, Category
+from inventory.models import Warehouse
+from procurement.models.arrival import Arrival, ArrivalItem
 from datetime import date
 
 User = get_user_model()
@@ -130,3 +132,108 @@ class TestPurchaseOrderModel:
         po_id = po.id
         po.hard_delete()
         assert PurchaseOrderItem.objects.filter(purchase_order_id=po_id).count() == 0
+
+    def test_purchase_order_item_arrival_qty(self, user, partner, item):
+        """Verify that arrival_qty on PurchaseOrderItem correctly sums non-cancelled arrivals."""
+        # Create a warehouse for arrivals
+        warehouse = Warehouse.objects.create(
+            name="Main Warehouse",
+            code="WH-MAIN",
+            created_by=user
+        )
+        
+        po = PurchaseOrder.objects.create(
+            document_no="PO-ARRIVAL-TEST",
+            partner=partner,
+            created_by=user
+        )
+        
+        po_line = PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            item=item,
+            order_qty=100
+        )
+        
+        # Initially, arrival_qty should be 0
+        assert po_line.arrival_qty == 0
+        
+        # Create an active scheduled arrival
+        arrival1 = Arrival.objects.create(
+            document_no="ARR-ACTIVE-1",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 1),
+            status=Arrival.Status.SCHEDULED,
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival1,
+            item=item,
+            po_item=po_line,
+            expected_qty=40
+        )
+        
+        # Refreshed po_line should show 40
+        assert po_line.arrival_qty == 40
+        
+        # Create an active received arrival
+        arrival2 = Arrival.objects.create(
+            document_no="ARR-ACTIVE-2",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 2),
+            status=Arrival.Status.RECEIVED,
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival2,
+            item=item,
+            po_item=po_line,
+            expected_qty=35
+        )
+        
+        # Refreshed po_line should show 40 + 35 = 75
+        assert po_line.arrival_qty == 75
+        
+        # Create a cancelled arrival (should be excluded)
+        arrival_cancelled = Arrival.objects.create(
+            document_no="ARR-CANCELLED",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 3),
+            status=Arrival.Status.CANCELLED,
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival_cancelled,
+            item=item,
+            po_item=po_line,
+            expected_qty=100
+        )
+        
+        # Refreshed po_line should still show 75 (cancelled shipment is excluded)
+        assert po_line.arrival_qty == 75
+
+        # Create a soft-deleted arrival (should be excluded)
+        arrival_deleted = Arrival.objects.create(
+            document_no="ARR-DELETED",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 4),
+            status=Arrival.Status.SCHEDULED,
+            is_deleted=True,
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival_deleted,
+            item=item,
+            po_item=po_line,
+            expected_qty=150
+        )
+        
+        # Refreshed po_line should still show 75 (deleted shipment is excluded)
+        assert po_line.arrival_qty == 75

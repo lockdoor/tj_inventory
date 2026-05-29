@@ -182,19 +182,35 @@ from django.http import JsonResponse
 
 class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):
     def get(self, request, pk):
+        from django.db.models import Sum
         po = get_object_or_404(PurchaseOrder, pk=pk)
         items = po.items.all().select_related('item', 'packaging')
+        exclude_arrival_id = request.GET.get('exclude_arrival')
+        
+        data_items = []
+        for item in items:
+            # Query all active expected arrivals for this PO line
+            arrival_qs = item.arrival_items.filter(arrival__is_deleted=False).exclude(arrival__status='cancelled')
+            if exclude_arrival_id:
+                arrival_qs = arrival_qs.exclude(arrival_id=exclude_arrival_id)
+            
+            arrival_qty = arrival_qs.aggregate(total=Sum('expected_qty'))['total'] or 0
+            
+            data_items.append({
+                'id': item.item.id,
+                'sku': item.item.sku,
+                'name': item.item.name,
+                'packaging_id': item.packaging.id if item.packaging else None,
+                'packaging_name': item.packaging.name if item.packaging else None,
+                'unit': item.item.unit or 'pcs',
+                'order_qty': float(item.order_qty),
+                'arrival_qty': float(arrival_qty),
+                'remaining_qty': max(0.0, float(item.order_qty) - float(arrival_qty)),
+                'po_item_id': item.id
+            })
+            
         data = {
-            'items': [
-                {
-                    'id': item.item.id,
-                    'sku': item.item.sku,
-                    'name': item.item.name,
-                    'packaging_id': item.packaging.id if item.packaging else None,
-                    'order_qty': float(item.order_qty),
-                    'po_item_id': item.id
-                } for item in items
-            ],
+            'items': data_items,
             'partner_id': po.partner.id if po.partner else None
         }
         return JsonResponse(data)
