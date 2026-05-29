@@ -230,6 +230,7 @@ class TestSalesOrderDetailAndRefreshViews:
         assert shortage_alloc.shortage is not None
 
     def test_manual_allocate_view_post_blocked_cancelled(self, client, test_user, sales_order):
+        from django.core.exceptions import ValidationError
         # Cancel order
         from sales.services.sales_service import SalesService
         SalesService.cancel_order(sales_order, user=test_user)
@@ -239,9 +240,39 @@ class TestSalesOrderDetailAndRefreshViews:
         client.force_login(test_user)
         url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
         
-        response = client.post(url, data={})
-        assert response.status_code == 302
-        assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+        with pytest.raises(ValidationError) as excinfo:
+            client.post(url, data={})
+        assert "Cannot manually allocate items for orders that are not in Draft status." in str(excinfo.value)
+
+    def test_manual_allocate_view_get_blocked_cancelled(self, client, test_user, sales_order):
+        from django.core.exceptions import ValidationError
+        # Cancel order
+        from sales.services.sales_service import SalesService
+        SalesService.cancel_order(sales_order, user=test_user)
+        assert sales_order.status == SalesOrder.Status.CANCELLED
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        
+        with pytest.raises(ValidationError) as excinfo:
+            client.get(url)
+        assert "Cannot manually allocate items for orders that are not in Draft status." in str(excinfo.value)
+
+    def test_reset_allocation_view_post_blocked_cancelled(self, client, test_user, sales_order):
+        from django.core.exceptions import ValidationError
+        # Cancel order
+        from sales.services.sales_service import SalesService
+        SalesService.cancel_order(sales_order, user=test_user)
+        assert sales_order.status == SalesOrder.Status.CANCELLED
+
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-reset-allocation', kwargs={'item_pk': item_line.pk})
+        
+        with pytest.raises(ValidationError) as excinfo:
+            client.post(url)
+        assert "Cannot modify allocations for orders that are not in Draft status." in str(excinfo.value)
 
     def test_reset_allocation_view_post(self, client, test_user, sales_order, item, warehouse):
         # Setup manual reservations

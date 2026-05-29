@@ -251,8 +251,7 @@ class TestSalesOrderWarehouseIntegration:
                 "unit_price": 5.00
             }]
         )
-        order.status = SalesOrder.Status.PREORDER
-        order.save()
+        assert order.status == SalesOrder.Status.DRAFT
 
         # Increase physical stock balance so the shortage can be fully covered by stock
         self.stock.refresh_from_db()

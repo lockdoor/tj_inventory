@@ -37,6 +37,10 @@ class TestSalesOverviewView:
         client.login(username='staff', password='password123')
         url = reverse('sales:overview')
 
+        # Create catalog item first
+        from catalog.models import Item
+        catalog_item = Item.objects.create(sku="SKU1", name="Item 1", created_by=user)
+
         # Create active sales orders of different statuses
         # Confirmed
         order_confirmed = SalesService.create_order(
@@ -46,6 +50,7 @@ class TestSalesOverviewView:
             order_date=date.today(),
             order_type=SalesOrder.OrderType.NORMAL
         )
+        SalesService.add_item(order_confirmed, item=catalog_item, requested_qty=10, unit_price=10.00)
         order_confirmed.status = SalesOrder.Status.CONFIRMED
         order_confirmed.save()
 
@@ -57,6 +62,7 @@ class TestSalesOverviewView:
             order_date=date.today(),
             order_type=SalesOrder.OrderType.PREORDER
         )
+        SalesService.add_item(order_preorder, item=catalog_item, requested_qty=5, unit_price=20.00) # 100.00
         order_preorder.status = SalesOrder.Status.PREORDER
         order_preorder.save()
 
@@ -68,6 +74,7 @@ class TestSalesOverviewView:
             order_date=date.today(),
             order_type=SalesOrder.OrderType.NORMAL
         )
+        SalesService.add_item(order_draft, item=catalog_item, requested_qty=2, unit_price=15.00) # 30.00
         order_draft.status = SalesOrder.Status.DRAFT
         order_draft.save()
 
@@ -79,6 +86,8 @@ class TestSalesOverviewView:
             order_date=date.today(),
             order_type=SalesOrder.OrderType.NORMAL
         )
+        # Add manually to cancelled order
+        SalesOrderItem.objects.create(order=order_cancelled, item=catalog_item, requested_qty=1, unit_price=50.00)
         order_cancelled.status = SalesOrder.Status.CANCELLED
         order_cancelled.save()
 
@@ -90,21 +99,11 @@ class TestSalesOverviewView:
             order_date=date.today(),
             order_type=SalesOrder.OrderType.NORMAL
         )
+        # Add manually to deleted order
+        SalesOrderItem.objects.create(order=order_deleted, item=catalog_item, requested_qty=10, unit_price=100.00)
         order_deleted.status = SalesOrder.Status.CONFIRMED
         order_deleted.is_deleted = True
         order_deleted.save()
-
-        # Add items to calculate revenue
-        from catalog.models import Item
-        catalog_item = Item.objects.create(sku="SKU1", name="Item 1", created_by=user)
-        SalesService.add_item(order_confirmed, item=catalog_item, requested_qty=10, unit_price=10.00)
-        SalesService.add_item(order_preorder, item=catalog_item, requested_qty=5, unit_price=20.00) # 100.00
-        SalesService.add_item(order_draft, item=catalog_item, requested_qty=2, unit_price=15.00) # 30.00
-        
-        # Add manually to cancelled order
-        SalesOrderItem.objects.create(order=order_cancelled, item=catalog_item, requested_qty=1, unit_price=50.00)
-        # Add manually to deleted order
-        SalesOrderItem.objects.create(order=order_deleted, item=catalog_item, requested_qty=10, unit_price=100.00)
 
         response = client.get(url)
         assert response.status_code == 200

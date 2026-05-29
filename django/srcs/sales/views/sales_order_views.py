@@ -852,9 +852,8 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         item = order_item.item
 
         # Gating protection
-        if order.status in [SalesOrder.Status.CANCELLED, SalesOrder.Status.SHIPPED]:
-            messages.error(request, "Cannot manually allocate items for cancelled or shipped orders.")
-            return redirect('sales:sales-order-detail', pk=order.pk)
+        if order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError("Cannot manually allocate items for orders that are not in Draft status.")
 
         # 1. Map existing manual allocations to pre-fill inputs
         stock_alloc_map = {}
@@ -864,7 +863,7 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
                 stock_alloc_map[alloc.physical_reservation.stock.pk] = float(alloc.quantity)
             elif alloc.source_type == SalesAllocation.SourceType.ARRIVAL and alloc.arrival_reservation:
                 arrival_alloc_map[alloc.arrival_reservation.arrival_item.pk] = float(alloc.quantity)
-
+ 
         # 2. Release and delete all current allocations (manual & auto) atomically
         # to restore available stock balances before displaying the page
         try:
@@ -889,14 +888,14 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         except Exception as e:
             messages.error(request, f"Error preparing manual allocation workspace: {str(e)}")
             return redirect('sales:sales-order-detail', pk=order.pk)
-
+ 
         # 3. Fetch active physical stock lots with non-zero available quantity
         stocks = Stock.objects.filter(
             item=item,
             is_deleted=False,
             status='active'
         ).exclude(balance=0).select_related('warehouse').order_by('exp_date', 'created_at')
-
+ 
         # 4. Fetch expected arrivals preloaded (must arrive on or before order expected date)
         arrival_items = ArrivalItem.objects.filter(
             item=item,
@@ -904,14 +903,14 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             arrival__expected_date__lte=order.order_date,
             arrival__is_deleted=False
         ).select_related('arrival__warehouse', 'arrival').order_by('arrival__expected_date')
-
+ 
         # 5. Pre-populate UI inputs with the stored previous manual reservation quantities
         for s in stocks:
             s.allocated_qty = stock_alloc_map.get(s.pk, 0.0)
-
+ 
         for ai in arrival_items:
             ai.allocated_qty = arrival_alloc_map.get(ai.pk, 0.0)
-
+ 
         context = {
             'page_title': f"Allocate Sourcing: {item.sku}",
             'order_item': order_item,
@@ -921,15 +920,14 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             'arrival_items': arrival_items,
         }
         return render(request, self.template_name, context)
-
+ 
     def post(self, request, *args, **kwargs):
         order_item = get_object_or_404(SalesOrderItem, pk=self.kwargs.get('item_pk'))
         order = order_item.order
-
+ 
         # Gating protection
-        if order.status in [SalesOrder.Status.CANCELLED, SalesOrder.Status.SHIPPED]:
-            messages.error(request, "Cannot manually allocate items for cancelled or shipped orders.")
-            return redirect('sales:sales-order-detail', pk=order.pk)
+        if order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError("Cannot manually allocate items for orders that are not in Draft status.")
 
         from decimal import Decimal, InvalidOperation
         try:
@@ -1035,9 +1033,8 @@ class SalesOrderItemResetAllocationView(LoginRequiredMixin, PermissionRequiredMi
         order_item = get_object_or_404(SalesOrderItem, pk=self.kwargs.get('item_pk'))
         order = order_item.order
 
-        if order.status in [SalesOrder.Status.CANCELLED, SalesOrder.Status.SHIPPED]:
-            messages.error(request, "Cannot modify allocations for cancelled or shipped orders.")
-            return redirect('sales:sales-order-detail', pk=order.pk)
+        if order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError("Cannot modify allocations for orders that are not in Draft status.")
 
         try:
             with transaction.atomic():

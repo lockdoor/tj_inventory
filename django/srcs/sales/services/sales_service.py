@@ -193,6 +193,11 @@ class SalesService:
         2. Respects In-Flight shortages.
         3. Fills the gap with Stock (FEFO) -> Arrivals.
         """
+        if order_item.order.status != SalesOrder.Status.DRAFT:
+            raise ValidationError(
+                f"Cannot refresh allocations for order {order_item.order.document_no} because it is not in Draft status."
+            )
+
         remaining_qty = order_item.requested_qty
         
         # Look up any existing pending shortage record for this order item to reuse/update instead of deleting and recreating.
