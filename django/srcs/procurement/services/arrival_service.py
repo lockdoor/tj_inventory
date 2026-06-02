@@ -313,6 +313,75 @@ class ArrivalService:
             else:
                 arrival_item.received_qty = total_received_pieces
             arrival_item.save()
+
+            # --- PROMOTION OF ARRIVAL RESERVATIONS TO PHYSICAL STOCK RESERVATIONS ---
+            # Find the movement item(s) for this arrival_item in the completed movement
+            m_items = InventoryMovementItem.objects.filter(
+                arrival_item=arrival_item,
+                movement=movement
+            )
+
+            for m_item in m_items:
+                from inventory.models import Stock, StockReservation
+                from sales.models import SalesAllocation
+                try:
+                    stock = Stock.objects.get(
+                        warehouse=movement.warehouse,
+                        item=arrival_item.item,
+                        lot_number=m_item.lot_number,
+                        is_deleted=False
+                    )
+                except Stock.DoesNotExist:
+                    continue
+
+                from procurement.models import ArrivalReservation
+                arrival_reservations = list(ArrivalReservation.objects.filter(
+                    arrival_item=arrival_item
+                ).order_by('created_at'))
+
+                remaining_received = m_item.quantity
+                for arr_res in arrival_reservations:
+                    if remaining_received <= 0:
+                        break
+
+                    promote_qty = min(arr_res.quantity, remaining_received)
+                    if promote_qty <= 0:
+                        continue
+
+                    # 1. Create a physical StockReservation
+                    from inventory.services import ReservationService
+                    physical_lock = StockReservation.objects.create(
+                        stock=stock,
+                        quantity=promote_qty,
+                        reference_no=arr_res.reference_no,
+                        reference_type=arr_res.reference_type,
+                        sales_item=arr_res.sales_item,
+                        origin_arrival_item=arrival_item,
+                        status=StockReservation.ReservationStatus.RESERVED,
+                        created_by=user or arr_res.created_by or movement.created_by
+                    )
+
+                    # 2. Update matching SalesAllocation(s) to transition from Arrival to Stock type
+                    allocations = SalesAllocation.objects.filter(
+                        arrival_reservation=arr_res
+                    )
+                    for alloc in allocations:
+                        alloc.source_type = SalesAllocation.SourceType.STOCK
+                        alloc.physical_reservation = physical_lock
+                        alloc.arrival_reservation = None
+                        alloc.save()
+
+                    # 3. Handle partial received promotion:
+                    if promote_qty < arr_res.quantity:
+                        arr_res.quantity -= promote_qty
+                        arr_res.save()
+                    else:
+                        arr_res.delete()
+
+                    remaining_received -= promote_qty
+
+                    # 4. Trigger stock reserved quantity sync
+                    ReservationService._sync_stock_reserved_qty(stock)
                 
         arrival.save()
         return arrival

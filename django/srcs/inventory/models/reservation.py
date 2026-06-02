@@ -53,6 +53,16 @@ class StockReservation(AuditableMixin):
         related_name='physical_reservations'
     )
     
+    # Lineage Ancestry (Optional)
+    origin_arrival_item = models.ForeignKey(
+        'procurement.ArrivalItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='physical_reservations',
+        help_text="The incoming shipment line that fulfilled this physical reservation hold"
+    )
+    
     status = models.CharField(
         max_length=20,
         choices=ReservationStatus.choices,
