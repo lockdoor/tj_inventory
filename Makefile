@@ -74,6 +74,7 @@ restore_db:
 # rm -f db.sqlite3
 # python manage.py migrate
 # python manage.py loaddata ../migrate/data/datadump.json
+# python manage.py seed_groups
 
 dump_json:
 	docker exec -it django python manage.py dumpdata --exclude auth.permission --exclude contenttypes > datadump.json

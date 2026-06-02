@@ -93,7 +93,7 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     'quantity': int(pkg.quantity),
                 })
 
-            for stock in item.stocks.filter(is_deleted=False, status='active'):
+            for stock in item.stocks.filter(is_deleted=False, status='active').exclude(balance=0):
                 total_balance += stock.balance
                 total_reserved += stock.reserved_qty
                 

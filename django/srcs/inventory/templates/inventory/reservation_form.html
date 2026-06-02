@@ -62,7 +62,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
             <!-- Quantity to Reserve -->
             <div class="form-group">
-                <label for="{{ form.quantity.id_for_label }}" class="glass-label">Quantity to Hold</label>
+                <label for="{{ form.quantity.id_for_label }}" class="glass-label">Quantity to Hold<span id="available-qty"></span></label>
                 {{ form.quantity }}
                 {% if form.quantity.errors %}
                     <div class="form-error">{{ form.quantity.errors.0 }}</div>
@@ -124,8 +124,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Store all original options
     const originalOptions = Array.from(stockSelect.options);
 
+    function updateAvailableQty() {
+        const selectedOption = stockSelect.options[stockSelect.selectedIndex];
+        const qtySpan = document.getElementById('available-qty');
+        if (!qtySpan) return;
+
+        if (selectedOption && selectedOption.value) {
+            const avail = selectedOption.getAttribute('data-available');
+            if (avail) {
+                qtySpan.textContent = ` (Available: ${avail})`;
+                qtySpan.style.color = 'var(--primary-light)';
+                qtySpan.style.fontWeight = '600';
+                qtySpan.style.marginLeft = '0.5rem';
+            } else {
+                qtySpan.textContent = '';
+            }
+        } else {
+            qtySpan.textContent = '';
+        }
+    }
+
     warehouseSelect.addEventListener('change', function() {
-        const selectedIndex = warehouseSelect.selectedIndex;
         const selectedValue = warehouseSelect.value;
         
         // Save current selection value
@@ -146,17 +165,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // If "All Locations" is selected, show all options
                 stockSelect.appendChild(opt.cloneNode(true));
             } else {
-                // Option label format: Lot: [lot] | SKU: [sku] | [name] | [warehouse] (Avail: [qty])
-                const parts = opt.text.split(' | ');
-                if (parts.length >= 4) {
-                    const warehousePart = parts[3]; // e.g. "Main WH (Avail: 74.50)"
-                    const lastOpenParenIndex = warehousePart.lastIndexOf(' (Avail:');
-                    if (lastOpenParenIndex !== -1) {
-                        const warehouseName = warehousePart.substring(0, lastOpenParenIndex).trim();
-                        if (warehouseName === selectedValue) {
-                            stockSelect.appendChild(opt.cloneNode(true));
-                        }
-                    }
+                const optWarehouse = opt.getAttribute('data-warehouse');
+                if (optWarehouse === selectedValue) {
+                    stockSelect.appendChild(opt.cloneNode(true));
                 }
             }
         });
@@ -168,7 +179,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             stockSelect.value = '';
         }
+
+        updateAvailableQty();
     });
+
+    // Update quantity display when stock selection changes
+    stockSelect.addEventListener('change', updateAvailableQty);
+
+    // Initial load
+    updateAvailableQty();
 });
 </script>
 

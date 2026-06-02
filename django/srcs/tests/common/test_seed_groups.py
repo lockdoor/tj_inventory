@@ -261,7 +261,7 @@ class TestAdminRole:
 
     def test_superuser_has_all_permissions_without_group(self):
         admin = User.objects.create_superuser(
-            username='admin', password='admin123',
+            username='testadmin', password='admin123',
         )
         # Superuser bypasses permission checks entirely
         assert admin.has_perm('catalog.add_category') is True

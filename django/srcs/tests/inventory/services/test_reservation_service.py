@@ -162,3 +162,17 @@ def test_auditable_history_trail(stock_setup, test_user):
     assert history_entries[0].quantity == Decimal("25.00")
     assert history_entries[1].quantity == Decimal("40.00")
 
+
+def test_hard_delete_reservation_recalculates_reserved_qty(stock_setup, test_user):
+    """Test that physically/hard-deleting a StockReservation automatically updates stock.reserved_qty via post_delete signal."""
+    res1 = ReservationService.reserve(stock_setup, Decimal("25.00"), "SO-HD-001", created_by=test_user)
+    res2 = ReservationService.reserve(stock_setup, Decimal("15.00"), "SO-HD-002", created_by=test_user)
+    
+    stock_setup.refresh_from_db()
+    assert stock_setup.reserved_qty == Decimal("40.00")
+    
+    res1.hard_delete()
+    
+    stock_setup.refresh_from_db()
+    assert stock_setup.reserved_qty == Decimal("15.00")
+

@@ -335,3 +335,44 @@ class Command(BaseCommand):
                 '(no group needed).'
             )
         )
+
+        self.seed_default_user()
+
+    def seed_default_user(self):
+        '''use in development only'''
+        from django.contrib.auth.models import User
+        
+        admin = User.objects.filter(username='admin').first()
+        if not admin:
+            admin = User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+            self.stdout.write(self.style.SUCCESS('✓ Created superuser "admin"'))
+        else:
+            self.stdout.write(self.style.SUCCESS('✓ Superuser "admin" already exists.'))
+
+        whadmin = User.objects.filter(username='whadmin').first()
+        if not whadmin:
+            whadmin = User.objects.create_user('whadmin', 'whadmin@example.com', 'tj123456')
+            self.stdout.write(self.style.SUCCESS('✓ Created user "whadmin"'))
+            whadmin.groups.add(Group.objects.get(name='warehouse_admin'))
+            self.stdout.write(self.style.SUCCESS('✓ Added user "whadmin" to group "warehouse_admin"'))
+        else:
+            self.stdout.write(self.style.SUCCESS('✓ User "whadmin" already exists.'))
+
+        stctrl = User.objects.filter(username='stctrl').first()
+        if not stctrl:
+            stctrl = User.objects.create_user('stctrl', 'stctrl@example.com', 'tj123456')
+            self.stdout.write(self.style.SUCCESS('✓ Created user "stctrl"'))
+            stctrl.groups.add(Group.objects.get(name='stock_controller'))
+            self.stdout.write(self.style.SUCCESS('✓ Added user "stctrl" to group "stock_control"'))
+        else:
+            self.stdout.write(self.style.SUCCESS('✓ User "stctrl" already exists.'))
+
+        sale= User.objects.filter(username='sale').first()
+        if not sale:
+            sale = User.objects.create_user('sale', 'sale@example.com', 'tj123456')
+            self.stdout.write(self.style.SUCCESS('✓ Created user "sale"'))
+            sale.groups.add(Group.objects.get(name='sales_rep'))
+            self.stdout.write(self.style.SUCCESS('✓ Added user "sale" to group "sales_rep"'))
+        else:
+            self.stdout.write(self.style.SUCCESS('✓ User "sale" already exists.'))
+        

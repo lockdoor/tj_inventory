@@ -191,3 +191,89 @@ class TestSalesServiceAllocation:
         auto_alloc = order_item.allocations.get(is_manual=False)
         assert auto_alloc.source_type == SalesAllocation.SourceType.SHORTAGE
         assert auto_alloc.quantity == 60
+
+
+@mark_db
+class TestSalesOrderHardDeleteCleanup:
+
+    def test_hard_delete_sales_order_releases_all_reservations_and_shortages(self, item, partner, user, supplier, warehouse):
+        """
+        Verify that hard-deleting a SalesOrder cleanly triggers the pre_delete signals
+        to release/delete all associated StockReservations, ArrivalReservations, and Shortages.
+        """
+        # 1. Setup physical stock
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-HD-001",
+            balance=100,
+            reserved_qty=0,
+            created_by=user
+        )
+
+        # 2. Setup scheduled arrival
+        arrival = Arrival.objects.create(
+            document_no="ARR-HD-001",
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=date.today(),
+            status='scheduled',
+            created_by=user
+        )
+        arrival_item = ArrivalItem.objects.create(
+            arrival=arrival,
+            item=item,
+            expected_qty=100
+        )
+
+        # 3. Create a Sales Order that allocates from stock, arrival, and shortage
+        # We need a requested qty of 250 (100 from stock, 100 from arrival, 50 shortage)
+        order = SalesService.create_order(
+            document_no="SO-HD-999",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            items=[{'item': item, 'requested_qty': 250, 'unit_price': 100}]
+        )
+
+        order_item = order.items.first()
+        
+        # Verify allocations are active
+        assert order_item.allocations.count() == 3
+        
+        # Verify Stock Reservation
+        stock.refresh_from_db()
+        assert stock.reserved_qty == 100
+        
+        # Verify Arrival Reservation
+        arrival_item.refresh_from_db()
+        assert arrival_item.reserved_qty == 100
+        
+        # Verify Shortage
+        shortage_qs = Shortage.objects.filter(reference_id="SO-HD-999")
+        assert shortage_qs.exists()
+        assert shortage_qs.filter(is_deleted=False).count() == 1
+
+        # 4. Now, HARD DELETE the SalesOrder (just like the user did in django shell)
+        order.hard_delete()
+
+        # 5. Assertions:
+        # A. Stock reserved quantity must revert back to 0
+        stock.refresh_from_db()
+        assert stock.reserved_qty == 0
+
+        # B. All StockReservations for this sales item must be marked as RELEASED and soft-deleted (is_deleted=True)
+        res_qs = StockReservation.objects.filter(reference_no="SO-HD-999")
+        for res in res_qs:
+            assert res.status == StockReservation.ReservationStatus.RELEASED
+            assert res.is_deleted is True
+
+        # C. Arrival Item reserved quantity must revert back to 0
+        arrival_item.refresh_from_db()
+        assert arrival_item.reserved_qty == 0
+
+        # D. All ArrivalReservations for this sales item must be physically deleted
+        assert not ArrivalReservation.objects.filter(reference_no="SO-HD-999").exists()
+
+        # E. Shortages for this sales order must be soft-deleted
+        assert not Shortage.objects.filter(reference_id="SO-HD-999", is_deleted=False).exists()

@@ -41,6 +41,8 @@
                     <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 40px;"></th>
                     <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em;">Entity Name / SKU</th>
                     <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; width: 250px;">Details / Lot #</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; text-align: right; width: 120px;">Reserved</th>
+                    <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; text-align: right; width: 120px;">Available</th>
                     <th style="padding: 1.25rem 1.5rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.1em; text-align: right; width: 140px;">Current Balance</th>
                 </tr>
             </thead>
@@ -61,6 +63,16 @@
                         </td>
                         <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.85rem;">
                             Code: {{ wh_node.warehouse.code }}
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <div style="font-weight: 700; color: #f87171; font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;">
+                                {% if wh_node.total_reserved != 0 %}{{ wh_node.total_reserved|floatformat:2 }}{% else %}-{% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 1.25rem 1.5rem; text-align: right;">
+                            <div style="font-weight: 700; color: #34d399; font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;">
+                                {% if wh_node.total_available != 0 %}{{ wh_node.total_available|floatformat:2 }}{% else %}-{% endif %}
+                            </div>
                         </td>
                         <td style="padding: 1.25rem 1.5rem; text-align: right;">
                             <div style="font-weight: 800; color: var(--primary-light); font-size: 1.1rem; font-family: 'JetBrains Mono', monospace;">
@@ -85,6 +97,16 @@
                                 {{ item_node.lots|length }} active batches
                             </td>
                             <td style="padding: 1rem 1.5rem; text-align: right;">
+                                <div style="font-weight: 600; color: #f87171; font-size: 0.95rem; font-family: 'JetBrains Mono', monospace;">
+                                    {% if item_node.total_reserved != 0 %}{{ item_node.total_reserved|floatformat:2 }}{% else %}-{% endif %}
+                                </div>
+                            </td>
+                            <td style="padding: 1rem 1.5rem; text-align: right;">
+                                <div style="font-weight: 600; color: #34d399; font-size: 0.95rem; font-family: 'JetBrains Mono', monospace;">
+                                    {% if item_node.total_available != 0 %}{{ item_node.total_available|floatformat:2 }}{% else %}-{% endif %}
+                                </div>
+                            </td>
+                            <td style="padding: 1rem 1.5rem; text-align: right;">
                                 <div style="font-weight: 700; color: var(--text-main); font-size: 1rem; font-family: 'JetBrains Mono', monospace;">
                                     {{ item_node.total_balance|floatformat:2 }}
                                 </div>
@@ -106,6 +128,16 @@
                                     {% endif %}
                                 </td>
                                 <td style="padding: 0.75rem 1.5rem; text-align: right;">
+                                    <div style="font-weight: 400; color: #fca5a5; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">
+                                        {% if lot.reserved_qty != 0 %}{{ lot.reserved_qty|floatformat:2 }}{% else %}-{% endif %}
+                                    </div>
+                                </td>
+                                <td style="padding: 0.75rem 1.5rem; text-align: right;">
+                                    <div style="font-weight: 400; color: #a7f3d0; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace;">
+                                        {% if lot.available_qty != 0 %}{{ lot.available_qty|floatformat:2 }}{% else %}-{% endif %}
+                                    </div>
+                                </td>
+                                <td style="padding: 0.75rem 1.5rem; text-align: right;">
                                     <div style="font-weight: 500; color: var(--text-dim); font-size: 0.9rem; font-family: 'JetBrains Mono', monospace;">
                                         {{ lot.balance|floatformat:2 }}
                                     </div>
@@ -121,9 +153,17 @@
                         Grand Total Inventory
                     </td>
                     <td style="padding: 1.5rem; text-align: right;">
+                        <div style="font-weight: 700; color: #f87171; font-size: 1.2rem; font-family: 'JetBrains Mono', monospace;">
+                            <span id="grand-reserved-display">-</span>
+                        </div>
+                    </td>
+                    <td style="padding: 1.5rem; text-align: right;">
+                        <div style="font-weight: 700; color: #34d399; font-size: 1.2rem; font-family: 'JetBrains Mono', monospace;">
+                            <span id="grand-available-display">-</span>
+                        </div>
+                    </td>
+                    <td style="padding: 1.5rem; text-align: right;">
                         <div style="font-weight: 900; color: var(--primary-light); font-size: 1.4rem; font-family: 'JetBrains Mono', monospace;">
-                            {% widthratio 1 1 0 as total %}{% for w in hierarchy %}{% widthratio total 1 w.total_balance as total %}{% endfor %}{{ total|default:"0.00" }}
-                            {# Wait, calculating total in template is messy, I'll pass it from view or sum hierarchy in JS #}
                             <span id="grand-total-display">-</span>
                         </div>
                     </td>
@@ -174,15 +214,17 @@
 
     // Initial Grand Total Calculation
     document.addEventListener('DOMContentLoaded', () => {
-        let grandTotal = 0;
-        document.querySelectorAll('.warehouse-row .JetBrains').forEach(el => {
-            // This is a bit brittle, I'll just rely on the view data
-        });
-        
-        // Better: calculate from hierarchy values passed to data attribute or similar
         const whTotals = [{% for wh in hierarchy %}{{ wh.total_balance }},{% endfor %}];
-        grandTotal = whTotals.reduce((a, b) => a + b, 0);
+        const whReserved = [{% for wh in hierarchy %}{{ wh.total_reserved }},{% endfor %}];
+        const whAvailable = [{% for wh in hierarchy %}{{ wh.total_available }},{% endfor %}];
+        
+        const grandTotal = whTotals.reduce((a, b) => a + b, 0);
+        const grandReserved = whReserved.reduce((a, b) => a + b, 0);
+        const grandAvailable = whAvailable.reduce((a, b) => a + b, 0);
+        
         document.getElementById('grand-total-display').innerText = grandTotal.toFixed(2);
+        document.getElementById('grand-reserved-display').innerText = grandReserved.toFixed(2);
+        document.getElementById('grand-available-display').innerText = grandAvailable.toFixed(2);
     });
 </script>
 

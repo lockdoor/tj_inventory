@@ -136,3 +136,44 @@ class SalesOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.order.document_no} - {self.item.sku} ({self.requested_qty})"
+
+
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+
+@receiver(pre_delete, sender=SalesOrderItem)
+def cleanup_sales_order_item_allocations_and_reservations(sender, instance, **kwargs):
+    """
+    When a SalesOrderItem is deleted (even via cascade or django shell),
+    ensure all associated physical stock reservations, arrival pre-allocations,
+    and shortage records are released, deleted, or cancelled cleanly to keep stock balances in sync.
+    """
+    from inventory.services.reservation_service import ReservationService
+    from inventory.models.reservation import StockReservation
+    from procurement.services.reservation_service import ArrivalReservationService
+    from procurement.models.reservation import ArrivalReservation
+    from procurement.models.shortage import Shortage
+
+    # 1. Release and delete physical stock reservations linked to this item
+    physical_reservations = StockReservation.objects.filter(
+        sales_item=instance,
+        is_deleted=False
+    )
+    for res in list(physical_reservations):
+        ReservationService.release(res)
+
+    # 2. Release and delete arrival commitments linked to this item
+    arrival_reservations = ArrivalReservation.objects.filter(
+        sales_item=instance
+    )
+    for res in list(arrival_reservations):
+        ArrivalReservationService.release(res)
+
+    # 3. Soft-delete outstanding shortages associated with this item line
+    shortages = Shortage.objects.filter(
+        reference_type=Shortage.ReferenceType.SELL_ORDER,
+        reference_id=instance.order.document_no,
+        item=instance.item
+    )
+    for shortage in shortages:
+        shortage.delete()

@@ -6,5 +6,5 @@ class SalesConfig(AppConfig):
     name = 'sales'
 
     def ready(self):
-        # Explicit synchronization is now handled by Inventory.ReservationService
-        pass
+        # Explicitly import sales_order models to register signal receivers
+        import sales.models.sales_order

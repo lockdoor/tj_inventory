@@ -80,3 +80,20 @@ class StockReservation(AuditableMixin):
 
     def __str__(self):
         return f"HOLD ({self.status}): {self.reference_no} | {self.stock.lot_number} ({self.quantity})"
+
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=StockReservation)
+def sync_stock_reserved_qty_on_reservation_delete(sender, instance, **kwargs):
+    """
+    Ensure the associated Stock lot's reserved_qty is recalculated and
+    synchronized when a StockReservation is physically deleted from the database.
+    """
+    from inventory.services.reservation_service import ReservationService
+    try:
+        ReservationService._sync_stock_reserved_qty(instance.stock)
+    except Exception:
+        # Protect against cascading deletions where the Stock lot itself is deleted
+        pass

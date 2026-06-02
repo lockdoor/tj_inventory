@@ -25,9 +25,13 @@ class StockService:
         hierarchy = defaultdict(lambda: {
             'warehouse': None,
             'total_balance': 0,
+            'total_reserved': 0,
+            'total_available': 0,
             'items': defaultdict(lambda: {
                 'item': None,
                 'total_balance': 0,
+                'total_reserved': 0,
+                'total_available': 0,
                 'lots': []
             })
         })
@@ -49,7 +53,12 @@ class StockService:
             
             # Update Totals
             hierarchy[wh_id]['items'][item_id]['total_balance'] += s.balance
+            hierarchy[wh_id]['items'][item_id]['total_reserved'] += s.reserved_qty
+            hierarchy[wh_id]['items'][item_id]['total_available'] += s.available_qty
+            
             hierarchy[wh_id]['total_balance'] += s.balance
+            hierarchy[wh_id]['total_reserved'] += s.reserved_qty
+            hierarchy[wh_id]['total_available'] += s.available_qty
 
         # Convert to list for easier template iteration
         result = []
