@@ -103,13 +103,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'badge': 'Arrivals'
             },
             {
-                'title': 'Stock Reservations',
-                'description': 'Monitor physical stock locks and active allocation holds.',
-                'url': 'inventory:reservation-list',
-                'icon_name': 'lock',
-                'badge': 'Holds'
-            },
-            {
                 'title': 'Product Catalog',
                 'description': 'View item specifications and media (Read-Only).',
                 'url': 'catalog:catalog-overview',

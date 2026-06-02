@@ -20,85 +20,27 @@
     <!-- Inventory Module Grid -->
     <div class="module-grid"
         style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-
-        <!-- Warehouse Card -->
-        <a href="{% url 'inventory:warehouse-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
-            <div class="card-icon warehouse-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 21h18"></path>
-                    <path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4"></path>
-                    <path d="M5 21V10.85"></path>
-                    <path d="M19 21V10.85"></path>
-                    <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"></path>
-                </svg>
+        {% for module in modules %}
+        <a href="{% url module.url %}" class="glass-card inventory-card" style="text-decoration: none;">
+            <div class="card-bg-glow"></div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; z-index: 2;">
+                <div class="card-icon {{ module.icon_class }}">
+                    <i data-lucide="{{ module.icon_name }}" style="width: 24px; height: 24px;"></i>
+                </div>
+                {% if module.badge %}
+                <span class="status-pill">{{ module.badge }}</span>
+                {% endif %}
             </div>
-            <h3>Warehouses</h3>
-            <p>Manage physical storage locations, capacity, and active status.</p>
-            <div class="card-footer">
-                <span class="status-pill">Structure</span>
-            </div>
-        </a>
-
-        <!-- Movement Card -->
-        <a href="{% url 'inventory:movement-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
-            <div class="card-icon movement-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m16 3 4 4-4 4"></path>
-                    <path d="M20 7H4"></path>
-                    <path d="m8 21-4-4 4-4"></path>
-                    <path d="M4 17h16"></path>
-                </svg>
-            </div>
-            <h3>Movements</h3>
-            <p>Create or update Inbound and Outbound documents (Stock Entries).</p>
-            <div class="card-footer">
-                <span class="status-pill">Operations</span>
+            <h3 style="z-index: 2;">{{ module.title }}</h3>
+            <p style="z-index: 2;">{{ module.description }}</p>
+            <div class="card-footer" style="z-index: 2;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--primary-light); font-weight: 600; font-size: 0.875rem;">
+                    <span>Open Module</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
             </div>
         </a>
-
-        <!-- Stock Balance Card -->
-        <a href="{% url 'inventory:stock-balance-list' %}" class="glass-card inventory-card"
-            style="text-decoration: none;">
-            <div class="card-icon stock-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m7.5 4.27 9 5.15"></path>
-                    <path
-                        d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z">
-                    </path>
-                    <path d="m3.3 7 8.7 5 8.7-5"></path>
-                    <path d="M12 22V12"></path>
-                </svg>
-            </div>
-            <h3>Stock Balances</h3>
-            <p>Real-time visibility of available quantity per LOT and Location.</p>
-            <div class="card-footer">
-                <span class="status-pill">Inventory</span>
-            </div>
-        </a>
-
-        <!-- StockCard Card -->
-        <a href="{% url 'inventory:stockcard-list' %}" class="glass-card inventory-card" style="text-decoration: none;">
-            <div class="card-icon ledger-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                    <path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"></path>
-                    <path d="M12 11h4"></path>
-                    <path d="M12 16h4"></path>
-                    <path d="M8 11h.01"></path>
-                    <path d="M8 16h.01"></path>
-                </svg>
-            </div>
-            <h3>Stock Cards</h3>
-            <p>Immutable audit ledger for every transaction history.</p>
-            <div class="card-footer">
-                <span class="status-pill">Audit Ledger</span>
-            </div>
-        </a>
-
+        {% endfor %}
     </div>
 </div>
 
@@ -111,12 +53,39 @@
         transition: var(--transition);
         border: 1px solid rgba(255, 255, 255, 0.05);
         cursor: pointer;
+        position: relative;
+        overflow: hidden;
     }
 
     .inventory-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-8px);
         border-color: var(--primary-light);
         background: rgba(255, 255, 255, 0.05);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(16, 185, 129, 0.1);
+    }
+
+    .inventory-card .card-bg-glow {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+        opacity: 0;
+        transition: var(--transition);
+        pointer-events: none;
+    }
+
+    .inventory-card:hover .card-bg-glow {
+        opacity: 1;
+    }
+
+    .inventory-card:hover .arrow-icon {
+        transform: translateX(4px);
+    }
+
+    .arrow-icon {
+        transition: var(--transition);
     }
 
     .card-icon {
@@ -153,6 +122,12 @@
         background: rgba(139, 92, 246, 0.1);
         color: #a78bfa;
         border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .reservation-icon {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 
     .inventory-card h3 {
