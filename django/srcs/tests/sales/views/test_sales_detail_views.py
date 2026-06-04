@@ -125,9 +125,9 @@ class TestSalesOrderDetailAndRefreshViews:
         item_line.refresh_from_db()
         assert item_line.status == SalesOrderItem.Status.ALLOCATED
         assert item_line.allocated_qty == Decimal("10.00")
-        assert item_line.allocations.count() == 1
+        assert item_line.allocations.filter(is_deleted=False).count() == 1
         
-        alloc = item_line.allocations.first()
+        alloc = item_line.allocations.filter(is_deleted=False).first()
         assert alloc.source_type == SalesAllocation.SourceType.STOCK
         assert alloc.quantity == Decimal("10.00")
         assert alloc.physical_reservation is not None
@@ -209,22 +209,22 @@ class TestSalesOrderDetailAndRefreshViews:
         assert item_line.status == SalesOrderItem.Status.PARTIAL
         assert item_line.allocated_qty == Decimal("10.00") # 6 (stock) + 2 (arrival) + 2 (shortage)
         
-        allocations = list(item_line.allocations.all().order_by('source_type'))
+        allocations = list(item_line.allocations.filter(is_deleted=False).order_by('source_type'))
         assert len(allocations) == 3
 
         # Assert manual picks are registered as manual
-        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
         assert stock_alloc.quantity == Decimal("6.00")
         assert stock_alloc.is_manual is True
         assert stock_alloc.physical_reservation.quantity == Decimal("6.00")
 
-        arrival_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL)
+        arrival_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL, is_deleted=False)
         assert arrival_alloc.quantity == Decimal("2.00")
         assert arrival_alloc.is_manual is True
         assert arrival_alloc.arrival_reservation.quantity == Decimal("2.00")
 
         # Assert remaining gap is auto-sourced as a dynamic shortage (is_manual=False)
-        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE)
+        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE, is_deleted=False)
         assert shortage_alloc.quantity == Decimal("2.00")
         assert shortage_alloc.is_manual is False
         assert shortage_alloc.shortage is not None
@@ -304,7 +304,7 @@ class TestSalesOrderDetailAndRefreshViews:
 
         item_line.refresh_from_db()
         # All allocations should be reset to automatic (is_manual=False)
-        for alloc in item_line.allocations.all():
+        for alloc in item_line.allocations.filter(is_deleted=False):
             assert alloc.is_manual is False
 
     def test_manual_allocate_view_late_arrival_ignored_and_blocked(self, client, test_user, sales_order, item, warehouse):
@@ -367,7 +367,7 @@ class TestSalesOrderDetailAndRefreshViews:
         item_line.refresh_from_db()
         assert item_line.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists() is False
 
-    def test_manual_allocate_view_get_releases_allocations(self, client, test_user, sales_order, item, warehouse):
+    def test_manual_allocate_view_get_does_not_release_allocations(self, client, test_user, sales_order, item, warehouse):
         # Create some stock so we have active automatic allocations
         Stock.objects.create(
             item=item,
@@ -389,9 +389,9 @@ class TestSalesOrderDetailAndRefreshViews:
         response = client.get(url)
         assert response.status_code == 200
 
-        # Assert GET successfully released and deleted all active allocations
+        # Assert GET successfully did NOT release or delete active allocations
         item_line.refresh_from_db()
-        assert item_line.allocations.count() == 0
+        assert item_line.allocations.count() > 0
 
     def test_manual_allocate_view_cancel_rebuilds_auto(self, client, test_user, sales_order, item, warehouse):
         Stock.objects.create(
@@ -405,15 +405,15 @@ class TestSalesOrderDetailAndRefreshViews:
         item_line = sales_order.items.first()
         client.force_login(test_user)
 
-        # Load GET (releases allocations)
+        # Load GET (does not release allocations now)
         url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
         client.get(url_alloc)
         item_line.refresh_from_db()
-        assert item_line.allocations.count() == 0
+        assert item_line.allocations.count() > 0
 
-        # Cancel by calling the GET reset endpoint
-        url_cancel = reverse('sales:sales-order-item-reset-allocation', kwargs={'item_pk': item_line.pk})
-        response = client.get(url_cancel)
+        # Reset allocations manually by calling the reset endpoint (GET or POST)
+        url_reset = reverse('sales:sales-order-item-reset-allocation', kwargs={'item_pk': item_line.pk})
+        response = client.get(url_reset)
 
         assert response.status_code == 302
         assert response.url == reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
@@ -422,6 +422,78 @@ class TestSalesOrderDetailAndRefreshViews:
         item_line.refresh_from_db()
         assert item_line.allocations.count() > 0
         assert item_line.allocations.filter(is_manual=False).exists() is True
+
+    def test_manual_allocate_view_post_updates_in_place(self, client, test_user, sales_order, item, warehouse):
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-UPDATE-INPLACE",
+            balance=Decimal("20.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        client.force_login(test_user)
+
+        # 1. Allocate 5.00 manually
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        response = client.post(url_alloc, data={f"stock_qty_{stock.pk}": "5.00"})
+        assert response.status_code == 302
+
+        item_line = SalesOrderItem.objects.get(pk=item_line.pk)
+        alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
+        reservation_id = alloc.physical_reservation.pk
+        assert alloc.quantity == Decimal("5.00")
+
+        # 2. Update same allocation to 8.00 manually
+        response = client.post(url_alloc, data={f"stock_qty_{stock.pk}": "8.00"})
+        assert response.status_code == 302
+
+        item_line = SalesOrderItem.objects.get(pk=item_line.pk)
+        alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
+        
+        # Verify the primary key of the physical reservation is still the SAME (updated in-place!)
+        assert alloc.physical_reservation.pk == reservation_id
+        assert alloc.quantity == Decimal("8.00")
+        assert alloc.physical_reservation.quantity == 8.0
+
+    def test_manual_allocate_view_prefills_automatic_allocations(self, client, test_user, sales_order, item, warehouse):
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-AUTO-PREFILL",
+            balance=Decimal("20.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        from sales.services.sales_service import SalesService
+        SalesService.refresh_allocation(item_line)
+
+        # Confirm it has an automatic stock allocation
+        item_line = SalesOrderItem.objects.get(pk=item_line.pk)
+        assert item_line.allocations.filter(is_manual=False, source_type=SalesAllocation.SourceType.STOCK).exists() is True
+
+        client.force_login(test_user)
+        url_alloc = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
+        
+        # 1. GET page - should show automatic allocations as allocated_qty, and add it back to available_qty_for_ui
+        response = client.get(url_alloc)
+        assert response.status_code == 200
+        stocks_in_context = response.context['stocks']
+        matched_stock = [s for s in stocks_in_context if s.pk == stock.pk][0]
+        assert float(matched_stock.allocated_qty) == 10.0
+        assert float(matched_stock.available_qty_for_ui) == 20.0
+
+        # 2. POST page - should update the allocation to is_manual=True
+        response = client.post(url_alloc, data={f"stock_qty_{stock.pk}": "10.00"})
+        assert response.status_code == 302
+
+        item_line = SalesOrderItem.objects.get(pk=item_line.pk)
+        alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        assert alloc.is_manual is True
+        assert alloc.quantity == Decimal("10.00")
+
 
     def test_smart_allocator_ignores_physical_stock_if_has_manual(self, client, test_user, sales_order, item, warehouse):
         # stock_A: exactly 3.00
@@ -455,23 +527,23 @@ class TestSalesOrderDetailAndRefreshViews:
         # Sourcing gap of 7.00 fell straight to dynamic shortage!
         item_line.refresh_from_db()
         
-        allocations = list(item_line.allocations.all().order_by('source_type'))
+        allocations = list(item_line.allocations.filter(is_deleted=False).order_by('source_type'))
         assert len(allocations) == 2
 
         # 1. Manual stock allocation from stock_A is kept
-        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        stock_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
         assert stock_alloc.quantity == Decimal("3.00")
         assert stock_alloc.is_manual is True
         assert stock_alloc.physical_reservation.stock == stock_A
 
         # 2. Dynamic shortage gap is logged for 7.00
-        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE)
+        shortage_alloc = item_line.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE, is_deleted=False)
         assert shortage_alloc.quantity == Decimal("7.00")
         assert shortage_alloc.is_manual is False
         assert shortage_alloc.shortage is not None
 
         # 3. No physical allocation is present from stock_B (it was bypassed!)
-        assert item_line.allocations.filter(physical_reservation__stock=stock_B).exists() is False
+        assert item_line.allocations.filter(physical_reservation__stock=stock_B, is_deleted=False).exists() is False
 
     def test_sales_order_edit_view_get_draft(self, client, test_user, sales_order):
         # By default sales_order status is 'draft' when created in create_order
@@ -631,7 +703,7 @@ class TestSalesOrderDetailAndRefreshViews:
         assert item_line.is_manual_allocate is True
         assert item_line.status == SalesOrderItem.Status.PENDING  # 0 physical allocated
 
-        allocations = list(item_line.allocations.all())
+        allocations = list(item_line.allocations.filter(is_deleted=False))
         assert len(allocations) == 1
         assert allocations[0].source_type == SalesAllocation.SourceType.SHORTAGE
         assert allocations[0].quantity == item_line.requested_qty

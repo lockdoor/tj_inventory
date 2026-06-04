@@ -322,7 +322,7 @@ class TestArrivalReservationReleaseView:
         assert response.url == reverse('procurement:arrival-reservation-list')
         
         # Verify in DB (should be deleted)
-        assert not ArrivalReservation.objects.filter(pk=active_res.pk).exists()
+        assert not ArrivalReservation.objects.filter(pk=active_res.pk, is_deleted=False).exists()
         
         # Verify arrival_item reserved_qty synced back to 0.00
         base_data["arrival_item_1"].refresh_from_db()
@@ -336,7 +336,7 @@ class TestArrivalReservationReleaseView:
         
         assert response.status_code == 302
         assert response.url == reverse('procurement:arrival-reservation-list')
-        assert not ArrivalReservation.objects.filter(pk=active_res.pk).exists()
+        assert not ArrivalReservation.objects.filter(pk=active_res.pk, is_deleted=False).exists()
 
     def test_release_by_superuser_succeeds(self, client, active_res, base_data):
         superuser = User.objects.create_superuser(username="super", password="password")
@@ -347,7 +347,7 @@ class TestArrivalReservationReleaseView:
         
         assert response.status_code == 302
         assert response.url == reverse('procurement:arrival-reservation-list')
-        assert not ArrivalReservation.objects.filter(pk=active_res.pk).exists()
+        assert not ArrivalReservation.objects.filter(pk=active_res.pk, is_deleted=False).exists()
 
     def test_release_by_non_creator_non_executive_fails(self, client, non_creator_user, active_res, base_data):
         client.force_login(non_creator_user)
@@ -359,7 +359,7 @@ class TestArrivalReservationReleaseView:
         assert response.status_code == 403
         
         # Verify reservation is still intact
-        assert ArrivalReservation.objects.filter(pk=active_res.pk).exists()
+        assert ArrivalReservation.objects.filter(pk=active_res.pk, is_deleted=False).exists()
         
         base_data["arrival_item_1"].refresh_from_db()
         assert base_data["arrival_item_1"].reserved_qty == Decimal("50.00")

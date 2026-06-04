@@ -103,8 +103,8 @@ class TestArrivalReservationPromotion:
         self.arrival_item.refresh_from_db()
         assert self.arrival_item.received_qty == Decimal("15.00")
 
-        # --- A. Verify ArrivalReservation is cleaned up ---
-        assert not ArrivalReservation.objects.filter(pk=arrival_lock.pk).exists()
+        # --- A. Verify ArrivalReservation is cleaned up (soft-deleted) ---
+        assert not ArrivalReservation.objects.filter(pk=arrival_lock.pk, is_deleted=False).exists()
 
         # --- B. Verify a new physical StockReservation has been created ---
         # It must reference the ultimate parent Sales Order directly

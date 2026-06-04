@@ -81,6 +81,45 @@ class StockReservation(AuditableMixin):
     def __str__(self):
         return f"HOLD ({self.status}): {self.reference_no} | {self.stock.lot_number} ({self.quantity})"
 
+    # =========================================================================
+    # SourcingAllocationSource Protocol Implementation (Duck-Typing)
+    # =========================================================================
+    # These properties and methods satisfy the interface defined in:
+    # common/interfaces.py -> SourcingAllocationSource
+    # =========================================================================
+
+    @property
+    def allocated_quantity(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the quantity held for this physical stock reservation.
+        """
+        return self.quantity
+
+    @property
+    def document_reference(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the reference sales order or demand document number.
+        """
+        return self.reference_no
+
+    @property
+    def source_item(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the specific catalog item associated with the reserved stock lot.
+        """
+        return self.stock.item
+
+    def release(self, user=None):
+        """
+        Duck-type method satisfying SourcingAllocationSource.
+        Delegates to ReservationService to release the physical reservation.
+        """
+        from inventory.services.reservation_service import ReservationService
+        return ReservationService.release(self, user=user)
+
 
 from django.db.models.signals import post_delete
 from django.dispatch import receiver

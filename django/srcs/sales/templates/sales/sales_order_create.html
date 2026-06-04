@@ -833,29 +833,22 @@
                     </div>
                     
                     <div class="cart-item-actions">
-                        <!-- Qty Adjuster -->
-                        <div class="qty-adjuster">
-                            <button type="button" class="adjust-btn btn-qty-dec" data-index="${index}">
-                                <i data-lucide="minus" style="width: 12px; height: 12px;"></i>
-                            </button>
-                            <span class="qty-display">${Number.isInteger(line.requested_qty) ? line.requested_qty.toString() : line.requested_qty.toFixed(0)}</span>
-                            <button type="button" class="adjust-btn btn-qty-inc" data-index="${index}">
-                                <i data-lucide="plus" style="width: 12px; height: 12px;"></i>
-                            </button>
+                        <!-- Qty Display -->
+                        <div style="display: flex; flex-direction: column; gap: 0.1rem;">
+                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">
+                                ${line.pkg_name ? `${line.pkg_qty} ${line.pkg_name}` : `${Number.isInteger(line.requested_qty) ? line.requested_qty.toString() : line.requested_qty.toFixed(2)} ${line.unit}`}
+                            </span>
+                            ${line.pkg_name ? `<span style="font-size: 0.725rem; color: var(--text-muted);">(${Number.isInteger(line.requested_qty) ? line.requested_qty.toString() : line.requested_qty.toFixed(2)} ${line.unit})</span>` : ''}
                         </div>
                         
-                        <!-- Price Customizer -->
+                        <!-- Price Display -->
                         <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                            <div class="price-edit-group">
-                                <span style="font-size:0.8rem; color:var(--text-dim);">$</span>
-                                <input type="number" class="price-edit-input cart-price-input" data-index="${index}" value="${line.unit_price.toFixed(2)}" min="0" step="0.01">
-                                <span style="font-size:0.75rem; color:var(--text-muted);">/ ${line.unit}</span>
-                            </div>
+                            <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-dim);">$${line.unit_price.toFixed(2)} / ${line.unit}</span>
                             ${pkgPriceHtml}
                         </div>
                         
                         <!-- Line Total -->
-                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; color: var(--text-main);">
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; color: var(--text-main);">
                             $${rowTotal.toFixed(2)}
                         </div>
                     </div>
@@ -959,34 +952,23 @@
             }
             
             // Search if already in cart
-            const existing = cart.find(c => c.item_id === itemId);
-            if (existing) {
-                if (pkgName && existing.pkg_name === pkgName) {
-                    existing.pkg_qty += pkgQty;
-                    existing.requested_qty += baseQty;
-                    existing.unit_price = baseUnitPrice;
-                    existing.packaging_info = `Packaged: ${existing.pkg_qty} ${pkgName} (${existing.requested_qty} ${existing.unit})`;
-                } else {
-                    // Revert to mixed/base unit styling
-                    existing.requested_qty += baseQty;
-                    existing.unit_price = baseUnitPrice; // Update to the latest unit price
-                    existing.pkg_name = null;
-                    existing.pkg_qty = null;
-                    existing.packaging_info = null;
-                }
-            } else {
-                cart.push({
-                    item_id: itemId,
-                    sku: itemObj.sku,
-                    name: itemObj.name,
-                    unit: itemObj.unit,
-                    requested_qty: baseQty,
-                    unit_price: baseUnitPrice,
-                    pkg_name: pkgName,
-                    pkg_qty: pkgQty,
-                    packaging_info: packagingInfo
-                });
+            const existingIndex = cart.findIndex(c => c.item_id === itemId);
+            if (existingIndex !== -1) {
+                // If item existed, remove it and add the new one (no accumulate)
+                cart.splice(existingIndex, 1);
             }
+            
+            cart.push({
+                item_id: itemId,
+                sku: itemObj.sku,
+                name: itemObj.name,
+                unit: itemObj.unit,
+                requested_qty: baseQty,
+                unit_price: baseUnitPrice,
+                pkg_name: pkgName,
+                pkg_qty: pkgQty,
+                packaging_info: packagingInfo
+            });
             
             updateCart();
             
@@ -1002,7 +984,7 @@
             }, 1000);
         });
 
-        // Cart Actions (Remove, Quantity, Price Changes)
+        // Cart Actions (Remove)
         cartContainer.addEventListener('click', (e) => {
             const removeBtn = e.target.closest('.btn-remove-cart');
             if (removeBtn) {
@@ -1010,55 +992,6 @@
                 cart.splice(idx, 1);
                 updateCart();
                 return;
-            }
-            
-            const decBtn = e.target.closest('.btn-qty-dec');
-            if (decBtn) {
-                const idx = parseInt(decBtn.getAttribute('data-index'));
-                const line = cart[idx];
-                if (line.pkg_qty && line.pkg_qty > 1) {
-                    const multiplier = line.requested_qty / line.pkg_qty;
-                    line.pkg_qty--;
-                    line.requested_qty = line.pkg_qty * multiplier;
-                    line.packaging_info = `Packaged: ${line.pkg_qty} ${line.pkg_name} (${line.requested_qty} ${line.unit})`;
-                    updateCart();
-                } else if (!line.pkg_qty && line.requested_qty > 1) {
-                    line.requested_qty--;
-                    updateCart();
-                }
-                return;
-            }
-            
-            const incBtn = e.target.closest('.btn-qty-inc');
-            if (incBtn) {
-                const idx = parseInt(incBtn.getAttribute('data-index'));
-                const line = cart[idx];
-                if (line.pkg_qty) {
-                    const multiplier = line.requested_qty / line.pkg_qty;
-                    line.pkg_qty++;
-                    line.requested_qty = line.pkg_qty * multiplier;
-                    line.packaging_info = `Packaged: ${line.pkg_qty} ${line.pkg_name} (${line.requested_qty} ${line.unit})`;
-                    updateCart();
-                } else {
-                    line.requested_qty++;
-                    updateCart();
-                }
-                return;
-            }
-        });
-        
-        // Inline Price Inputs in Cart
-        cartContainer.addEventListener('change', (e) => {
-            const priceInput = e.target.closest('.cart-price-input');
-            if (!priceInput) return;
-            
-            const idx = parseInt(priceInput.getAttribute('data-index'));
-            const newPrice = parseFloat(priceInput.value);
-            if (!isNaN(newPrice) && newPrice >= 0) {
-                cart[idx].unit_price = newPrice;
-                updateCart();
-            } else {
-                priceInput.value = cart[idx].unit_price.toFixed(2);
             }
         });
 

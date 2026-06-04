@@ -16,7 +16,8 @@ class ArrivalReservationService:
         Internal helper to keep ArrivalItem.reserved_qty in sync with reservation records.
         """
         total_reserved = ArrivalReservation.objects.filter(
-            arrival_item=arrival_item
+            arrival_item=arrival_item,
+            is_deleted=False
         ).aggregate(total=Sum('quantity'))['total'] or 0
         
         arrival_item.reserved_qty = total_reserved
@@ -33,7 +34,8 @@ class ArrivalReservationService:
 
         # Check availability: expected_qty - current reservations
         reserved = ArrivalReservation.objects.filter(
-            arrival_item=arrival_item
+            arrival_item=arrival_item,
+            is_deleted=False
         ).aggregate(total=Sum('quantity'))['total'] or 0
         
         available = arrival_item.expected_qty - reserved
@@ -72,7 +74,8 @@ class ArrivalReservationService:
         if diff > 0:
             # If increasing, check availability against the arrival line
             reserved = ArrivalReservation.objects.filter(
-                arrival_item=reservation.arrival_item
+                arrival_item=reservation.arrival_item,
+                is_deleted=False
             ).exclude(pk=reservation.pk).aggregate(total=Sum('quantity'))['total'] or 0
             
             available = reservation.arrival_item.expected_qty - reserved
@@ -89,12 +92,12 @@ class ArrivalReservationService:
 
     @staticmethod
     @transaction.atomic
-    def release(reservation):
+    def release(reservation, user=None):
         """
         Remove a future commitment.
         """
         arrival_item = reservation.arrival_item
-        reservation.delete()
+        reservation.delete(user=user)
         
         # Explicitly sync the arrival item
         ArrivalReservationService._sync_arrival_item_reserved_qty(arrival_item)
@@ -103,24 +106,18 @@ class ArrivalReservationService:
 
     @staticmethod
     @transaction.atomic
-    def delete_by_reference(reference_no, reference_type):
+    def delete_by_reference(reference_no, reference_type, user=None):
         """
         Release all future commitments associated with a specific document.
         """
-        # Find all affected arrival items first
-        affected_items = list(ArrivalItem.objects.filter(
-            reservations__reference_no=reference_no,
-            reservations__reference_type=reference_type
-        ).distinct())
-        
-        # Delete the reservations
-        ArrivalReservation.objects.filter(
+        reservations = ArrivalReservation.objects.filter(
             reference_no=reference_no,
-            reference_type=reference_type
-        ).delete()
+            reference_type=reference_type,
+            is_deleted=False
+        )
         
-        # Sync each affected item
-        for item in affected_items:
-            ArrivalReservationService._sync_arrival_item_reserved_qty(item)
+        # Release each reservation
+        for res in list(reservations):
+            ArrivalReservationService.release(res, user=user)
             
         return True

@@ -130,7 +130,7 @@ class SalesOrderItem(models.Model):
     @property
     def real_allocated_qty(self):
         from sales.models import SalesAllocation
-        return self.allocations.exclude(
+        return self.allocations.filter(is_deleted=False).exclude(
             source_type=SalesAllocation.SourceType.SHORTAGE
         ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
@@ -164,7 +164,8 @@ def cleanup_sales_order_item_allocations_and_reservations(sender, instance, **kw
 
     # 2. Release and delete arrival commitments linked to this item
     arrival_reservations = ArrivalReservation.objects.filter(
-        sales_item=instance
+        sales_item=instance,
+        is_deleted=False
     )
     for res in list(arrival_reservations):
         ArrivalReservationService.release(res)

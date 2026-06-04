@@ -67,7 +67,7 @@ class ArrivalReservationForm(forms.ModelForm):
 
         if arrival_item and quantity:
             # Query reservations on this arrival_item to calculate actual remaining available qty
-            reserved_qs = ArrivalReservation.objects.filter(arrival_item=arrival_item)
+            reserved_qs = ArrivalReservation.objects.filter(arrival_item=arrival_item, is_deleted=False)
             if self.instance and self.instance.pk:
                 reserved_qs = reserved_qs.exclude(pk=self.instance.pk)
             

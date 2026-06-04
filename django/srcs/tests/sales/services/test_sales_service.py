@@ -175,20 +175,20 @@ class TestSalesServiceAllocation:
         )
 
         # 1. System auto-picks Stock A (FEFO)
-        assert order_item.allocations.filter(physical_reservation__stock=stock_a).exists()
+        assert order_item.allocations.filter(physical_reservation__stock=stock_a, is_deleted=False).exists()
 
         # 2. User manually picks Stock B
         SalesService.manual_allocate_stock(order_item, stock_b, 40)
 
         # 3. Verify
         # Under new bypass rules: 40 is manual (Stock B), remaining 60 bypasses Stock A and goes straight to Shortage
-        assert order_item.allocations.count() == 2
+        assert order_item.allocations.filter(is_deleted=False).count() == 2
         
-        manual_alloc = order_item.allocations.get(is_manual=True)
+        manual_alloc = order_item.allocations.get(is_manual=True, is_deleted=False)
         assert manual_alloc.physical_reservation.stock == stock_b
         assert manual_alloc.quantity == 40
 
-        auto_alloc = order_item.allocations.get(is_manual=False)
+        auto_alloc = order_item.allocations.get(is_manual=False, is_deleted=False)
         assert auto_alloc.source_type == SalesAllocation.SourceType.SHORTAGE
         assert auto_alloc.quantity == 60
 
@@ -272,8 +272,8 @@ class TestSalesOrderHardDeleteCleanup:
         arrival_item.refresh_from_db()
         assert arrival_item.reserved_qty == 0
 
-        # D. All ArrivalReservations for this sales item must be physically deleted
-        assert not ArrivalReservation.objects.filter(reference_no="SO-HD-999").exists()
+        # D. All ArrivalReservations for this sales item must be soft-deleted
+        assert not ArrivalReservation.objects.filter(reference_no="SO-HD-999", is_deleted=False).exists()
 
         # E. Shortages for this sales order must be soft-deleted
         assert not Shortage.objects.filter(reference_id="SO-HD-999", is_deleted=False).exists()

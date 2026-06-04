@@ -22,7 +22,7 @@
             </h1>
             <p style="color: var(--text-dim); font-size: 1.1rem;">Customize manual reservation overrides for physical stock and expected arrivals.</p>
         </div>
-        <a href="{% url 'sales:sales-order-item-reset-allocation' order_item.pk %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem; text-decoration: none;">
+        <a href="{% url 'sales:sales-order-detail' order.pk %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem; text-decoration: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m15 18-6-6 6-6"/>
             </svg>
@@ -134,7 +134,7 @@
                                             </td>
                                             <td style="padding: 1rem 0.75rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">
                                                 <span class="max-available-val" id="max_stock_val_{{ stock.pk }}">
-                                                    {{ stock.available_qty|floatformat:2 }}
+                                                    {{ stock.available_qty_for_ui|floatformat:2 }}
                                                 </span>
                                             </td>
                                             <td style="padding: 1rem 0.75rem; text-align: right;">
@@ -147,10 +147,13 @@
                                                            value="{% if stock.allocated_qty > 0 %}{{ stock.allocated_qty|floatformat:2 }}{% endif %}" 
                                                            placeholder="0.00" 
                                                            style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
-                                                           data-max-allowed="{{ stock.available_qty }}"
+                                                           data-max-allowed="{{ stock.available_qty_for_ui }}"
                                                            data-field-name="Stock Lot {{ stock.lot_number }}">
                                                     <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
                                                         Max
+                                                    </button>
+                                                    <button type="button" class="btn-micro reset-zero-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                        Reset
                                                     </button>
                                                 </div>
                                             </td>
@@ -203,7 +206,7 @@
                                             </td>
                                             <td style="padding: 1rem 0.75rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-main);">
                                                 <span class="max-available-val" id="max_arrival_val_{{ arrival_item.pk }}">
-                                                    {{ arrival_item.available_qty|floatformat:2 }}
+                                                    {{ arrival_item.available_qty_for_ui|floatformat:2 }}
                                                 </span>
                                             </td>
                                             <td style="padding: 1rem 0.75rem; text-align: right;">
@@ -216,10 +219,13 @@
                                                            value="{% if arrival_item.allocated_qty > 0 %}{{ arrival_item.allocated_qty|floatformat:2 }}{% endif %}" 
                                                            placeholder="0.00" 
                                                            style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
-                                                           data-max-allowed="{{ arrival_item.available_qty }}"
+                                                           data-max-allowed="{{ arrival_item.available_qty_for_ui }}"
                                                            data-field-name="Arrival Item in {{ arrival_item.arrival.document_no }}">
                                                     <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
                                                         Max
+                                                    </button>
+                                                    <button type="button" class="btn-micro reset-zero-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                        Reset
                                                     </button>
                                                 </div>
                                             </td>
@@ -390,6 +396,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const fillQty = Math.min(maxVal, remainingToRequest);
 
             input.value = fillQty.toFixed(2);
+            updateCalculations();
+        });
+    });
+
+    // 3. Reset to Zero Actions
+    const resetBtns = document.querySelectorAll('.reset-zero-btn');
+    resetBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tr = this.closest('tr');
+            const input = tr.querySelector('.qty-selector');
+            input.value = '';
             updateCalculations();
         });
     });

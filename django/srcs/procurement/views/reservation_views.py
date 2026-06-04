@@ -27,13 +27,13 @@ class ArrivalReservationListView(LoginRequiredMixin, PermissionRequiredMixin, Li
         """
         Optimize DB queries using select_related and Q searches.
         """
-        queryset = ArrivalReservation.objects.select_related(
+        queryset = ArrivalReservation.objects.filter(is_deleted=False).select_related(
             'arrival_item__arrival',
             'arrival_item__item',
             'arrival_item__arrival__partner',
             'sales_item__order',
             'created_by'
-        ).all().order_by('-created_at')
+        ).order_by('-created_at')
 
         q = self.request.GET.get('q')
         if q:
@@ -103,7 +103,7 @@ class ArrivalReservationDetailView(LoginRequiredMixin, PermissionRequiredMixin, 
     permission_required = 'procurement.view_arrival'
 
     def get_queryset(self):
-        return ArrivalReservation.objects.select_related(
+        return ArrivalReservation.objects.filter(is_deleted=False).select_related(
             'arrival_item__arrival',
             'arrival_item__item',
             'arrival_item__arrival__partner',

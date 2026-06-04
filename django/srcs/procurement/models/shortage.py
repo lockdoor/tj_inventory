@@ -72,3 +72,42 @@ class Shortage(AuditableMixin):
 
     def __str__(self):
         return f"Shortage: {self.item.sku} ({self.request_qty}) - {self.status}"
+
+    # =========================================================================
+    # SourcingAllocationSource Protocol Implementation (Duck-Typing)
+    # =========================================================================
+    # These properties and methods satisfy the interface defined in:
+    # common/interfaces.py -> SourcingAllocationSource
+    # =========================================================================
+
+    @property
+    def allocated_quantity(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the requested quantity of the shortage.
+        """
+        return self.request_qty
+
+    @property
+    def document_reference(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the reference document ID (e.g. sales order document_no).
+        """
+        return self.reference_id
+
+    @property
+    def source_item(self):
+        """
+        Duck-type property satisfying SourcingAllocationSource.
+        Returns the catalog item associated with the shortage.
+        """
+        return self.item
+
+    def release(self, user=None):
+        """
+        Duck-type method satisfying SourcingAllocationSource.
+        If the shortage status is 'pending', soft-deletes the shortage.
+        """
+        if self.status == 'pending':
+            self.delete(user=user)

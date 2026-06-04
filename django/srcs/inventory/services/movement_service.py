@@ -481,7 +481,8 @@ class MovementService:
                                 alloc = SalesAllocation.objects.filter(
                                     order_item=sales_item,
                                     source_type=SalesAllocation.SourceType.STOCK,
-                                    physical_reservation__isnull=True
+                                    physical_reservation__isnull=True,
+                                    is_deleted=False
                                 ).first()
                                 if alloc:
                                     alloc.physical_reservation = res
@@ -492,7 +493,8 @@ class MovementService:
                                         source_type=SalesAllocation.SourceType.STOCK,
                                         physical_reservation=res,
                                         quantity=item_line.quantity,
-                                        is_manual=False
+                                        is_manual=False,
+                                        created_by=user
                                     )
 
                     # Demote SalesOrder status back from SHIPPED to PROCESSING

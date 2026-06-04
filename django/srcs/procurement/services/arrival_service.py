@@ -336,7 +336,8 @@ class ArrivalService:
 
                 from procurement.models import ArrivalReservation
                 arrival_reservations = list(ArrivalReservation.objects.filter(
-                    arrival_item=arrival_item
+                    arrival_item=arrival_item,
+                    is_deleted=False
                 ).order_by('created_at'))
 
                 remaining_received = m_item.quantity
@@ -363,7 +364,8 @@ class ArrivalService:
 
                     # 2. Update matching SalesAllocation(s) to transition from Arrival to Stock type
                     allocations = SalesAllocation.objects.filter(
-                        arrival_reservation=arr_res
+                        arrival_reservation=arr_res,
+                        is_deleted=False
                     )
                     for alloc in allocations:
                         alloc.source_type = SalesAllocation.SourceType.STOCK

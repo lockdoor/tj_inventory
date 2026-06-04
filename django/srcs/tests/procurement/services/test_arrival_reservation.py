@@ -92,7 +92,7 @@ def test_release_future_reservation(arrival_setup):
     
     arrival_setup.refresh_from_db()
     assert arrival_setup.reserved_qty == Decimal("0.00")
-    assert ArrivalReservation.objects.count() == 0
+    assert ArrivalReservation.objects.filter(is_deleted=False).count() == 0
 
 @pytest.mark.django_db
 def test_delete_by_reference_future(arrival_setup, test_user):
@@ -114,7 +114,7 @@ def test_delete_by_reference_future(arrival_setup, test_user):
     ArrivalReservationService.reserve_future(arrival_setup, Decimal("10.00"), "SO-TOTAL")
     ArrivalReservationService.reserve_future(arr_item2, Decimal("20.00"), "SO-TOTAL")
     
-    assert ArrivalReservation.objects.filter(reference_no="SO-TOTAL").count() == 2
+    assert ArrivalReservation.objects.filter(reference_no="SO-TOTAL", is_deleted=False).count() == 2
     
     # Delete by reference and type
     ArrivalReservationService.delete_by_reference(
@@ -126,4 +126,4 @@ def test_delete_by_reference_future(arrival_setup, test_user):
     arr_item2.refresh_from_db()
     assert arrival_setup.reserved_qty == Decimal("0.00")
     assert arr_item2.reserved_qty == Decimal("0.00")
-    assert ArrivalReservation.objects.count() == 0
+    assert ArrivalReservation.objects.filter(is_deleted=False).count() == 0

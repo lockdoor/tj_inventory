@@ -2,7 +2,7 @@ import json
 from django.views.generic import ListView, DetailView
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.db import transaction, IntegrityError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -618,9 +618,14 @@ class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
             'updated_by'
         ).prefetch_related(
             'items__item',
-            'items__allocations__physical_reservation__stock__warehouse',
-            'items__allocations__arrival_reservation__arrival_item__arrival__warehouse',
-            'items__allocations__shortage'
+            Prefetch(
+                'items__allocations',
+                queryset=SalesAllocation.objects.filter(is_deleted=False).select_related(
+                    'physical_reservation__stock__warehouse',
+                    'arrival_reservation__arrival_item__arrival__warehouse',
+                    'shortage'
+                )
+            )
         )
 
     def get_context_data(self, **kwargs):
@@ -670,9 +675,9 @@ def check_and_promote_order_status(order):
     has_shortages = False
     has_arrivals = False
     for item in order.items.all():
-        if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE).exists():
+        if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE, is_deleted=False).exists():
             has_shortages = True
-        if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists():
+        if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL, is_deleted=False).exists():
             has_arrivals = True
             
     if has_shortages:
@@ -771,9 +776,9 @@ class SalesOrderConfirmView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 has_shortages = False
                 has_arrivals = False
                 for item in order.items.all():
-                    if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE).exists():
+                    if item.allocations.filter(source_type=SalesAllocation.SourceType.SHORTAGE, is_deleted=False).exists():
                         has_shortages = True
-                    if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL).exists():
+                    if item.allocations.filter(source_type=SalesAllocation.SourceType.ARRIVAL, is_deleted=False).exists():
                         has_arrivals = True
 
                 if has_shortages:
@@ -855,62 +860,39 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         if order.status != SalesOrder.Status.DRAFT:
             raise ValidationError("Cannot manually allocate items for orders that are not in Draft status.")
 
-        # 1. Map existing manual allocations to pre-fill inputs
+        # 1. Map existing allocations (both manual and automatic) to pre-fill inputs
         stock_alloc_map = {}
         arrival_alloc_map = {}
-        for alloc in order_item.allocations.filter(is_manual=True):
-            if alloc.source_type == SalesAllocation.SourceType.STOCK and alloc.physical_reservation:
+        for alloc in order_item.allocations.filter(is_deleted=False):
+            if alloc.source_type == SalesAllocation.SourceType.STOCK and alloc.physical_reservation and not alloc.physical_reservation.is_deleted:
                 stock_alloc_map[alloc.physical_reservation.stock.pk] = float(alloc.quantity)
             elif alloc.source_type == SalesAllocation.SourceType.ARRIVAL and alloc.arrival_reservation:
                 arrival_alloc_map[alloc.arrival_reservation.arrival_item.pk] = float(alloc.quantity)
- 
-        # 2. Release and delete all current allocations (manual & auto) atomically
-        # to restore available stock balances before displaying the page
-        try:
-            with transaction.atomic():
-                for allocation in list(order_item.allocations.all()):
-                    if allocation.source_type == SalesAllocation.SourceType.STOCK:
-                        if allocation.physical_reservation:
-                            from inventory.services import ReservationService
-                            ReservationService.release(allocation.physical_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
-                        if allocation.arrival_reservation:
-                            from procurement.services import ArrivalReservationService
-                            ArrivalReservationService.release(allocation.arrival_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
-                        if allocation.shortage:
-                            if allocation.shortage.status == 'pending':
-                                # Let refresh_allocation handle the shortage record update/delete
-                                pass
-                    allocation.delete()
-                order_item.is_manual_allocate = False
-                order_item.save(update_fields=['is_manual_allocate'])
-        except Exception as e:
-            messages.error(request, f"Error preparing manual allocation workspace: {str(e)}")
-            return redirect('sales:sales-order-detail', pk=order.pk)
- 
-        # 3. Fetch active physical stock lots with non-zero available quantity
+
+        # 2. Fetch active physical stock lots with non-zero available quantity
         stocks = Stock.objects.filter(
             item=item,
             is_deleted=False,
             status='active'
         ).exclude(balance=0).select_related('warehouse').order_by('exp_date', 'created_at')
- 
-        # 4. Fetch expected arrivals preloaded (must arrive on or before order expected date)
+
+        # 3. Fetch expected arrivals preloaded (must arrive on or before order expected date)
         arrival_items = ArrivalItem.objects.filter(
             item=item,
             arrival__status__in=['scheduled', 'receiving'],
             arrival__expected_date__lte=order.order_date,
             arrival__is_deleted=False
         ).select_related('arrival__warehouse', 'arrival').order_by('arrival__expected_date')
- 
-        # 5. Pre-populate UI inputs with the stored previous manual reservation quantities
+
+        # 4. Pre-populate UI inputs with the stored previous manual reservation quantities
         for s in stocks:
             s.allocated_qty = stock_alloc_map.get(s.pk, 0.0)
- 
+            s.available_qty_for_ui = float(s.available_qty) + s.allocated_qty
+
         for ai in arrival_items:
             ai.allocated_qty = arrival_alloc_map.get(ai.pk, 0.0)
- 
+            ai.available_qty_for_ui = float(ai.available_qty) + ai.allocated_qty
+
         context = {
             'page_title': f"Allocate Sourcing: {item.sku}",
             'order_item': order_item,
@@ -930,91 +912,34 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             raise ValidationError("Cannot manually allocate items for orders that are not in Draft status.")
 
         from decimal import Decimal, InvalidOperation
+
+        # Parse submitted quantities from POST
+        submitted_stock_qtys = {}
+        submitted_arrival_qtys = {}
+        for key, val in request.POST.items():
+            if not val or val.strip() == '':
+                continue
+            try:
+                qty = Decimal(val)
+            except (ValueError, InvalidOperation):
+                continue
+            if qty < 0:
+                continue
+            
+            if key.startswith('stock_qty_'):
+                stock_id = int(key.split('_')[-1])
+                submitted_stock_qtys[stock_id] = qty
+            elif key.startswith('arrival_qty_'):
+                arrival_item_id = int(key.split('_')[-1])
+                submitted_arrival_qtys[arrival_item_id] = qty
+
         try:
-            with transaction.atomic():
-                # 1. Clear previous allocations and release physical/procurement holds cleanly
-                for allocation in list(order_item.allocations.all()):
-                    if allocation.source_type == SalesAllocation.SourceType.STOCK:
-                        if allocation.physical_reservation:
-                            from inventory.services import ReservationService
-                            ReservationService.release(allocation.physical_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
-                        if allocation.arrival_reservation:
-                            from procurement.services import ArrivalReservationService
-                            ArrivalReservationService.release(allocation.arrival_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
-                        if allocation.shortage:
-                            if allocation.shortage.status == 'pending':
-                                # Let refresh_allocation handle the shortage record update/delete
-                                pass
-                    allocation.delete()
-
-                # 2. Register manual selections
-                for key, val in request.POST.items():
-                    if not val or val.strip() == '':
-                        continue
-
-                    try:
-                        qty = Decimal(val)
-                    except (ValueError, InvalidOperation):
-                        continue
-
-                    if qty <= 0:
-                        continue
-
-                    if key.startswith('stock_qty_'):
-                        stock_id = key.split('_')[-1]
-                        stock = get_object_or_404(Stock, pk=stock_id)
-                        
-                        from inventory.services import ReservationService
-                        physical_lock = ReservationService.reserve(
-                            stock=stock,
-                            quantity=float(qty),
-                            reference_no=order_item.order.document_no,
-                            reference_type=StockReservation.ReferenceType.SALES_ORDER,
-                            sales_item=order_item
-                        )
-                        SalesAllocation.objects.create(
-                            order_item=order_item,
-                            source_type=SalesAllocation.SourceType.STOCK,
-                            physical_reservation=physical_lock,
-                            quantity=qty,
-                            is_manual=True
-                        )
-
-                    elif key.startswith('arrival_qty_'):
-                        arrival_item_id = key.split('_')[-1]
-                        from procurement.models import ArrivalItem
-                        arr_item = get_object_or_404(ArrivalItem, pk=arrival_item_id, arrival__is_deleted=False)
-
-                        if arr_item.arrival.expected_date > order_item.order.order_date:
-                            raise ValidationError(
-                                f"Arrival {arr_item.arrival.document_no} is expected on {arr_item.arrival.expected_date}, "
-                                f"which is after the Sales Order expected fulfillment date ({order_item.order.order_date})."
-                            )
-                        
-                        from procurement.services import ArrivalReservationService
-                        arrival_lock = ArrivalReservationService.reserve_future(
-                            arrival_item=arr_item,
-                            quantity=float(qty),
-                            reference_no=order_item.order.document_no,
-                            reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
-                            sales_item=order_item
-                        )
-                        SalesAllocation.objects.create(
-                            order_item=order_item,
-                            source_type=SalesAllocation.SourceType.ARRIVAL,
-                            arrival_reservation=arrival_lock,
-                            quantity=qty,
-                            is_manual=True
-                        )
-
-                order_item.is_manual_allocate = True
-                order_item.save(update_fields=['is_manual_allocate'])
-
-                # 3. Trigger smart allocation engine to calculate remaining shortages
-                SalesService.refresh_allocation(order_item)
-
+            SalesService.save_manual_allocations(
+                order_item,
+                request.user,
+                submitted_stock_qtys,
+                submitted_arrival_qtys
+            )
             messages.success(request, f"Manual reservations for {order_item.item.sku} saved successfully.")
         except Exception as e:
             messages.error(request, f"Error saving reservations: {str(e)}")
@@ -1037,30 +962,7 @@ class SalesOrderItemResetAllocationView(LoginRequiredMixin, PermissionRequiredMi
             raise ValidationError("Cannot modify allocations for orders that are not in Draft status.")
 
         try:
-            with transaction.atomic():
-                # Release all holds
-                for allocation in list(order_item.allocations.all()):
-                    if allocation.source_type == SalesAllocation.SourceType.STOCK:
-                        if allocation.physical_reservation:
-                            from inventory.services import ReservationService
-                            ReservationService.release(allocation.physical_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
-                        if allocation.arrival_reservation:
-                            from procurement.services import ArrivalReservationService
-                            ArrivalReservationService.release(allocation.arrival_reservation)
-                    elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
-                        if allocation.shortage:
-                            if allocation.shortage.status == 'pending':
-                                # Let refresh_allocation handle the shortage record update/delete
-                                pass
-                    allocation.delete()
-
-                order_item.is_manual_allocate = False
-                order_item.save(update_fields=['is_manual_allocate'])
-
-                # Re-run automatic waterfall matching
-                SalesService.refresh_allocation(order_item)
-
+            SalesService.reset_allocations(order_item, request.user)
             if request.method == 'GET':
                 messages.info(request, f"Manual sourcing cancelled. Sourcing for {order_item.item.sku} restored to automatic.")
             else:
