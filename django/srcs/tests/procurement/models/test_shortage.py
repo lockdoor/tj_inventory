@@ -70,3 +70,65 @@ class TestShortageModel:
         assert shortage.created_by == user
         assert shortage.created_at is not None
         assert shortage.version == 1
+
+    def test_shortage_version_increments_on_save(self, user, item):
+        """Verify that shortage version increments on save."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            created_by=user
+        )
+        assert shortage.version == 1
+        
+        shortage.request_qty = 20
+        shortage.save()
+        assert shortage.version == 2
+        
+        # Verify in DB
+        shortage.refresh_from_db()
+        assert shortage.version == 2
+
+    def test_shortage_version_increments_on_save_with_update_fields(self, user, item):
+        """Verify that shortage version increments on save with update_fields."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            created_by=user
+        )
+        assert shortage.version == 1
+        
+        shortage.request_qty = 20
+        shortage.save(update_fields=['request_qty'])
+        assert shortage.version == 2
+        
+        # Verify in DB
+        shortage.refresh_from_db()
+        assert shortage.version == 2
+        assert shortage.request_qty == 20
+
+    def test_shortage_optimistic_locking(self, user, item):
+        """Verify that saving a shortage with a stale version raises ValidationError."""
+        from django.core.exceptions import ValidationError
+
+        shortage1 = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            created_by=user
+        )
+        assert shortage1.version == 1
+
+        # Retrieve the same shortage in a different variable/context
+        shortage2 = Shortage.objects.get(pk=shortage1.pk)
+        assert shortage2.version == 1
+
+        # Modify and save shortage1 (this increments the database version to 2)
+        shortage1.request_qty = 15
+        shortage1.save()
+        assert shortage1.version == 2
+
+        # Modify and try to save shortage2 (which still has version = 1)
+        shortage2.request_qty = 25
+        with pytest.raises(ValidationError) as excinfo:
+            shortage2.save()
+        
+        assert "Record has been modified by another user" in str(excinfo.value)

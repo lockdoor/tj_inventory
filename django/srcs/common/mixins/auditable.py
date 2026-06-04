@@ -102,6 +102,11 @@ class AuditableMixin(models.Model):
         if self.pk:
             self._check_optimistic_locking()
             self.version += 1
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                # Convert update_fields to a set to allow appending 'version'
+                update_fields = set(kwargs['update_fields'])
+                update_fields.add('version')
+                kwargs['update_fields'] = update_fields
         
         super().save(*args, **kwargs)
     

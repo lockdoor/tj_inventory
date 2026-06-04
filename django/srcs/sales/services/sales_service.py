@@ -210,6 +210,30 @@ class SalesService:
             is_deleted=False
         ).first()
         
+        # Fetch soft-deleted allocations to see if they can be reused/restored
+        existing_deleted_stock_allocs = {}
+        existing_deleted_arrival_allocs = {}
+        existing_deleted_shortage_allocs = []
+        for alloc in list(order_item.allocations.filter(is_deleted=True)):
+            if alloc.source_type == SalesAllocation.SourceType.STOCK:
+                try:
+                    if alloc.physical_reservation:
+                        existing_deleted_stock_allocs[alloc.physical_reservation.stock_id] = alloc
+                except Exception:
+                    pass
+            elif alloc.source_type == SalesAllocation.SourceType.ARRIVAL:
+                try:
+                    if alloc.arrival_reservation:
+                        existing_deleted_arrival_allocs[alloc.arrival_reservation.arrival_item_id] = alloc
+                except Exception:
+                    pass
+            elif alloc.source_type == SalesAllocation.SourceType.SHORTAGE:
+                try:
+                    if alloc.shortage:
+                        existing_deleted_shortage_allocs.append(alloc)
+                except Exception:
+                    pass
+
         # 1. CLEANUP & PRESERVATION
         existing_shortage_alloc = None
         for allocation in list(order_item.allocations.filter(is_deleted=False)):
@@ -260,21 +284,38 @@ class SalesService:
                     take = min(remaining_qty, free_qty)
                     
                     from inventory.services import ReservationService
-                    physical_lock = ReservationService.reserve(
-                        stock=stock,
-                        quantity=take,
-                        reference_no=order_item.order.document_no,
-                        reference_type=StockReservation.ReferenceType.SALES_ORDER,
-                        sales_item=order_item
-                    )
                     
-                    SalesAllocation.objects.create(
-                        order_item=order_item,
-                        source_type=SalesAllocation.SourceType.STOCK,
-                        physical_reservation=physical_lock,
-                        quantity=take,
-                        is_manual=False # System-picked
-                    )
+                    existing_deleted_alloc = existing_deleted_stock_allocs.get(stock.pk)
+                    if existing_deleted_alloc:
+                        physical_lock = existing_deleted_alloc.physical_reservation
+                        if physical_lock:
+                            physical_lock.restore()
+                            physical_lock.status = StockReservation.ReservationStatus.RESERVED
+                            physical_lock.save(update_fields=['status'])
+                            ReservationService.update_reservation(
+                                physical_lock,
+                                take,
+                                user=order_item.order.updated_by or order_item.order.created_by
+                            )
+                        existing_deleted_alloc.restore()
+                        existing_deleted_alloc.quantity = take
+                        existing_deleted_alloc.is_manual = False
+                        existing_deleted_alloc.save(update_fields=['quantity', 'is_manual'])
+                    else:
+                        physical_lock = ReservationService.reserve(
+                            stock=stock,
+                            quantity=take,
+                            reference_no=order_item.order.document_no,
+                            reference_type=StockReservation.ReferenceType.SALES_ORDER,
+                            sales_item=order_item
+                        )
+                        SalesAllocation.objects.create(
+                            order_item=order_item,
+                            source_type=SalesAllocation.SourceType.STOCK,
+                            physical_reservation=physical_lock,
+                            quantity=take,
+                            is_manual=False # System-picked
+                        )
                     remaining_qty -= take
 
         # 3. AUTO-SOURCING: ARRIVALS
@@ -297,21 +338,32 @@ class SalesService:
                     
                     from procurement.services import ArrivalReservationService
                     from procurement.models import ArrivalReservation
-                    arrival_lock = ArrivalReservationService.reserve_future(
-                        arrival_item=arr_item,
-                        quantity=take,
-                        reference_no=order_item.order.document_no,
-                        reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
-                        sales_item=order_item
-                    )
                     
-                    SalesAllocation.objects.create(
-                        order_item=order_item,
-                        source_type=SalesAllocation.SourceType.ARRIVAL,
-                        arrival_reservation=arrival_lock,
-                        quantity=take,
-                        is_manual=False # System-picked
-                    )
+                    existing_deleted_alloc = existing_deleted_arrival_allocs.get(arr_item.pk)
+                    if existing_deleted_alloc:
+                        arrival_lock = existing_deleted_alloc.arrival_reservation
+                        if arrival_lock:
+                            arrival_lock.restore()
+                            ArrivalReservationService.update_reservation(arrival_lock, take)
+                        existing_deleted_alloc.restore()
+                        existing_deleted_alloc.quantity = take
+                        existing_deleted_alloc.is_manual = False
+                        existing_deleted_alloc.save(update_fields=['quantity', 'is_manual'])
+                    else:
+                        arrival_lock = ArrivalReservationService.reserve_future(
+                            arrival_item=arr_item,
+                            quantity=take,
+                            reference_no=order_item.order.document_no,
+                            reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
+                            sales_item=order_item
+                        )
+                        SalesAllocation.objects.create(
+                            order_item=order_item,
+                            source_type=SalesAllocation.SourceType.ARRIVAL,
+                            arrival_reservation=arrival_lock,
+                            quantity=take,
+                            is_manual=False # System-picked
+                        )
                     remaining_qty -= take
 
         # 4. MARK/UPDATE SHORTAGE
@@ -337,13 +389,24 @@ class SalesService:
                 existing_shortage_alloc.quantity = remaining_qty
                 existing_shortage_alloc.save(update_fields=['quantity', 'updated_at'])
             else:
-                SalesAllocation.objects.create(
-                    order_item=order_item,
-                    source_type=SalesAllocation.SourceType.SHORTAGE,
-                    shortage=gap_record,
-                    quantity=remaining_qty,
-                    is_manual=False # System-picked
-                )
+                restored_alloc = None
+                for del_alloc in existing_deleted_shortage_allocs:
+                    if del_alloc.shortage_id == gap_record.id:
+                        del_alloc.restore()
+                        del_alloc.quantity = remaining_qty
+                        del_alloc.is_manual = False
+                        del_alloc.save(update_fields=['quantity', 'is_manual'])
+                        restored_alloc = del_alloc
+                        break
+                
+                if not restored_alloc:
+                    SalesAllocation.objects.create(
+                        order_item=order_item,
+                        source_type=SalesAllocation.SourceType.SHORTAGE,
+                        shortage=gap_record,
+                        quantity=remaining_qty,
+                        is_manual=False # System-picked
+                    )
         else:
             # If remaining_qty is 0, any existing pending shortage is no longer needed
             if existing_shortage_alloc:
@@ -390,15 +453,19 @@ class SalesService:
         from inventory.services import ReservationService
         from procurement.services import ArrivalReservationService
 
-        # 1. Map existing manual allocations to dictionaries
+        # 1. Map existing manual allocations to dictionaries (both active and soft-deleted)
         existing_stock_allocs = {}
         existing_arrival_allocs = {}
 
-        for alloc in list(order_item.allocations.filter(is_deleted=False)):
-            if alloc.source_type == SalesAllocation.SourceType.STOCK and alloc.physical_reservation and not alloc.physical_reservation.is_deleted:
-                existing_stock_allocs[alloc.physical_reservation.stock.pk] = alloc
+        for alloc in list(order_item.allocations.all()):
+            if alloc.source_type == SalesAllocation.SourceType.STOCK and alloc.physical_reservation:
+                stock_id = alloc.physical_reservation.stock_id
+                if stock_id not in existing_stock_allocs or not alloc.is_deleted:
+                    existing_stock_allocs[stock_id] = alloc
             elif alloc.source_type == SalesAllocation.SourceType.ARRIVAL and alloc.arrival_reservation:
-                existing_arrival_allocs[alloc.arrival_reservation.arrival_item.pk] = alloc
+                arrival_item_id = alloc.arrival_reservation.arrival_item_id
+                if arrival_item_id not in existing_arrival_allocs or not alloc.is_deleted:
+                    existing_arrival_allocs[arrival_item_id] = alloc
 
         # 2. Process Stock Lot Reservations
         all_stock_ids = set(existing_stock_allocs.keys()) | set(stock_qtys.keys())
@@ -406,21 +473,34 @@ class SalesService:
             existing_alloc = existing_stock_allocs.get(stock_id)
             submitted_qty = stock_qtys.get(stock_id, Decimal('0.00'))
 
-            if existing_alloc and submitted_qty > 0:
-                # Update quantity in-place
-                ReservationService.update_reservation(
-                    existing_alloc.physical_reservation,
-                    submitted_qty,
-                    user=user
-                )
-                existing_alloc.quantity = submitted_qty
-                existing_alloc.is_manual = True
-                existing_alloc.save(update_fields=['quantity', 'is_manual'])
-            elif existing_alloc and submitted_qty == 0:
-                # Release and delete reservation + allocation
-                ReservationService.release(existing_alloc.physical_reservation)
-                existing_alloc.delete(user=user)
-            elif not existing_alloc and submitted_qty > 0:
+            if existing_alloc:
+                if submitted_qty > 0:
+                    if existing_alloc.is_deleted:
+                        # Restore reservation
+                        reservation = existing_alloc.physical_reservation
+                        if reservation:
+                            reservation.restore()
+                            reservation.status = StockReservation.ReservationStatus.RESERVED
+                            reservation.save(update_fields=['status'])
+                        # Restore allocation
+                        existing_alloc.restore()
+
+                    # Update quantity in-place
+                    ReservationService.update_reservation(
+                        existing_alloc.physical_reservation,
+                        submitted_qty,
+                        user=user
+                    )
+                    existing_alloc.quantity = submitted_qty
+                    existing_alloc.is_manual = True
+                    existing_alloc.save(update_fields=['quantity', 'is_manual'])
+                else:
+                    # submitted_qty is 0
+                    if not existing_alloc.is_deleted:
+                        if existing_alloc.physical_reservation:
+                            ReservationService.release(existing_alloc.physical_reservation, user=user)
+                        existing_alloc.delete(user=user)
+            elif submitted_qty > 0:
                 # Create new reservation + allocation
                 stock = Stock.objects.filter(pk=stock_id, is_deleted=False).first()
                 if not stock:
@@ -447,20 +527,31 @@ class SalesService:
             existing_alloc = existing_arrival_allocs.get(arrival_item_id)
             submitted_qty = arrival_qtys.get(arrival_item_id, Decimal('0.00'))
 
-            if existing_alloc and submitted_qty > 0:
-                # Update quantity in-place
-                ArrivalReservationService.update_reservation(
-                    existing_alloc.arrival_reservation,
-                    submitted_qty
-                )
-                existing_alloc.quantity = submitted_qty
-                existing_alloc.is_manual = True
-                existing_alloc.save(update_fields=['quantity', 'is_manual'])
-            elif existing_alloc and submitted_qty == 0:
-                # Release and delete reservation + allocation
-                ArrivalReservationService.release(existing_alloc.arrival_reservation)
-                existing_alloc.delete(user=user)
-            elif not existing_alloc and submitted_qty > 0:
+            if existing_alloc:
+                if submitted_qty > 0:
+                    if existing_alloc.is_deleted:
+                        # Restore reservation
+                        reservation = existing_alloc.arrival_reservation
+                        if reservation:
+                            reservation.restore()
+                        # Restore allocation
+                        existing_alloc.restore()
+
+                    # Update quantity in-place
+                    ArrivalReservationService.update_reservation(
+                        existing_alloc.arrival_reservation,
+                        submitted_qty
+                    )
+                    existing_alloc.quantity = submitted_qty
+                    existing_alloc.is_manual = True
+                    existing_alloc.save(update_fields=['quantity', 'is_manual'])
+                else:
+                    # submitted_qty is 0
+                    if not existing_alloc.is_deleted:
+                        if existing_alloc.arrival_reservation:
+                            ArrivalReservationService.release(existing_alloc.arrival_reservation, user=user)
+                        existing_alloc.delete(user=user)
+            elif submitted_qty > 0:
                 # Create new reservation + allocation
                 arr_item = ArrivalItem.objects.filter(pk=arrival_item_id, arrival__is_deleted=False).first()
                 if not arr_item:

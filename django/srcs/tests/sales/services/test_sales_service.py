@@ -192,6 +192,183 @@ class TestSalesServiceAllocation:
         assert auto_alloc.source_type == SalesAllocation.SourceType.SHORTAGE
         assert auto_alloc.quantity == 60
 
+    def test_save_manual_allocations_reuses_soft_deleted_records(self, item, partner, user, supplier, warehouse):
+        """
+        Verify that manual allocations reuse and restore soft-deleted allocations
+        and reservations instead of creating duplicate database records.
+        """
+        # 1. Setup physical stock lot and arrival item
+        stock = Stock.objects.create(
+            item=item, warehouse=warehouse, lot_number="LOT-REUSE", balance=100, created_by=user
+        )
+        arrival = Arrival.objects.create(
+            document_no="ARR-REUSE", partner=supplier, warehouse=warehouse, expected_date=date.today(), status='scheduled', created_by=user
+        )
+        arrival_item = ArrivalItem.objects.create(
+            arrival=arrival, item=item, expected_qty=100
+        )
+
+        # 2. Create Sales Order
+        order = SalesService.create_order(
+            document_no="SO-REUSE",
+            partner=partner,
+            user=user,
+            order_date=date.today()
+        )
+        order_item = SalesService.add_item(order, item=item, requested_qty=100, unit_price=10)
+
+        # 3. Call save_manual_allocations with quantity 50 for both stock and arrival
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=user,
+            stock_qtys={stock.pk: 50},
+            arrival_qtys={arrival_item.pk: 50}
+        )
+
+        # Verify initial active allocations and reservations
+        active_allocs = list(order_item.allocations.filter(is_deleted=False))
+        assert len(active_allocs) == 2
+        
+        stock_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
+        arrival_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL, is_deleted=False)
+        
+        assert stock_alloc.quantity == 50
+        assert arrival_alloc.quantity == 50
+
+        stock_res = stock_alloc.physical_reservation
+        arrival_res = arrival_alloc.arrival_reservation
+
+        assert stock_res.is_deleted is False
+        assert stock_res.status == StockReservation.ReservationStatus.RESERVED
+        assert stock_res.quantity == 50
+
+        assert arrival_res.is_deleted is False
+        assert arrival_res.quantity == 50
+
+        # Save PKs for comparison
+        stock_alloc_pk = stock_alloc.pk
+        arrival_alloc_pk = arrival_alloc.pk
+        stock_res_pk = stock_res.pk
+        arrival_res_pk = arrival_res.pk
+
+        # 4. Remove/release allocations (set submitted quantity to 0)
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=user,
+            stock_qtys={stock.pk: 0},
+            arrival_qtys={arrival_item.pk: 0}
+        )
+
+        # Verify soft-deletion
+        stock_alloc.refresh_from_db()
+        arrival_alloc.refresh_from_db()
+        stock_res.refresh_from_db()
+        arrival_res.refresh_from_db()
+
+        assert stock_alloc.is_deleted is True
+        assert arrival_alloc.is_deleted is True
+        assert stock_res.is_deleted is True
+        assert stock_res.status == StockReservation.ReservationStatus.RELEASED
+        assert arrival_res.is_deleted is True
+
+        # 5. Re-allocate again using the same stock lot and arrival item with quantity 40 and 60
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=user,
+            stock_qtys={stock.pk: 40},
+            arrival_qtys={arrival_item.pk: 60}
+        )
+
+        # Verify that the total counts (including soft-deleted) of allocations and reservations did not change
+        assert order_item.allocations.count() == 3  # 2 active manual + 1 soft-deleted shortage
+        assert StockReservation.objects.filter(sales_item=order_item).count() == 1  # Still only 1 reservation in total
+        assert ArrivalReservation.objects.filter(sales_item=order_item).count() == 1
+
+        # Retrieve the updated active allocations
+        new_stock_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.STOCK)
+        new_arrival_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL)
+
+        assert new_stock_alloc.is_deleted is False
+        assert new_stock_alloc.quantity == 40
+        assert new_stock_alloc.pk == stock_alloc_pk
+
+        assert new_arrival_alloc.is_deleted is False
+        assert new_arrival_alloc.quantity == 60
+        assert new_arrival_alloc.pk == arrival_alloc_pk
+
+        new_stock_res = new_stock_alloc.physical_reservation
+        new_arrival_res = new_arrival_alloc.arrival_reservation
+
+        assert new_stock_res.is_deleted is False
+        assert new_stock_res.status == StockReservation.ReservationStatus.RESERVED
+        assert new_stock_res.quantity == 40
+        assert new_stock_res.pk == stock_res_pk
+
+        assert new_arrival_res.is_deleted is False
+        assert new_arrival_res.quantity == 60
+        assert new_arrival_res.pk == arrival_res_pk
+
+    def test_reset_allocations_reuses_soft_deleted_records(self, item, partner, user, warehouse):
+        """
+        Verify that calling reset_allocations restores and updates soft-deleted allocations
+        and reservations when the auto-allocator falls back to the same source.
+        """
+        # 1. Setup physical stock lot
+        stock = Stock.objects.create(
+            item=item, warehouse=warehouse, lot_number="LOT-RESET-REUSE", balance=100, created_by=user
+        )
+
+        # 2. Create Sales Order
+        order = SalesService.create_order(
+            document_no="SO-RESET-REUSE",
+            partner=partner,
+            user=user,
+            order_date=date.today()
+        )
+        order_item = SalesService.add_item(order, item=item, requested_qty=100, unit_price=10)
+
+        # 3. Manually allocate the stock lot
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=user,
+            stock_qtys={stock.pk: 100},
+            arrival_qtys={}
+        )
+
+        # Verify initial active manual allocation and reservation
+        active_alloc = order_item.allocations.get(is_deleted=False)
+        assert active_alloc.quantity == 100
+        assert active_alloc.is_manual is True
+        
+        physical_res = active_alloc.physical_reservation
+        assert physical_res.is_deleted is False
+        assert physical_res.status == StockReservation.ReservationStatus.RESERVED
+
+        # Save PKs for comparison
+        alloc_pk = active_alloc.pk
+        res_pk = physical_res.pk
+
+        # 4. Call reset_allocations
+        SalesService.reset_allocations(order_item, user)
+
+        # Verify that the manual flag was unset
+        order_item.refresh_from_db()
+        assert order_item.is_manual_allocate is False
+
+        # Verify that the allocation was restored and updated to is_manual = False, rather than a new one being created
+        assert order_item.allocations.count() == 1  # Still exactly 1 record in the DB
+        
+        restored_alloc = order_item.allocations.get(is_deleted=False)
+        assert restored_alloc.pk == alloc_pk
+        assert restored_alloc.quantity == 100
+        assert restored_alloc.is_manual is False
+
+        restored_res = restored_alloc.physical_reservation
+        assert restored_res.pk == res_pk
+        assert restored_res.is_deleted is False
+        assert restored_res.status == StockReservation.ReservationStatus.RESERVED
+        assert restored_res.quantity == 100
+
 
 @mark_db
 class TestSalesOrderHardDeleteCleanup:
