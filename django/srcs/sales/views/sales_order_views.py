@@ -28,7 +28,7 @@ class SalesOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         # Retrieve active non-deleted queryset, ordered newest first
-        queryset = SalesService.get_active_queryset().order_by('-order_date', '-created_at')
+        queryset = SalesService.get_active_queryset().order_by('-created_at', '-order_date')
         
         q = self.request.GET.get('q')
         if q:
@@ -72,62 +72,8 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
-        # Fetch active catalog items with their stock lots and reservations preloaded
-        items = Item.objects.filter(is_deleted=False, status='active').prefetch_related(
-            'stocks__reservations',
-            'images',
-            'packagings'
-        )
-
-        items_data = []
-        for item in items:
-            total_balance = 0
-            total_reserved = 0
-            lots_data = []
-            packagings_data = []
-
-            for pkg in item.packagings.filter(is_deleted=False, status='active'):
-                packagings_data.append({
-                    'id': pkg.id,
-                    'name': pkg.name,
-                    'quantity': int(pkg.quantity),
-                })
-
-            for stock in item.stocks.filter(is_deleted=False, status='active').exclude(balance=0):
-                total_balance += stock.balance
-                total_reserved += stock.reserved_qty
-                
-                res_list = []
-                for res in stock.reservations.all():
-                    res_list.append({
-                        'reference_no': res.reference_no,
-                        'reference_type': res.get_reference_type_display(),
-                        'quantity': float(res.quantity),
-                        'created_by': res.created_by.username if res.created_by else 'System',
-                        'note': res.note
-                    })
-
-                lots_data.append({
-                    'lot_number': stock.lot_number,
-                    'balance': float(stock.balance),
-                    'reserved_qty': float(stock.reserved_qty),
-                    'available_qty': float(stock.available_qty),
-                    'exp_date': stock.exp_date.strftime('%Y-%m-%d') if stock.exp_date else 'N/A',
-                    'reservations': res_list
-                })
-
-            items_data.append({
-                'id': item.id,
-                'sku': item.sku,
-                'name': item.name,
-                'unit': item.unit,
-                'main_image_url': item.main_image.image.url if item.main_image else None,
-                'total_balance': float(total_balance),
-                'total_reserved': float(total_reserved),
-                'total_available': float(max(0, total_balance - total_reserved)),
-                'lots': lots_data,
-                'packagings': packagings_data
-            })
+        # Use refactored service method to get catalog items and lots data
+        items_data = SalesService.get_catalog_items_data()
 
         from django.urls import reverse
         context = {
@@ -239,62 +185,8 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
-        # Fetch active catalog items
-        items = Item.objects.filter(is_deleted=False, status='active').prefetch_related(
-            'stocks__reservations',
-            'images',
-            'packagings'
-        )
-
-        items_data = []
-        for item in items:
-            total_balance = 0
-            total_reserved = 0
-            lots_data = []
-            packagings_data = []
-
-            for pkg in item.packagings.filter(is_deleted=False, status='active'):
-                packagings_data.append({
-                    'id': pkg.id,
-                    'name': pkg.name,
-                    'quantity': int(pkg.quantity),
-                })
-
-            for stock in item.stocks.filter(is_deleted=False, status='active'):
-                total_balance += stock.balance
-                total_reserved += stock.reserved_qty
-                
-                res_list = []
-                for res in stock.reservations.all():
-                    res_list.append({
-                        'reference_no': res.reference_no,
-                        'reference_type': res.get_reference_type_display(),
-                        'quantity': float(res.quantity),
-                        'created_by': res.created_by.username if res.created_by else 'System',
-                        'note': res.note
-                    })
-
-                lots_data.append({
-                    'lot_number': stock.lot_number,
-                    'balance': float(stock.balance),
-                    'reserved_qty': float(stock.reserved_qty),
-                    'available_qty': float(stock.available_qty),
-                    'exp_date': stock.exp_date.strftime('%Y-%m-%d') if stock.exp_date else 'N/A',
-                    'reservations': res_list
-                })
-
-            items_data.append({
-                'id': item.id,
-                'sku': item.sku,
-                'name': item.name,
-                'unit': item.unit,
-                'main_image_url': item.main_image.image.url if item.main_image else None,
-                'total_balance': float(total_balance),
-                'total_reserved': float(total_reserved),
-                'total_available': float(max(0, total_balance - total_reserved)),
-                'lots': lots_data,
-                'packagings': packagings_data
-            })
+        # Use refactored service method to get catalog items and lots data
+        items_data = SalesService.get_catalog_items_data()
 
         from django.urls import reverse
         context = {
@@ -333,62 +225,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
-        # Fetch active catalog items with their stock lots and reservations preloaded
-        items = Item.objects.filter(is_deleted=False, status='active').prefetch_related(
-            'stocks__reservations',
-            'images',
-            'packagings'
-        )
-
-        items_data = []
-        for item in items:
-            total_balance = 0
-            total_reserved = 0
-            lots_data = []
-            packagings_data = []
-
-            for pkg in item.packagings.filter(is_deleted=False, status='active'):
-                packagings_data.append({
-                    'id': pkg.id,
-                    'name': pkg.name,
-                    'quantity': int(pkg.quantity),
-                })
-
-            for stock in item.stocks.filter(is_deleted=False, status='active'):
-                total_balance += stock.balance
-                total_reserved += stock.reserved_qty
-                
-                res_list = []
-                for res in stock.reservations.all():
-                    res_list.append({
-                        'reference_no': res.reference_no,
-                        'reference_type': res.get_reference_type_display(),
-                        'quantity': float(res.quantity),
-                        'created_by': res.created_by.username if res.created_by else 'System',
-                        'note': res.note
-                    })
-
-                lots_data.append({
-                    'lot_number': stock.lot_number,
-                    'balance': float(stock.balance),
-                    'reserved_qty': float(stock.reserved_qty),
-                    'available_qty': float(stock.available_qty),
-                    'exp_date': stock.exp_date.strftime('%Y-%m-%d') if stock.exp_date else 'N/A',
-                    'reservations': res_list
-                })
-
-            items_data.append({
-                'id': item.id,
-                'sku': item.sku,
-                'name': item.name,
-                'unit': item.unit,
-                'main_image_url': item.main_image.image.url if item.main_image else None,
-                'total_balance': float(total_balance),
-                'total_reserved': float(total_reserved),
-                'total_available': float(max(0, total_balance - total_reserved)),
-                'lots': lots_data,
-                'packagings': packagings_data
-            })
+        # Use refactored service method to get catalog items and lots data
+        items_data = SalesService.get_catalog_items_data()
 
         # Prepopulate items json with current order items
         prepopulated_items = []
@@ -523,62 +361,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
-        # Fetch active catalog items
-        items = Item.objects.filter(is_deleted=False, status='active').prefetch_related(
-            'stocks__reservations',
-            'images',
-            'packagings'
-        )
-
-        items_data = []
-        for item in items:
-            total_balance = 0
-            total_reserved = 0
-            lots_data = []
-            packagings_data = []
-
-            for pkg in item.packagings.filter(is_deleted=False, status='active'):
-                packagings_data.append({
-                    'id': pkg.id,
-                    'name': pkg.name,
-                    'quantity': int(pkg.quantity),
-                })
-
-            for stock in item.stocks.filter(is_deleted=False, status='active'):
-                total_balance += stock.balance
-                total_reserved += stock.reserved_qty
-                
-                res_list = []
-                for res in stock.reservations.all():
-                    res_list.append({
-                        'reference_no': res.reference_no,
-                        'reference_type': res.get_reference_type_display(),
-                        'quantity': float(res.quantity),
-                        'created_by': res.created_by.username if res.created_by else 'System',
-                        'note': res.note
-                    })
-
-                lots_data.append({
-                    'lot_number': stock.lot_number,
-                    'balance': float(stock.balance),
-                    'reserved_qty': float(stock.reserved_qty),
-                    'available_qty': float(stock.available_qty),
-                    'exp_date': stock.exp_date.strftime('%Y-%m-%d') if stock.exp_date else 'N/A',
-                    'reservations': res_list
-                })
-
-            items_data.append({
-                'id': item.id,
-                'sku': item.sku,
-                'name': item.name,
-                'unit': item.unit,
-                'main_image_url': item.main_image.image.url if item.main_image else None,
-                'total_balance': float(total_balance),
-                'total_reserved': float(total_reserved),
-                'total_available': float(max(0, total_balance - total_reserved)),
-                'lots': lots_data,
-                'packagings': packagings_data
-            })
+        # Use refactored service method to get catalog items and lots data
+        items_data = SalesService.get_catalog_items_data()
 
         from django.urls import reverse
         context = {

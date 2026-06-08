@@ -369,6 +369,111 @@ class TestSalesServiceAllocation:
         assert restored_res.status == StockReservation.ReservationStatus.RESERVED
         assert restored_res.quantity == 100
 
+    def test_update_order_preserves_manual_allocate_status(self, item, partner, user, warehouse):
+        """
+        Verify that updating an order preserves the is_manual_allocate flag on the items,
+        ensuring that re-created lines are NOT automatically auto-allocated.
+        """
+        # 1. Setup physical stock lot
+        stock = Stock.objects.create(
+            item=item, warehouse=warehouse, lot_number="LOT-EDIT-TEST", balance=100, created_by=user
+        )
+
+        # 2. Create Sales Order
+        order = SalesService.create_order(
+            document_no="SO-EDIT-TEST",
+            partner=partner,
+            user=user,
+            order_date=date.today()
+        )
+        order_item = SalesService.add_item(order, item=item, requested_qty=100, unit_price=10)
+
+        # 3. Manually allocate the stock lot
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=user,
+            stock_qtys={stock.pk: 100},
+            arrival_qtys={}
+        )
+        assert order_item.is_manual_allocate is True
+
+        # 4. Update the order, e.g. changing note and quantity to 120
+        updated_order = SalesService.update_order(
+            order,
+            document_no="SO-EDIT-TEST",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            note="Updated Note",
+            items=[{'item': item, 'requested_qty': 120, 'unit_price': 10}]
+        )
+
+        # Verify that the new item line is manual
+        new_order_item = updated_order.items.first()
+        assert new_order_item.is_manual_allocate is True
+
+        # Verify that it bypassed stock auto-allocation and has no STOCK allocations (only shortage)
+        active_allocs = list(new_order_item.allocations.filter(is_deleted=False))
+        assert len(active_allocs) == 1
+        assert active_allocs[0].source_type == SalesAllocation.SourceType.SHORTAGE
+        assert active_allocs[0].quantity == 120
+
+    def test_update_order_shortage_reused_in_place(self, item, partner, user):
+        """
+        Verify that updating an order with shortage does not create new shortage
+        and sales allocation records, but updates the existing ones in-place.
+        """
+        from decimal import Decimal
+        # 1. Create a Sales Order for 10 units of an item with no stock (causes shortage)
+        order = SalesService.create_order(
+            document_no="SO-SHORTAGE-EDIT",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            items=[{'item': item, 'requested_qty': 10, 'unit_price': 100}]
+        )
+
+        order_item = order.items.first()
+        assert order_item.allocations.filter(is_deleted=False).count() == 1
+        alloc = order_item.allocations.get(is_deleted=False)
+        assert alloc.source_type == SalesAllocation.SourceType.SHORTAGE
+        assert alloc.quantity == 10
+        
+        shortage = alloc.shortage
+        assert shortage is not None
+        assert shortage.request_qty == 10
+        assert shortage.is_deleted is False
+
+        # Save PKs for comparison
+        alloc_pk = alloc.pk
+        shortage_pk = shortage.pk
+
+        # 2. Update the order, changing the requested quantity of the same item to 15
+        updated_order = SalesService.update_order(
+            order,
+            document_no="SO-SHORTAGE-EDIT",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            items=[{'item': item, 'requested_qty': 15, 'unit_price': 100}]
+        )
+
+        # 3. Verify that the allocation and shortage were updated in-place (same PKs)
+        new_order_item = updated_order.items.first()
+        # The PK of the SalesOrderItem itself should also be preserved
+        assert new_order_item.pk == order_item.pk
+        
+        new_alloc = new_order_item.allocations.get(is_deleted=False)
+        assert new_alloc.pk == alloc_pk
+        assert new_alloc.source_type == SalesAllocation.SourceType.SHORTAGE
+        assert new_alloc.quantity == 15
+
+        new_shortage = new_alloc.shortage
+        assert new_shortage.pk == shortage_pk
+        assert new_shortage.request_qty == 15
+        assert new_shortage.is_deleted is False
+
+
 
 @mark_db
 class TestSalesOrderHardDeleteCleanup:

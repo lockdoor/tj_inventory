@@ -48,6 +48,12 @@ class SalesService:
         if order.status != SalesOrder.Status.DRAFT:
             raise ValidationError("Only draft sales orders can be edited.")
 
+        # Keep track of which catalog items were manually allocated
+        manual_allocate_map = {item.item_id: item.is_manual_allocate for item in order.items.all()}
+
+        old_document_no = order.document_no
+        document_no_changed = (old_document_no != document_no)
+
         # Update basic header info
         order.document_no = document_no
         order.partner = partner
@@ -58,28 +64,89 @@ class SalesService:
             order.order_date = order_date
         order.save()
 
-        # Release allocations and delete previous items cleanly
-        for item in list(order.items.all()):
-            for allocation in list(item.allocations.filter(is_deleted=False)):
-                if allocation.source_type == SalesAllocation.SourceType.STOCK:
-                    if allocation.physical_reservation:
-                        from inventory.services import ReservationService
-                        ReservationService.release(allocation.physical_reservation)
-                elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
-                    if allocation.arrival_reservation:
-                        from procurement.services import ArrivalReservationService
-                        ArrivalReservationService.release(allocation.arrival_reservation)
-                elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
-                    if allocation.shortage:
-                        if allocation.shortage.status == 'pending':
-                            allocation.shortage.delete()
-                allocation.delete(user=user)
-            item.delete()
+        # If document number changed, update string references in related models
+        if document_no_changed:
+            from inventory.models import StockReservation
+            from procurement.models import ArrivalReservation, Shortage
+            StockReservation.objects.filter(
+                reference_no=old_document_no,
+                reference_type=StockReservation.ReferenceType.SALES_ORDER
+            ).update(reference_no=document_no)
+            
+            ArrivalReservation.objects.filter(
+                reference_no=old_document_no,
+                reference_type=ArrivalReservation.ReferenceType.SALES_ORDER
+            ).update(reference_no=document_no)
+            
+            Shortage.objects.filter(
+                reference_id=old_document_no,
+                reference_type=Shortage.ReferenceType.SELL_ORDER
+            ).update(reference_id=document_no)
 
-        # Re-create item lines
+        # Reconcile item lines in-place
+        existing_items = {item.item_id: item for item in order.items.all()}
+        new_item_ids = set()
+
         if items:
             for item_data in items:
-                SalesService.add_item(order, **item_data)
+                item_obj = item_data['item']
+                new_item_ids.add(item_obj.pk)
+                
+                requested_qty = item_data['requested_qty']
+                unit_price = item_data['unit_price']
+                
+                if item_obj.pk in existing_items:
+                    # Update existing line in-place
+                    order_item = existing_items[item_obj.pk]
+                    
+                    # Release active stock/arrival allocations before refreshing (as edit starts fresh)
+                    for allocation in list(order_item.allocations.filter(is_deleted=False)):
+                        if allocation.source_type == SalesAllocation.SourceType.STOCK:
+                            if allocation.physical_reservation:
+                                from inventory.services import ReservationService
+                                ReservationService.release(allocation.physical_reservation)
+                            allocation.delete(user=user)
+                        elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
+                            if allocation.arrival_reservation:
+                                from procurement.services import ArrivalReservationService
+                                ArrivalReservationService.release(allocation.arrival_reservation)
+                            allocation.delete(user=user)
+                            
+                    order_item.requested_qty = requested_qty
+                    order_item.unit_price = unit_price
+                    order_item.save(update_fields=['requested_qty', 'unit_price'])
+                    
+                    # Refresh allocations to adjust the remaining shortage or auto-allocation in-place
+                    SalesService.refresh_allocation(order_item)
+                else:
+                    # Create new line
+                    is_manual = manual_allocate_map.get(item_obj.pk, False)
+                    SalesService.add_item(
+                        order,
+                        item=item_obj,
+                        requested_qty=requested_qty,
+                        unit_price=unit_price,
+                        is_manual_allocate=is_manual
+                    )
+
+        # Cleanly release allocations and delete lines that are no longer in the updated order
+        for item_id, order_item in existing_items.items():
+            if item_id not in new_item_ids:
+                for allocation in list(order_item.allocations.filter(is_deleted=False)):
+                    if allocation.source_type == SalesAllocation.SourceType.STOCK:
+                        if allocation.physical_reservation:
+                            from inventory.services import ReservationService
+                            ReservationService.release(allocation.physical_reservation)
+                    elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
+                        if allocation.arrival_reservation:
+                            from procurement.services import ArrivalReservationService
+                            ArrivalReservationService.release(allocation.arrival_reservation)
+                    elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
+                        if allocation.shortage:
+                            if allocation.shortage.status == 'pending':
+                                allocation.shortage.delete()
+                    allocation.delete(user=user)
+                order_item.delete()
 
         return order
 
@@ -105,7 +172,7 @@ class SalesService:
 
     @staticmethod
     @transaction.atomic
-    def add_item(order: SalesOrder, *, item, requested_qty, unit_price):
+    def add_item(order: SalesOrder, *, item, requested_qty, unit_price, is_manual_allocate=False):
         """
         Add an item to the order and trigger initial allocation.
         """
@@ -117,7 +184,8 @@ class SalesService:
             order=order,
             item=item,
             requested_qty=requested_qty,
-            unit_price=unit_price
+            unit_price=unit_price,
+            is_manual_allocate=is_manual_allocate
         )
         
         # Trigger initial allocation
@@ -615,4 +683,71 @@ class SalesService:
 
         # Re-run automatic waterfall matching
         SalesService.refresh_allocation(order_item)
+
+    @staticmethod
+    def get_catalog_items_data():
+        """
+        Fetch active catalog items with their stock lots and active reservations,
+        formatted for the interactive sales order UI.
+        """
+        from catalog.models import Item
+
+        # Fetch active catalog items with their stock lots and reservations preloaded
+        items = Item.objects.filter(is_deleted=False, status='active').prefetch_related(
+            'stocks__reservations',
+            'images',
+            'packagings'
+        )
+
+        items_data = []
+        for item in items:
+            total_balance = 0
+            total_reserved = 0
+            lots_data = []
+            packagings_data = []
+
+            for pkg in item.packagings.filter(is_deleted=False, status='active'):
+                packagings_data.append({
+                    'id': pkg.id,
+                    'name': pkg.name,
+                    'quantity': int(pkg.quantity),
+                })
+
+            for stock in item.stocks.filter(is_deleted=False, status='active').exclude(balance=0):
+                total_balance += stock.balance
+                total_reserved += stock.reserved_qty
+                
+                res_list = []
+                # Only include active, non-soft-deleted reservations
+                for res in stock.reservations.filter(is_deleted=False):
+                    res_list.append({
+                        'reference_no': res.reference_no,
+                        'reference_type': res.get_reference_type_display(),
+                        'quantity': float(res.quantity),
+                        'created_by': res.created_by.username if res.created_by else 'System',
+                        'note': res.note
+                    })
+
+                lots_data.append({
+                    'lot_number': stock.lot_number,
+                    'balance': float(stock.balance),
+                    'reserved_qty': float(stock.reserved_qty),
+                    'available_qty': float(stock.available_qty),
+                    'exp_date': stock.exp_date.strftime('%Y-%m-%d') if stock.exp_date else 'N/A',
+                    'reservations': res_list
+                })
+
+            items_data.append({
+                'id': item.id,
+                'sku': item.sku,
+                'name': item.name,
+                'unit': item.unit,
+                'main_image_url': item.main_image.image.url if item.main_image else None,
+                'total_balance': float(total_balance),
+                'total_reserved': float(total_reserved),
+                'total_available': float(max(0, total_balance - total_reserved)),
+                'lots': lots_data,
+                'packagings': packagings_data
+            })
+        return items_data
 
