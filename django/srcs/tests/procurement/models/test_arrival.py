@@ -84,7 +84,8 @@ class TestArrivalModel:
             item=item,
             po_item=po_item,
             expected_qty=100,
-            received_qty=95
+            received_qty=95,
+            created_by=user
         )
         assert arrival_line.arrival == arrival
         assert arrival_line.po_item == po_item

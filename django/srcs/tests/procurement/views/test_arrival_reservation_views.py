@@ -58,13 +58,15 @@ def base_data(db):
         arrival=arrival_1,
         item=item_a,
         expected_qty=Decimal("100.00"),
-        received_qty=Decimal("0.00")
+        received_qty=Decimal("0.00"),
+        created_by=admin_user
     )
     arrival_item_2 = ArrivalItem.objects.create(
         arrival=arrival_2,
         item=item_b,
         expected_qty=Decimal("50.00"),
-        received_qty=Decimal("0.00")
+        received_qty=Decimal("0.00"),
+        created_by=admin_user
     )
     
     return {

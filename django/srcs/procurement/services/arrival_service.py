@@ -41,7 +41,8 @@ class ArrivalService:
                     expected_qty=item_data['expected_qty'],
                     received_qty=item_data.get('received_qty', 0),
                     mfg_date=item_data.get('mfg_date'),
-                    exp_date=item_data.get('exp_date')
+                    exp_date=item_data.get('exp_date'),
+                    created_by=user
                 )
         
         return arrival
@@ -64,7 +65,7 @@ class ArrivalService:
         arrival.save()
 
         if items_data is not None:
-            ArrivalService.sync_items(arrival, items_data)
+            ArrivalService.sync_items(arrival, items_data, user=user)
 
         return arrival
 
@@ -98,7 +99,7 @@ class ArrivalService:
         return arrival
 
     @staticmethod
-    def sync_items(arrival, items_data):
+    def sync_items(arrival, items_data, user=None):
         """
         Sync ArrivalItems based on formset data.
         """
@@ -113,7 +114,7 @@ class ArrivalService:
             
             if is_delete:
                 if item_id and item_id in existing_items:
-                    existing_items[item_id].delete()
+                    existing_items[item_id].delete(user=user)
                 continue
             
             # Must have an item selected to create/update
@@ -128,6 +129,8 @@ class ArrivalService:
                 item.expected_qty = item_info['expected_qty']
                 item.mfg_date = item_info.get('mfg_date')
                 item.exp_date = item_info.get('exp_date')
+                if user:
+                    item.updated_by = user
                 item.save()
             else:
                 # Create new
@@ -139,7 +142,8 @@ class ArrivalService:
                     expected_qty=item_info['expected_qty'],
                     received_qty=0,
                     mfg_date=item_info.get('mfg_date'),
-                    exp_date=item_info.get('exp_date')
+                    exp_date=item_info.get('exp_date'),
+                    created_by=user
                 )
 
     @staticmethod

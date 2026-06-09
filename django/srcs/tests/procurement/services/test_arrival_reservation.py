@@ -38,7 +38,8 @@ def arrival_setup(test_user, db):
     arr_item = ArrivalItem.objects.create(
         arrival=arrival,
         item=item,
-        expected_qty=Decimal("100.00")
+        expected_qty=Decimal("100.00"),
+        created_by=test_user
     )
     return arr_item
 
@@ -108,7 +109,8 @@ def test_delete_by_reference_future(arrival_setup, test_user):
     arr_item2 = ArrivalItem.objects.create(
         arrival=arrival2,
         item=arrival_setup.item,
-        expected_qty=Decimal("50.00")
+        expected_qty=Decimal("50.00"),
+        created_by=test_user
     )
     
     ArrivalReservationService.reserve_future(arrival_setup, Decimal("10.00"), "SO-TOTAL")

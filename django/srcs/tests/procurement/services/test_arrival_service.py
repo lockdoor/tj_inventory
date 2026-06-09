@@ -36,7 +36,8 @@ def sample_arrival(test_user, db):
     ArrivalItem.objects.create(
         arrival=arrival,
         item=item,
-        expected_qty=Decimal("100.00")
+        expected_qty=Decimal("100.00"),
+        created_by=test_user
     )
     return arrival
 

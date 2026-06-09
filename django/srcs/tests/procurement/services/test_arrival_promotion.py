@@ -50,7 +50,8 @@ class TestArrivalReservationPromotion:
             item=self.item,
             expected_qty=Decimal("15.00"),
             mfg_date=timezone.now().date(),
-            exp_date=timezone.now().date() + timezone.timedelta(days=365)
+            exp_date=timezone.now().date() + timezone.timedelta(days=365),
+            created_by=test_user
         )
 
     def test_successful_arrival_receipt_promotes_reservation(self, test_user):

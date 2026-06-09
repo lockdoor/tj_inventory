@@ -62,7 +62,7 @@ class Arrival(AuditableMixin):
         return f"{self.document_no} ({self.partner.name})"
 
 
-class ArrivalItem(models.Model):
+class ArrivalItem(AuditableMixin):
     """
     Individual item line in an Arrival document.
     """

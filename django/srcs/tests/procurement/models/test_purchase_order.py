@@ -171,7 +171,8 @@ class TestPurchaseOrderModel:
             arrival=arrival1,
             item=item,
             po_item=po_line,
-            expected_qty=40
+            expected_qty=40,
+            created_by=user
         )
         
         # Refreshed po_line should show 40
@@ -191,7 +192,8 @@ class TestPurchaseOrderModel:
             arrival=arrival2,
             item=item,
             po_item=po_line,
-            expected_qty=35
+            expected_qty=35,
+            created_by=user
         )
         
         # Refreshed po_line should show 40 + 35 = 75
@@ -211,7 +213,8 @@ class TestPurchaseOrderModel:
             arrival=arrival_cancelled,
             item=item,
             po_item=po_line,
-            expected_qty=100
+            expected_qty=100,
+            created_by=user
         )
         
         # Refreshed po_line should still show 75 (cancelled shipment is excluded)
@@ -232,7 +235,8 @@ class TestPurchaseOrderModel:
             arrival=arrival_deleted,
             item=item,
             po_item=po_line,
-            expected_qty=150
+            expected_qty=150,
+            created_by=user
         )
         
         # Refreshed po_line should still show 75 (deleted shipment is excluded)

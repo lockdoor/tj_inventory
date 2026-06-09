@@ -88,6 +88,7 @@ class TestSalesServiceAllocation:
             arrival=arrival,
             item=item,
             expected_qty=100,
+            created_by=user
         )
 
         # Create Sales Order
@@ -145,7 +146,8 @@ class TestSalesServiceAllocation:
         ArrivalItem.objects.create(
             arrival=arrival,
             item=item,
-            expected_qty=100
+            expected_qty=100,
+            created_by=user
         )
 
         # Create Sales Order dated TODAY
@@ -205,7 +207,7 @@ class TestSalesServiceAllocation:
             document_no="ARR-REUSE", partner=supplier, warehouse=warehouse, expected_date=date.today(), status='scheduled', created_by=user
         )
         arrival_item = ArrivalItem.objects.create(
-            arrival=arrival, item=item, expected_qty=100
+            arrival=arrival, item=item, expected_qty=100, created_by=user
         )
 
         # 2. Create Sales Order
@@ -505,7 +507,8 @@ class TestSalesOrderHardDeleteCleanup:
         arrival_item = ArrivalItem.objects.create(
             arrival=arrival,
             item=item,
-            expected_qty=100
+            expected_qty=100,
+            created_by=user
         )
 
         # 3. Create a Sales Order that allocates from stock, arrival, and shortage

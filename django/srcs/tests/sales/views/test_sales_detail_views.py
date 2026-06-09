@@ -189,6 +189,7 @@ class TestSalesOrderDetailAndRefreshViews:
             item=item,
             expected_qty=Decimal("2.00"),
             reserved_qty=Decimal("0.00"),
+            created_by=test_user
         )
 
         item_line = sales_order.items.first()
@@ -326,6 +327,7 @@ class TestSalesOrderDetailAndRefreshViews:
             item=item,
             expected_qty=Decimal("10.00"),
             reserved_qty=Decimal("0.00"),
+            created_by=test_user
         )
 
         # 2. Create a late arrival (expected in 5 days)
@@ -342,6 +344,7 @@ class TestSalesOrderDetailAndRefreshViews:
             item=item,
             expected_qty=Decimal("10.00"),
             reserved_qty=Decimal("0.00"),
+            created_by=test_user
         )
 
         item_line = sales_order.items.first()
@@ -650,7 +653,8 @@ class TestSalesOrderDetailAndRefreshViews:
         arrival_item = ArrivalItem.objects.create(
             arrival=deleted_arrival,
             item=item,
-            expected_qty=Decimal("100.00")
+            expected_qty=Decimal("100.00"),
+            created_by=test_user
         )
 
         client.force_login(test_user)
