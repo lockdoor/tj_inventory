@@ -7,6 +7,7 @@ urlpatterns = [
     path('overview/', views.ProcurementOverviewView.as_view(), name='overview'),
     
     path('purchase-orders/', views.PurchaseOrderListView.as_view(), name='purchase-order-list'),
+    path('purchase-orders/create-from-shortage/', views.PurchaseOrderCreateFromShortageView.as_view(), name='purchase-order-create-from-shortage'),
     path('purchase-orders/create/', views.PurchaseOrderCreateView.as_view(), name='purchase-order-create'),
     path('purchase-orders/<int:pk>/', views.PurchaseOrderDetailView.as_view(), name='purchase-order-detail'),
     path('purchase-orders/<int:pk>/update/', views.PurchaseOrderUpdateView.as_view(), name='purchase-order-update'),

@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Create Purchase Order from Shortages - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
+<span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<a href="{% url 'procurement:shortage-list' %}" style="color: var(--text-muted); text-decoration: none;">Material Shortages</a>
+<span style="color: var(--text-muted); opacity: 0.5; margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Create PO from Shortages</span>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade-in" style="max-width: 1100px; margin: 0 auto;">
+    <form method="post" id="po-from-shortage-form">
+        {% csrf_token %}
+        <input type="hidden" name="shortage_ids" value="{{ shortage_ids_str }}">
+        <input type="hidden" name="items_json" id="items-json-input" value="">
+
+        <div style="margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem;">
+                    Create Purchase Order from Shortages
+                </h1>
+                <p style="color: var(--text-dim);">Verify and adjust quantities before creating a formal PO to cover selected shortage requirements.</p>
+            </div>
+            <div class="actions" style="display: flex; gap: 1rem;">
+                <a href="{% url 'procurement:shortage-list' %}" class="btn btn-outline" style="padding: 0.75rem 1.5rem; border-radius: 12px; text-decoration: none; display: inline-flex; align-items: center;">Cancel</a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; border-radius: 12px; font-weight: 600; cursor: pointer;">
+                    Create Purchase Order
+                </button>
+            </div>
+        </div>
+
+        <!-- Header Section -->
+        <div class="glass-card" style="padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+                </div>
+                <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main);">Order Details</h3>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Document No</label>
+                    <input type="text" name="document_no" value="{{ suggested_no }}" class="glass-input" placeholder="e.g. PO-2026-0001" required>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Supplier</label>
+                    <select name="partner" class="glass-input" required>
+                        <option value="">---------</option>
+                        {% for supplier in suppliers %}
+                            <option value="{{ supplier.id }}" {% if selected_partner_id == supplier.id %}selected{% endif %}>{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Expected Date</label>
+                    <input type="date" name="expected_date" value="{{ selected_expected_date }}" class="glass-input">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="display: block; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">Internal Note</label>
+                <textarea name="note" class="glass-input" rows="3" placeholder="Optional internal notes...">{{ selected_note }}</textarea>
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                        <i data-lucide="package" style="width: 18px; height: 18px;"></i>
+                    </div>
+                    <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main);">Shortage Cover Items</h3>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th style="padding: 1rem 2rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 35%;">Item / Product</th>
+                            <th style="padding: 1rem 1rem; text-align: left; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 20%;">Packaging (Opt.)</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Order Qty</th>
+                            <th style="padding: 1rem 1rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Total (Pcs)</th>
+                            <th style="padding: 1rem 2rem; text-align: right; color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; width: 15%;">Unit Cost (Opt.)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="po-items-tbody">
+                        {% for group in grouped_shortages %}
+                        <tr class="po-item-row" data-item-id="{{ group.item.id }}" style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                            <td style="padding: 1rem 2rem;">
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">{{ group.item.name }}</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--primary-light); margin-top: 0.15rem;">{{ group.item.sku }}</span>
+                                    <span style="font-size: 0.8rem; color: #f87171; font-weight: 600; margin-top: 0.15rem;" class="shortage-sum-display" data-shortage-qty="{{ group.total_shortage_qty }}">Shortage: {{ group.total_shortage_qty|floatformat:2 }} {{ group.item.unit }}</span>
+                                </div>
+                            </td>
+                            <td style="padding: 1rem 1rem;">
+                                <select class="glass-input packaging-select" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                                    <option value="" data-qty="1" data-name="{{ group.item.unit }}">---------</option>
+                                    {% for pkg in packagings %}
+                                        {% if pkg.item_id == group.item.id %}
+                                            <option value="{{ pkg.id }}" data-qty="{{ pkg.quantity }}" data-name="{{ pkg.name }}">{{ pkg.name }} ({{ pkg.quantity }} {{ group.item.unit }})</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <span class="packaging-suggest-display" style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                    Suggest: {{ group.total_shortage_qty|floatformat:2 }} {{ group.item.unit }}
+                                </span>
+                            </td>
+                            <td style="padding: 1rem 1rem; text-align: right;">
+                                <input type="number" step="0.01" class="glass-input qty-input" value="{{ group.total_shortage_qty|stringformat:".2f" }}" style="text-align: right; width: 120px; display: inline-block; padding: 0.5rem 0.75rem; font-family: 'JetBrains Mono', monospace;" required>
+                            </td>
+                            <td style="padding: 1rem 1rem; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
+                                <span class="total-pcs-display" style="font-size: 1rem;">0.00</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.1rem;">{{ group.item.unit }}</span>
+                            </td>
+                            <td style="padding: 1rem 2rem; text-align: right;">
+                                <input type="number" step="0.01" class="glass-input cost-input" placeholder="0.00" style="text-align: right; width: 120px; display: inline-block; padding: 0.5rem 0.75rem; font-family: 'JetBrains Mono', monospace;">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Summary Footer -->
+            <div style="padding: 1.5rem 2rem; background: rgba(255,255,255,0.01); display: flex; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div style="text-align: right;">
+                    <span style="color: var(--text-dim); font-size: 0.875rem;">Total Estimated Amount</span>
+                    <div id="total-amount" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">0.00</div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .glass-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        color: var(--text-main);
+        font-size: 0.9375rem;
+        transition: var(--transition);
+    }
+    .glass-input:focus {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        outline: none;
+    }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('po-items-tbody');
+    const totalAmountDisplay = document.getElementById('total-amount');
+    const form = document.getElementById('po-from-shortage-form');
+    const itemsJsonInput = document.getElementById('items-json-input');
+
+    function updateRowPcs(row) {
+        const qtyInput = row.querySelector('.qty-input');
+        const packagingSelect = row.querySelector('.packaging-select');
+        const totalPcsDisplay = row.querySelector('.total-pcs-display');
+        const shortageSumDisplay = row.querySelector('.shortage-sum-display');
+        const packagingSuggestDisplay = row.querySelector('.packaging-suggest-display');
+
+        const shortageQty = parseFloat(shortageSumDisplay.getAttribute('data-shortage-qty')) || 0;
+        const qty = parseFloat(qtyInput.value) || 0;
+
+        const selectedOption = packagingSelect.options[packagingSelect.selectedIndex];
+        const multiplier = parseFloat(selectedOption.getAttribute('data-qty')) || 1;
+        const dataName = selectedOption.getAttribute('data-name') || '';
+
+        const totalPcs = qty * multiplier;
+        totalPcsDisplay.textContent = totalPcs.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        if (totalPcs >= shortageQty) {
+            totalPcsDisplay.style.color = '#10b981'; // Green
+        } else {
+            totalPcsDisplay.style.color = '#f87171'; // Red
+        }
+
+        // Suggested sufficiency order qty in packaging unit
+        const suggestedVal = Math.ceil(shortageQty / multiplier);
+        if (packagingSuggestDisplay) {
+            packagingSuggestDisplay.textContent = `Suggest: ${suggestedVal.toFixed(2)} ${dataName}`;
+        }
+    }
+
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.po-item-row').forEach(row => {
+            const qtyInput = row.querySelector('.qty-input');
+            const costInput = row.querySelector('.cost-input');
+            
+            const qty = parseFloat(qtyInput.value) || 0;
+            const cost = parseFloat(costInput.value) || 0;
+            total += (qty * cost);
+        });
+        if (totalAmountDisplay) {
+            totalAmountDisplay.textContent = total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+    }
+
+    document.querySelectorAll('.po-item-row').forEach(row => {
+        const qtyInput = row.querySelector('.qty-input');
+        const costInput = row.querySelector('.cost-input');
+        const packagingSelect = row.querySelector('.packaging-select');
+        
+        qtyInput.addEventListener('input', function() {
+            updateRowPcs(row);
+            calculateTotal();
+        });
+        costInput.addEventListener('input', calculateTotal);
+        packagingSelect.addEventListener('change', function() {
+            updateRowPcs(row);
+            calculateTotal();
+        });
+
+        // Initialize row state
+        updateRowPcs(row);
+    });
+
+    form.addEventListener('submit', function(e) {
+        const items = [];
+        let hasError = false;
+
+        document.querySelectorAll('.po-item-row').forEach(row => {
+            const itemId = row.getAttribute('data-item-id');
+            const qtyInput = row.querySelector('.qty-input');
+            const costInput = row.querySelector('.cost-input');
+            const packagingSelect = row.querySelector('.packaging-select');
+
+            const orderQty = parseFloat(qtyInput.value) || 0;
+            const unitCost = costInput.value.trim() !== '' ? parseFloat(costInput.value) : null;
+            const packagingId = packagingSelect.value || null;
+
+            if (orderQty <= 0) {
+                alert("Quantity must be greater than zero.");
+                qtyInput.focus();
+                hasError = true;
+                return;
+            }
+            if (unitCost !== null && unitCost < 0) {
+                alert("Unit cost cannot be negative.");
+                costInput.focus();
+                hasError = true;
+                return;
+            }
+
+            items.push({
+                item_id: parseInt(itemId),
+                order_qty: orderQty,
+                unit_cost: unitCost,
+                packaging_id: packagingId ? parseInt(packagingId) : null
+            });
+        });
+
+        if (hasError) {
+            e.preventDefault();
+            return;
+        }
+
+        itemsJsonInput.value = JSON.stringify(items);
+    });
+
+    calculateTotal();
+});
+</script>
+{% endblock %}

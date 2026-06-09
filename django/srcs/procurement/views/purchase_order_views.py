@@ -2,7 +2,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.urls import reverse_lazy, reverse
 from django.db import transaction
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -214,3 +214,232 @@ class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):
             'partner_id': po.partner.id if po.partner else None
         }
         return JsonResponse(data)
+
+
+from procurement.models import Shortage
+from partners.models import Partner
+from catalog.models import Item, ItemPackaging
+import json
+from django.db import IntegrityError
+
+class PurchaseOrderCreateFromShortageView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'procurement.add_purchaseorder'
+    template_name = 'procurement/purchase_order_from_shortage_form.html'
+    
+    def get(self, request, *args, **kwargs):
+        shortage_ids_str = request.GET.get('shortage_ids', '')
+        shortage_ids = [int(x) for x in shortage_ids_str.split(',') if x.strip().isdigit()]
+        
+        if not shortage_ids:
+            messages.error(request, "No shortages were selected.")
+            return redirect('procurement:shortage-list')
+            
+        shortages = Shortage.objects.filter(
+            id__in=shortage_ids,
+            status=Shortage.Status.PENDING,
+            is_deleted=False
+        ).select_related('item')
+        
+        if not shortages.exists():
+            messages.error(request, "Selected shortages are either invalid, cancelled, or already ordered.")
+            return redirect('procurement:shortage-list')
+
+        if shortages.count() != len(shortage_ids):
+            messages.error(request, "Invalid shortages detected, wrong amount of shortages selected.")
+            return redirect('procurement:shortage-list')
+            
+        # Group shortages by item
+        grouped_shortages = {}
+        for shortage in shortages:
+            item = shortage.item
+            if item.id not in grouped_shortages:
+                grouped_shortages[item.id] = {
+                    'item': item,
+                    'total_shortage_qty': 0,
+                    'shortage_ids': []
+                }
+            grouped_shortages[item.id]['total_shortage_qty'] += shortage.request_qty
+            grouped_shortages[item.id]['shortage_ids'].append(shortage.id)
+            
+        # Suggested PO Number
+        suggested_no = PurchaseOrderService.get_suggested_PO_numbers()
+        
+        # Suppliers
+        suppliers = Partner.objects.filter(status='active', is_supplier=True, is_deleted=False)
+        
+        # System-wide pending shortage sum map (to let the user see total shortages per item)
+        all_pending = Shortage.objects.filter(status=Shortage.Status.PENDING, is_deleted=False)
+        from django.db.models import Sum
+        shortage_sums = all_pending.values('item_id').annotate(total=Sum('request_qty'))
+        shortage_sum_map = {entry['item_id']: float(entry['total']) for entry in shortage_sums}
+        
+        # Packagings for dropdown selection
+        packagings = ItemPackaging.objects.filter(is_deleted=False)
+        
+        context = {
+            'page_title': "Create Purchase Order from Shortages",
+            'suggested_no': suggested_no,
+            'suppliers': suppliers,
+            'grouped_shortages': grouped_shortages.values(),
+            'shortage_ids_str': shortage_ids_str,
+            'shortage_sum_map_json': json.dumps(shortage_sum_map),
+            'packagings': packagings
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        partner_id = request.POST.get('partner')
+        document_no = request.POST.get('document_no', '').strip()
+        expected_date = request.POST.get('expected_date')
+        note = request.POST.get('note', '').strip()
+        shortage_ids_str = request.POST.get('shortage_ids', '')
+        
+        shortage_ids = [int(x) for x in shortage_ids_str.split(',') if x.strip().isdigit()]
+        
+        errors = []
+        if not partner_id:
+            errors.append("Supplier is required.")
+        if not document_no:
+            errors.append("Document Number is required.")
+            
+        partner = None
+        if partner_id:
+            try:
+                partner = Partner.objects.get(pk=partner_id, is_supplier=True, is_deleted=False)
+            except Partner.DoesNotExist:
+                errors.append("Invalid Supplier selected.")
+                
+        # Parse item lines
+        items_payload_json = request.POST.get('items_json')
+        items_list = []
+        if items_payload_json:
+            try:
+                raw_items = json.loads(items_payload_json)
+                if not raw_items:
+                    errors.append("At least one item line is required.")
+                for ri in raw_items:
+                    item_id = ri.get('item_id')
+                    qty = ri.get('order_qty')
+                    cost = ri.get('unit_cost')
+                    packaging_id = ri.get('packaging_id')
+                    
+                    if not item_id or qty is None:
+                        errors.append("Invalid item line format.")
+                        continue
+                        
+                    from decimal import Decimal, InvalidOperation
+                    try:
+                        qty = Decimal(str(qty))
+                    except (ValueError, InvalidOperation):
+                        errors.append("Quantity must be a numeric value.")
+                        continue
+                        
+                    if qty <= 0:
+                        errors.append("Quantity must be greater than zero.")
+                        continue
+
+                    # Validate optional unit cost
+                    if cost is None or str(cost).strip() == '':
+                        cost_val = Decimal('0.00')
+                    else:
+                        try:
+                            cost_val = Decimal(str(cost))
+                        except (ValueError, InvalidOperation):
+                            errors.append("Unit cost must be a numeric value.")
+                            continue
+                        if cost_val < 0:
+                            errors.append("Unit cost cannot be negative.")
+                            continue
+                        
+                    try:
+                        item_obj = Item.objects.get(pk=item_id, is_deleted=False, status='active')
+                    except Item.DoesNotExist:
+                        errors.append("One or more selected products are invalid or inactive.")
+                        continue
+                        
+                    packaging = None
+                    if packaging_id:
+                        try:
+                            packaging = ItemPackaging.objects.get(pk=packaging_id, is_deleted=False)
+                        except ItemPackaging.DoesNotExist:
+                            errors.append("Invalid packaging selected.")
+                            continue
+                            
+                    items_list.append({
+                        'item': item_obj,
+                        'order_qty': qty,
+                        'unit_cost': cost_val,
+                        'packaging': packaging
+                    })
+            except json.JSONDecodeError:
+                errors.append("Invalid items structure submitted.")
+        else:
+            errors.append("No item lines submitted.")
+            
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return self._re_render_form(request, document_no, partner_id, expected_date, note, shortage_ids_str)
+            
+        try:
+            with transaction.atomic():
+                # Verify document_no uniqueness manually
+                if PurchaseOrder.objects.filter(document_no=document_no, is_deleted=False).exists():
+                    raise ValidationError(f"Purchase Order with Document Number '{document_no}' already exists.")
+                    
+                po = PurchaseOrderService.create_from_shortages(
+                    document_no=document_no,
+                    partner=partner,
+                    user=request.user,
+                    expected_date=expected_date if expected_date else None,
+                    note=note,
+                    items=items_list,
+                    shortage_ids=shortage_ids
+                )
+                
+            messages.success(request, f"Purchase Order {po.document_no} successfully created from shortages.")
+            return redirect('procurement:purchase-order-list')
+        except (ValidationError, IntegrityError, Exception) as e:
+            messages.error(request, str(e))
+            return self._re_render_form(request, document_no, partner_id, expected_date, note, shortage_ids_str)
+
+    def _re_render_form(self, request, document_no, partner_id, expected_date, note, shortage_ids_str):
+        shortage_ids = [int(x) for x in shortage_ids_str.split(',') if x.strip().isdigit()]
+        shortages = Shortage.objects.filter(
+            id__in=shortage_ids,
+            status=Shortage.Status.PENDING,
+            is_deleted=False
+        ).select_related('item')
+        
+        grouped_shortages = {}
+        for shortage in shortages:
+            item = shortage.item
+            if item.id not in grouped_shortages:
+                grouped_shortages[item.id] = {
+                    'item': item,
+                    'total_shortage_qty': 0,
+                    'shortage_ids': []
+                }
+            grouped_shortages[item.id]['total_shortage_qty'] += shortage.request_qty
+            grouped_shortages[item.id]['shortage_ids'].append(shortage.id)
+            
+        suppliers = Partner.objects.filter(status='active', is_supplier=True, is_deleted=False)
+        all_pending = Shortage.objects.filter(status=Shortage.Status.PENDING, is_deleted=False)
+        from django.db.models import Sum
+        shortage_sums = all_pending.values('item_id').annotate(total=Sum('request_qty'))
+        shortage_sum_map = {entry['item_id']: float(entry['total']) for entry in shortage_sums}
+        packagings = ItemPackaging.objects.filter(is_deleted=False)
+        
+        context = {
+            'page_title': "Create Purchase Order from Shortages",
+            'suggested_no': document_no,
+            'selected_partner_id': int(partner_id) if partner_id and partner_id.isdigit() else partner_id,
+            'selected_expected_date': expected_date,
+            'selected_note': note,
+            'suppliers': suppliers,
+            'grouped_shortages': grouped_shortages.values(),
+            'shortage_ids_str': shortage_ids_str,
+            'shortage_sum_map_json': json.dumps(shortage_sum_map),
+            'packagings': packagings
+        }
+        return render(request, self.template_name, context)

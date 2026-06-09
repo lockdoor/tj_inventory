@@ -50,6 +50,42 @@ class PurchaseOrderService:
 
     @staticmethod
     @transaction.atomic
+    def create_from_shortages(*, document_no, partner, user, expected_date=None, note='', items=None, shortage_ids=None):
+        """
+        Create a new Purchase Order from selected shortages.
+        """
+        po = PurchaseOrder(
+            document_no=document_no,
+            partner=partner,
+            expected_date=expected_date,
+            note=note,
+            created_by=user,
+            status=PurchaseOrder.Status.DRAFT
+        )
+        po.full_clean()
+        po.save()
+
+        if items:
+            for item_data in items:
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    item=item_data['item'],
+                    packaging=item_data.get('packaging'),
+                    order_qty=item_data['order_qty'],
+                    unit_cost=item_data.get('unit_cost')
+                )
+
+        if shortage_ids:
+            from procurement.models import Shortage
+            from procurement.services.shortage_service import ShortageService
+            shortages = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False, status=Shortage.Status.PENDING)
+            for shortage in shortages:
+                ShortageService.link_to_po(shortage, po, user=user)
+
+        return po
+
+    @staticmethod
+    @transaction.atomic
     def update(po, *, user, **fields):
         """
         Update PO header fields.
@@ -67,6 +103,15 @@ class PurchaseOrderService:
         po.updated_by = user
         po.full_clean()
         po.save()
+
+        # If status was changed to CANCELLED, revert any linked shortages back to pending
+        if fields.get('status') == PurchaseOrder.Status.CANCELLED:
+            po.shortages.filter(is_deleted=False).update(
+                status='pending',
+                purchase_order=None,
+                updated_by=user
+            )
+
         return po
 
     @staticmethod
@@ -119,9 +164,17 @@ class PurchaseOrderService:
         if po.arrivals.filter(is_deleted=False).exists():
             raise ValidationError("Cannot delete Purchase Order because it has scheduled or received arrivals.")
         
-        po.is_deleted = True
-        po.updated_by = user
-        po.save()
+        with transaction.atomic():
+            po.is_deleted = True
+            po.updated_by = user
+            po.save()
+
+            # Revert any linked shortages back to pending
+            po.shortages.filter(is_deleted=False).update(
+                status='pending',
+                purchase_order=None,
+                updated_by=user
+            )
         return po
 
     @staticmethod
@@ -155,3 +208,20 @@ class PurchaseOrderService:
         po.updated_by = user
         po.save()
         return po
+
+    @staticmethod
+    def get_suggested_PO_numbers():
+        from django.utils import timezone
+        today_str = timezone.now().strftime('%Y%m%d')
+        prefix = f"PO-{today_str}-"
+        last_po = PurchaseOrder.objects.filter(document_no__startswith=prefix).order_by('-document_no').first()
+        if last_po:
+            try:
+                last_serial = int(last_po.document_no.split('-')[-1])
+                new_serial = last_serial + 1
+            except ValueError:
+                new_serial = 1
+        else:
+            new_serial = 1
+        suggested_no = f"{prefix}{new_serial:04d}"
+        return suggested_no

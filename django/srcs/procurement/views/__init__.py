@@ -6,7 +6,8 @@ from .purchase_order_views import (
     PurchaseOrderSubmitView,
     PurchaseOrderRevertView,
     PurchaseOrderDeleteView,
-    PurchaseOrderItemsAPIView
+    PurchaseOrderItemsAPIView,
+    PurchaseOrderCreateFromShortageView
 )
 from .attachment_views import (
     PurchaseOrderAttachmentUploadView,

@@ -69,6 +69,22 @@ class PurchaseOrderItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['packaging'].queryset = ItemPackaging.objects.filter(is_deleted=False)
 
+        # Annotate items with active pending shortage sums and display them in choices
+        from django.db.models import Sum, Q
+        from catalog.models import Item
+        items = Item.objects.filter(is_deleted=False, status='active').annotate(
+            pending_shortage=Sum(
+                'shortages__request_qty',
+                filter=Q(shortages__status='pending', shortages__is_deleted=False)
+            )
+        ).order_by('sku')
+        
+        choices = [('', '---------')]
+        for item in items:
+            shortage_str = f" (Shortage: {item.pending_shortage:.2f})" if item.pending_shortage else ""
+            choices.append((item.id, f"{item.sku} - {item.name}{shortage_str}"))
+        self.fields['item'].choices = choices
+
     def clean_order_qty(self):
 
         qty = self.cleaned_data.get('order_qty')
