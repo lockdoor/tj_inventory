@@ -104,3 +104,15 @@ class TestArrivalReceiveActionViews:
         assert sample_arrival.status == Arrival.Status.SCHEDULED
         assert response.status_code == 302
         assert response.url == reverse('procurement:arrival-detail', kwargs={'pk': sample_arrival.pk})
+
+
+@pytest.mark.django_db
+class TestArrivalCreateView:
+    def test_create_view_prefills_suggested_document_no(self, client, test_user):
+        client.force_login(test_user)
+        url = reverse('procurement:arrival-create')
+        response = client.get(url)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert form.initial.get('document_no') is not None
+        assert form.initial.get('document_no').startswith("ARR-")

@@ -423,7 +423,7 @@ class SalesOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         
         # Calculate overall order allocation status progress
         total_items = order.items.count()
-        allocated_items = order.items.filter(status='allocated').count()
+        allocated_items = order.items.filter(status__in=['allocated', 'shipped']).count()
         context['allocated_items'] = allocated_items
         context['total_items'] = total_items
         

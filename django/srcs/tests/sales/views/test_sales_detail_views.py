@@ -758,6 +758,20 @@ class TestSalesOrderDetailAndRefreshViews:
         # Verify soft-deleted
         assert sales_order.attachments.filter(is_deleted=False).count() == 0
 
+    def test_sales_order_detail_view_allocated_items_count_includes_shipped(self, client, test_user, sales_order):
+        client.force_login(test_user)
+        item_line = sales_order.items.first()
+        
+        # Set item status to SHIPPED
+        item_line.status = SalesOrderItem.Status.SHIPPED
+        item_line.save()
+        
+        url = reverse('sales:sales-order-detail', kwargs={'pk': sales_order.pk})
+        response = client.get(url)
+        assert response.status_code == 200
+        assert response.context['allocated_items'] == 1
+        assert response.context['total_items'] == 1
+
 
 
 

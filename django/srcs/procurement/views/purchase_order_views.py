@@ -29,6 +29,11 @@ class PurchaseOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, Creat
     permission_required = 'procurement.add_purchaseorder'
     success_url = reverse_lazy('procurement:purchase-order-list')
 
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['document_no'] = PurchaseOrderService.get_suggested_PO_numbers()
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.request.POST:

@@ -67,6 +67,15 @@ class TestPurchaseOrderPermissions:
         response = client.get(url)
         assert response.status_code == 200
 
+    def test_create_view_prefills_suggested_document_no(self, client, authorized_user):
+        client.login(username="authorized", password="password")
+        url = reverse('procurement:purchase-order-create')
+        response = client.get(url)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert form.initial.get('document_no') is not None
+        assert form.initial.get('document_no').startswith("PO-")
+
     def test_update_view_permission(self, client, authorized_user, unauthorized_user, supplier):
         po = PurchaseOrder.objects.create(
             document_no="PO-TEST-001",

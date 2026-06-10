@@ -732,3 +732,20 @@ class ArrivalService:
                 if order.status in [SalesOrder.Status.DRAFT, SalesOrder.Status.PREORDER]:
                     order.status = SalesOrder.Status.CONFIRMED
                     order.save(update_fields=['status', 'updated_at'])
+
+    @staticmethod
+    def get_suggested_arrival_numbers():
+        from django.utils import timezone
+        today_str = timezone.now().strftime('%Y%m%d')
+        prefix = f"ARR-{today_str}-"
+        last_arr = Arrival.objects.filter(document_no__startswith=prefix).order_by('-document_no').first()
+        if last_arr:
+            try:
+                last_serial = int(last_arr.document_no.split('-')[-1])
+                new_serial = last_serial + 1
+            except ValueError:
+                new_serial = 1
+        else:
+            new_serial = 1
+        suggested_no = f"{prefix}{new_serial:04d}"
+        return suggested_no

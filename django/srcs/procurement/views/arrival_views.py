@@ -36,6 +36,8 @@ class ArrivalCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
         for field in ['purchase_order', 'partner', 'document_no', 'expected_date']:
             if self.request.GET.get(field):
                 initial[field] = self.request.GET.get(field)
+        if not initial.get('document_no'):
+            initial['document_no'] = ArrivalService.get_suggested_arrival_numbers()
         return initial
 
     def get_context_data(self, **kwargs):
