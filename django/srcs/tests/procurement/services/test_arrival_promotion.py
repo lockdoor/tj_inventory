@@ -110,7 +110,7 @@ class TestArrivalReservationPromotion:
         # --- B. Verify a new physical StockReservation has been created ---
         # It must reference the ultimate parent Sales Order directly
         physical_reservations = StockReservation.objects.filter(
-            reference_no=order.document_no,
+            reference_no=str(order.id),
             reference_type=StockReservation.ReferenceType.SALES_ORDER,
             is_deleted=False
         )

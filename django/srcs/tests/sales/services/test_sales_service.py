@@ -129,7 +129,7 @@ class TestSalesServiceAllocation:
         assert allocation.source_type == SalesAllocation.SourceType.SHORTAGE
         assert allocation.quantity == 10
         assert allocation.shortage.request_qty == 10
-        assert allocation.shortage.reference_id == "SO-103"
+        assert allocation.shortage.reference_id == str(order.id)
 
     def test_arrival_date_constraint(self, item, partner, user, supplier, warehouse):
         """Test that arrivals after the SO date are ignored."""
@@ -535,7 +535,7 @@ class TestSalesOrderHardDeleteCleanup:
         assert arrival_item.reserved_qty == 100
         
         # Verify Shortage
-        shortage_qs = Shortage.objects.filter(reference_id="SO-HD-999")
+        shortage_qs = Shortage.objects.filter(reference_id=str(order.id))
         assert shortage_qs.exists()
         assert shortage_qs.filter(is_deleted=False).count() == 1
 
@@ -548,7 +548,7 @@ class TestSalesOrderHardDeleteCleanup:
         assert stock.reserved_qty == 0
 
         # B. All StockReservations for this sales item must be marked as RELEASED and soft-deleted (is_deleted=True)
-        res_qs = StockReservation.objects.filter(reference_no="SO-HD-999")
+        res_qs = StockReservation.objects.filter(reference_no=str(order.id))
         for res in res_qs:
             assert res.status == StockReservation.ReservationStatus.RELEASED
             assert res.is_deleted is True
@@ -558,7 +558,7 @@ class TestSalesOrderHardDeleteCleanup:
         assert arrival_item.reserved_qty == 0
 
         # D. All ArrivalReservations for this sales item must be soft-deleted
-        assert not ArrivalReservation.objects.filter(reference_no="SO-HD-999", is_deleted=False).exists()
+        assert not ArrivalReservation.objects.filter(reference_no=str(order.id), is_deleted=False).exists()
 
         # E. Shortages for this sales order must be soft-deleted
-        assert not Shortage.objects.filter(reference_id="SO-HD-999", is_deleted=False).exists()
+        assert not Shortage.objects.filter(reference_id=str(order.id), is_deleted=False).exists()

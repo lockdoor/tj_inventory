@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from common.mixins.auditable import AuditableMixin
 
 
@@ -128,6 +129,36 @@ class ArrivalItem(AuditableMixin):
     class Meta:
         verbose_name = "Arrival Item"
         verbose_name_plural = "Arrival Items"
+
+    def clean(self):
+        super().clean()
+        if self.pk:
+            from procurement.models.reservation import ArrivalReservation
+            total_reserved = ArrivalReservation.objects.filter(
+                arrival_item=self,
+                is_deleted=False
+            ).aggregate(total=models.Sum('quantity'))['total'] or 0
+
+            if self.expected_qty < total_reserved:
+                raise ValidationError({
+                    'expected_qty': f"Cannot reduce expected quantity below currently reserved quantity of {total_reserved}."
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, user=None, *args, **kwargs):
+        from procurement.models.reservation import ArrivalReservation
+        from procurement.services.arrival_service import ArrivalService
+        
+        # Revert active reservations back to shortages
+        reservations = ArrivalReservation.objects.filter(arrival_item=self, is_deleted=False)
+        for res in list(reservations):
+            ArrivalService.revert_reservation_to_shortage(res, user=user)
+            
+        self.refresh_version()
+        super().delete(user=user, *args, **kwargs)
 
     def __str__(self):
         return f"{self.arrival.document_no} - {self.item.sku} ({self.received_qty}/{self.expected_qty})"

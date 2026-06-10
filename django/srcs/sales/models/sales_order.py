@@ -173,7 +173,7 @@ def cleanup_sales_order_item_allocations_and_reservations(sender, instance, **kw
     # 3. Soft-delete outstanding shortages associated with this item line
     shortages = Shortage.objects.filter(
         reference_type=Shortage.ReferenceType.SELL_ORDER,
-        reference_id=instance.order.document_no,
+        reference_id=str(instance.order.id),
         item=instance.item
     )
     for shortage in shortages:

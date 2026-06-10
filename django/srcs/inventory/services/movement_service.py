@@ -199,7 +199,7 @@ class MovementService:
         
         # 1. Query active reservations for the Sales Order
         reservations = StockReservation.objects.filter(
-            reference_no=sales_order.document_no,
+            reference_no=str(sales_order.id),
             reference_type=StockReservation.ReferenceType.SALES_ORDER,
             is_deleted=False,
             status=StockReservation.ReservationStatus.RESERVED
@@ -345,7 +345,7 @@ class MovementService:
 
                         # Complete corresponding reservations matching this warehouse, item, and lot
                         matching_reservations = StockReservation.objects.filter(
-                            reference_no=sales_order.document_no,
+                            reference_no=str(sales_order.id),
                             reference_type=StockReservation.ReferenceType.SALES_ORDER,
                             stock__item=item_line.item,
                             stock__lot_number=item_line.lot_number,
@@ -452,7 +452,7 @@ class MovementService:
                         ).first()
                         if stock:
                             res = StockReservation.objects.filter(
-                                reference_no=sales_order.document_no,
+                                reference_no=str(sales_order.id),
                                 reference_type=StockReservation.ReferenceType.SALES_ORDER,
                                 stock=stock,
                                 status=StockReservation.ReservationStatus.COMPLETED,
@@ -469,7 +469,7 @@ class MovementService:
                                 res = ReservationService.reserve(
                                     stock=stock,
                                     quantity=item_line.quantity,
-                                    reference_no=sales_order.document_no,
+                                    reference_no=str(sales_order.id),
                                     reference_type=StockReservation.ReferenceType.SALES_ORDER,
                                     sales_item=sales_item,
                                     note="Restored during inventory movement reversion to draft.",

@@ -64,25 +64,6 @@ class SalesService:
             order.order_date = order_date
         order.save()
 
-        # If document number changed, update string references in related models
-        if document_no_changed:
-            from inventory.models import StockReservation
-            from procurement.models import ArrivalReservation, Shortage
-            StockReservation.objects.filter(
-                reference_no=old_document_no,
-                reference_type=StockReservation.ReferenceType.SALES_ORDER
-            ).update(reference_no=document_no)
-            
-            ArrivalReservation.objects.filter(
-                reference_no=old_document_no,
-                reference_type=ArrivalReservation.ReferenceType.SALES_ORDER
-            ).update(reference_no=document_no)
-            
-            Shortage.objects.filter(
-                reference_id=old_document_no,
-                reference_type=Shortage.ReferenceType.SELL_ORDER
-            ).update(reference_id=document_no)
-
         # Reconcile item lines in-place
         existing_items = {item.item_id: item for item in order.items.all()}
         new_item_ids = set()
@@ -203,7 +184,7 @@ class SalesService:
         physical_lock = ReservationService.reserve(
             stock=stock,
             quantity=quantity,
-            reference_no=order_item.order.document_no,
+            reference_no=str(order_item.order.id),
             reference_type=StockReservation.ReferenceType.SALES_ORDER,
             sales_item=order_item
         )
@@ -233,7 +214,7 @@ class SalesService:
         arrival_lock = ArrivalReservationService.reserve_future(
             arrival_item=arrival_item,
             quantity=quantity,
-            reference_no=order_item.order.document_no,
+            reference_no=str(order_item.order.id),
             reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
             sales_item=order_item
         )
@@ -271,7 +252,7 @@ class SalesService:
         # Look up any existing pending shortage record for this order item to reuse/update instead of deleting and recreating.
         from procurement.models import Shortage
         existing_shortage = Shortage.objects.filter(
-            reference_id=order_item.order.document_no,
+            reference_id=str(order_item.order.id),
             reference_type=Shortage.ReferenceType.SELL_ORDER,
             item=order_item.item,
             status=Shortage.Status.PENDING,
@@ -373,7 +354,7 @@ class SalesService:
                         physical_lock = ReservationService.reserve(
                             stock=stock,
                             quantity=take,
-                            reference_no=order_item.order.document_no,
+                            reference_no=str(order_item.order.id),
                             reference_type=StockReservation.ReferenceType.SALES_ORDER,
                             sales_item=order_item
                         )
@@ -421,7 +402,7 @@ class SalesService:
                         arrival_lock = ArrivalReservationService.reserve_future(
                             arrival_item=arr_item,
                             quantity=take,
-                            reference_no=order_item.order.document_no,
+                            reference_no=str(order_item.order.id),
                             reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
                             sales_item=order_item
                         )
@@ -448,7 +429,7 @@ class SalesService:
                     request_qty=remaining_qty,
                     user=order_item.order.created_by,
                     reference_type=Shortage.ReferenceType.SELL_ORDER,
-                    reference_id=order_item.order.document_no,
+                    reference_id=str(order_item.order.id),
                     expected_date=order_item.order.order_date,
                     note=f"Automatic shortage for {order_item.order.document_no}"
                 )
@@ -576,7 +557,7 @@ class SalesService:
                 physical_lock = ReservationService.reserve(
                     stock=stock,
                     quantity=float(submitted_qty),
-                    reference_no=order_item.order.document_no,
+                    reference_no=str(order_item.order.id),
                     reference_type=StockReservation.ReferenceType.SALES_ORDER,
                     sales_item=order_item,
                     created_by=user
@@ -630,9 +611,9 @@ class SalesService:
                         f"which is after the Sales Order expected fulfillment date ({order_item.order.order_date})."
                     )
                 arrival_lock = ArrivalReservationService.reserve_future(
-                    arrival_item=arr_item,
+                    arr_item,
                     quantity=float(submitted_qty),
-                    reference_no=order_item.order.document_no,
+                    reference_no=str(order_item.order.id),
                     reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
                     sales_item=order_item,
                     created_by=user

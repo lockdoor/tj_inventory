@@ -137,12 +137,12 @@
                             {% if shortage.reference_type == 'sell_order' %}
                                 <div style="display: flex; flex-direction: column; gap: 0.1rem;">
                                     <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #60a5fa; font-size: 0.85rem;">
-                                        {{ shortage.reference_id }}
+                                        {{ shortage.reference_display_name }}
                                     </span>
                                     <span style="font-size: 0.7rem; color: var(--text-dim);">Customer demand gap</span>
                                 </div>
                             {% else %}
-                                <span style="color: var(--text-dim); font-size: 0.85rem;">{{ shortage.reference_id|default:"Direct Request" }}</span>
+                                <span style="color: var(--text-dim); font-size: 0.85rem;">{{ shortage.reference_display_name|default:"Direct Request" }}</span>
                             {% endif %}
                         </td>
                         <td style="padding: 1.25rem 1.5rem; color: var(--text-dim); font-size: 0.875rem;">

@@ -91,7 +91,7 @@
                     <span style="color: var(--text-dim);">Other</span>
                 {% endif %}
             </div>
-            <div class="sub">{{ shortage.reference_id|default:"No reference ID" }}</div>
+            <div class="sub">{{ shortage.reference_display_name|default:"No reference ID" }}</div>
         </div>
     </div>
 
@@ -141,7 +141,7 @@
                 <div style="color: var(--text-muted); font-weight: 600;">Reference ID:</div>
                 <div>
                     {% if shortage.reference_id %}
-                        <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #60a5fa; font-size: 0.9rem;">{{ shortage.reference_id }}</span>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #60a5fa; font-size: 0.9rem;">{{ shortage.reference_display_name }}</span>
                     {% else %}
                         <span style="color: var(--text-dim); font-style: italic;">Not specified</span>
                     {% endif %}

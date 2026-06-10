@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Arrival Reservation Detail: {{ reservation.reference_no }} - TJ Inventory{% endblock %}
+{% block title %}Arrival Reservation Detail: {{ reservation.reference_display_name }} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
 <a href="{% url 'procurement:overview' %}" style="color: var(--primary-light); text-decoration: none;">Procurement</a>
 <span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
 <a href="{% url 'procurement:arrival-reservation-list' %}" style="color: var(--primary-light); text-decoration: none;">Arrival Reservations</a>
 <span style="color: var(--text-dim); opacity: 0.5; margin: 0 0.5rem;">/</span>
-<span style="color: var(--text-main); font-weight: 500;">{{ reservation.reference_no }}</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ reservation.reference_display_name }}</span>
 {% endblock %}
 
 {% block content %}
@@ -23,7 +23,7 @@
             </div>
             <div>
                 <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
-                    <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0;">{{ reservation.reference_no }}</h1>
+                    <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0;">{{ reservation.reference_display_name }}</h1>
                     <span class="badge-type badge-{{ reservation.reference_type }}" style="font-size: 0.8rem; padding: 0.35rem 0.85rem;">
                         {{ reservation.get_reference_type_display }}
                     </span>
@@ -90,7 +90,7 @@
             <div style="display: grid; grid-template-columns: auto 1fr; gap: 1rem 1.5rem; font-size: 0.95rem;">
                 <div style="color: var(--text-muted); font-weight: 600;">Reference Document:</div>
                 <div style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-main);">
-                    {{ reservation.reference_no }}
+                    {{ reservation.reference_display_name }}
                 </div>
 
                 <div style="color: var(--text-muted); font-weight: 600;">Locked Date:</div>

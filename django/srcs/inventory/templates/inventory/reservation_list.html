@@ -91,10 +91,10 @@
                              <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">
                                  {% if r.sales_item and r.sales_item.order %}
                                      <a href="{% url 'sales:sales-order-detail' r.sales_item.order.pk %}" style="color: var(--primary-light); text-decoration: none; border-bottom: 1px dashed rgba(16, 185, 129, 0.4);">
-                                         {{ r.reference_no }}
+                                         {{ r.reference_display_name }}
                                      </a>
                                  {% else %}
-                                     <span style="color: var(--text-main);">{{ r.reference_no }}</span>
+                                     <span style="color: var(--text-main);">{{ r.reference_display_name }}</span>
                                  {% endif %}
                              </span>
                          </div>

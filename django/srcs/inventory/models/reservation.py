@@ -79,7 +79,25 @@ class StockReservation(AuditableMixin):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"HOLD ({self.status}): {self.reference_no} | {self.stock.lot_number} ({self.quantity})"
+        return f"HOLD ({self.status}): {self.reference_display_name} | {self.stock.lot_number} ({self.quantity})"
+
+    @property
+    def reference_display_name(self) -> str:
+        """
+        Returns a human-readable display name for the reference.
+        If it's a sales order, tries to resolve the document number using the database ID.
+        Otherwise, returns the raw reference_no.
+        """
+        if self.reference_type == self.ReferenceType.SALES_ORDER and self.reference_no:
+            from sales.models import SalesOrder
+            try:
+                if not hasattr(self, '_cached_sales_order'):
+                    self._cached_sales_order = SalesOrder.objects.filter(id=int(self.reference_no)).first()
+                if self._cached_sales_order:
+                    return self._cached_sales_order.document_no
+            except (ValueError, TypeError):
+                pass
+        return self.reference_no
 
     # =========================================================================
     # SourcingAllocationSource Protocol Implementation (Duck-Typing)
@@ -102,7 +120,7 @@ class StockReservation(AuditableMixin):
         Duck-type property satisfying SourcingAllocationSource.
         Returns the reference sales order or demand document number.
         """
-        return self.reference_no
+        return self.reference_display_name
 
     @property
     def source_item(self):

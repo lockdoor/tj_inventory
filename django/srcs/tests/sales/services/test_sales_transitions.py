@@ -76,7 +76,7 @@ class TestSalesOrderWarehouseIntegration:
         order.save()
 
         # Let's verify StockReservation exists
-        reservations = StockReservation.objects.filter(reference_no=order.document_no)
+        reservations = StockReservation.objects.filter(reference_no=str(order.id))
         assert reservations.count() == 1
         res = reservations.first()
         assert res.quantity == 10.00
@@ -118,7 +118,7 @@ class TestSalesOrderWarehouseIntegration:
         # Verification that StockReservation is STILL active during PROCESSING phase
         self.stock.refresh_from_db()
         assert self.stock.reserved_qty == 10.00
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
 
         # 6. Complete the Inventory Movement
         MovementService.complete_movement(movement, user=self.user)
@@ -131,7 +131,7 @@ class TestSalesOrderWarehouseIntegration:
 
         # B. Releases StockReservations
         assert not StockReservation.objects.filter(
-            reference_no=order.document_no,
+            reference_no=str(order.id),
             is_deleted=False,
             status=StockReservation.ReservationStatus.RESERVED
         ).exists()
@@ -154,7 +154,7 @@ class TestSalesOrderWarehouseIntegration:
         assert self.stock.reserved_qty == 10.00
 
         # B. Re-creates StockReservation
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
 
         # C. Demotes Sales Order status back to PROCESSING
         order.refresh_from_db()
@@ -321,7 +321,7 @@ class TestSalesOrderWarehouseIntegration:
         # 6. Verify reservations are still active and preserved
         self.stock.refresh_from_db()
         assert self.stock.reserved_qty == 10.00
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
 
     def test_discard_picking_slip_by_warehouse_admin_group(self, client):
         # Create a new user with no delete permission, but put them in the 'warehouse_admin' group
@@ -475,7 +475,7 @@ class TestSalesOrderWarehouseIntegration:
         order.save()
 
         # Confirm allocations and reservations exist
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
         self.stock.refresh_from_db()
         assert self.stock.reserved_qty == 10.00
 
@@ -490,7 +490,7 @@ class TestSalesOrderWarehouseIntegration:
         assert order.status == SalesOrder.Status.DRAFT
         
         # Verify reservations preserved
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
         self.stock.refresh_from_db()
         assert self.stock.reserved_qty == 10.00
 
@@ -519,7 +519,7 @@ class TestSalesOrderWarehouseIntegration:
 
         # Verify that active dynamic shortage exists
         from procurement.models import Shortage
-        assert Shortage.objects.filter(reference_id=order.document_no, is_deleted=False).exists()
+        assert Shortage.objects.filter(reference_id=str(order.id), is_deleted=False).exists()
 
         # Revert to Draft
         revert_url = reverse("sales:sales-order-revert-to-draft", kwargs={"pk": order.pk})
@@ -529,7 +529,7 @@ class TestSalesOrderWarehouseIntegration:
         # Assert status is draft and shortage is preserved
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.DRAFT
-        assert Shortage.objects.filter(reference_id=order.document_no, is_deleted=False).exists()
+        assert Shortage.objects.filter(reference_id=str(order.id), is_deleted=False).exists()
 
     def test_revert_reverted_movement_order_to_draft_releases_reservations(self, client):
         client.login(username="warehouse_user", password="password123")
@@ -568,7 +568,7 @@ class TestSalesOrderWarehouseIntegration:
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.SHIPPED
         assert not StockReservation.objects.filter(
-            reference_no=order.document_no,
+            reference_no=str(order.id),
             is_deleted=False,
             status=StockReservation.ReservationStatus.RESERVED
         ).exists()
@@ -578,7 +578,7 @@ class TestSalesOrderWarehouseIntegration:
         order.refresh_from_db()
         assert order.status == SalesOrder.Status.PROCESSING
         assert StockReservation.objects.filter(
-            reference_no=order.document_no,
+            reference_no=str(order.id),
             is_deleted=False,
             status=StockReservation.ReservationStatus.RESERVED
         ).exists()
@@ -603,7 +603,7 @@ class TestSalesOrderWarehouseIntegration:
         assert order.status == SalesOrder.Status.DRAFT
 
         # 6. Verify restored reservations are successfully preserved
-        assert StockReservation.objects.filter(reference_no=order.document_no).exists()
+        assert StockReservation.objects.filter(reference_no=str(order.id)).exists()
         self.stock.refresh_from_db()
         assert self.stock.reserved_qty == 10.00
 

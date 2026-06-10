@@ -73,6 +73,25 @@ class Shortage(AuditableMixin):
     def __str__(self):
         return f"Shortage: {self.item.sku} ({self.request_qty}) - {self.status}"
 
+    @property
+    def reference_display_name(self) -> str:
+        """
+        Returns a human-readable display name for the reference.
+        If it's a sales order, tries to resolve the document number using the database ID.
+        Otherwise, returns the raw reference_id.
+        """
+        if self.reference_type == self.ReferenceType.SELL_ORDER and self.reference_id:
+            from sales.models import SalesOrder
+            try:
+                if not hasattr(self, '_cached_sales_order'):
+                    self._cached_sales_order = SalesOrder.objects.filter(id=int(self.reference_id)).first()
+                if self._cached_sales_order:
+                    return self._cached_sales_order.document_no
+            except (ValueError, TypeError):
+                pass
+        return self.reference_id
+
+
     # =========================================================================
     # SourcingAllocationSource Protocol Implementation (Duck-Typing)
     # =========================================================================
