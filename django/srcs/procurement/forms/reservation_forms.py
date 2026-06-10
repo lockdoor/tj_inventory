@@ -6,7 +6,10 @@ from inventory.models import Warehouse
 
 class ArrivalItemModelChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
-        return f"Arrival: {obj.arrival.document_no} | SKU: {obj.item.sku} | {obj.item.name} | Whse: {obj.arrival.warehouse.name} (Expected: {obj.expected_qty:.2f}, Avail: {obj.available_qty:.2f})"
+        expected_str = f"{obj.expected_qty:.2f} {obj.packaging.name}" if obj.packaging else f"{obj.expected_qty:.2f} pcs"
+        if obj.packaging:
+            expected_str += f" ({obj.expected_pieces:.2f} pcs)"
+        return f"Arrival: {obj.arrival.document_no} | SKU: {obj.item.sku} | {obj.item.name} | Whse: {obj.arrival.warehouse.name} (Expected: {expected_str}, Avail: {obj.available_qty:.2f} pcs)"
 
 class ArrivalReservationForm(forms.ModelForm):
     warehouse = forms.ModelChoiceField(
@@ -67,12 +70,16 @@ class ArrivalReservationForm(forms.ModelForm):
 
         if arrival_item and quantity:
             # Query reservations on this arrival_item to calculate actual remaining available qty
-            reserved_qs = ArrivalReservation.objects.filter(arrival_item=arrival_item, is_deleted=False)
+            reserved_qs = ArrivalReservation.objects.filter(
+                arrival_item=arrival_item,
+                is_deleted=False,
+                status=ArrivalReservation.ReservationStatus.RESERVED
+            )
             if self.instance and self.instance.pk:
                 reserved_qs = reserved_qs.exclude(pk=self.instance.pk)
             
             total_reserved = reserved_qs.aggregate(total=models.Sum('quantity'))['total'] or 0
-            available = arrival_item.expected_qty - total_reserved
+            available = arrival_item.expected_pieces - total_reserved
 
             if quantity > available:
                 self.add_error(

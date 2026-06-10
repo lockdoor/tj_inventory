@@ -415,10 +415,27 @@ class ArrivalService:
 
                     # 3. Handle partial received promotion:
                     if promote_qty < arr_res.quantity:
+                        # Split off a promoted record
+                        ArrivalReservation.objects.create(
+                            arrival_item=arr_res.arrival_item,
+                            quantity=promote_qty,
+                            reference_no=arr_res.reference_no,
+                            reference_type=arr_res.reference_type,
+                            sales_item=arr_res.sales_item,
+                            note=arr_res.note,
+                            status=ArrivalReservation.ReservationStatus.PROMOTED,
+                            promoted_stock_reservation=physical_lock,
+                            is_deleted=True,
+                            created_by=arr_res.created_by,
+                            updated_by=user
+                        )
                         arr_res.quantity -= promote_qty
                         arr_res.save()
                     else:
-                        arr_res.delete()
+                        arr_res.status = ArrivalReservation.ReservationStatus.PROMOTED
+                        arr_res.promoted_stock_reservation = physical_lock
+                        arr_res.save()
+                        arr_res.delete(user=user)
 
                     from procurement.services.reservation_service import ArrivalReservationService
                     ArrivalReservationService._sync_arrival_item_reserved_qty(arrival_item)
@@ -472,10 +489,11 @@ class ArrivalService:
             # Calculate currently reserved qty on this arrival item
             reserved = ArrivalReservation.objects.filter(
                 arrival_item=arrival_item,
-                is_deleted=False
+                is_deleted=False,
+                status=ArrivalReservation.ReservationStatus.RESERVED
             ).aggregate(total=Sum('quantity'))['total'] or 0
             
-            available_qty = arrival_item.expected_qty - reserved
+            available_qty = arrival_item.expected_pieces - reserved
             if available_qty <= 0:
                 continue
 

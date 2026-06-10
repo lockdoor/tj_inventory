@@ -27,7 +27,9 @@ class ArrivalReservationListView(LoginRequiredMixin, PermissionRequiredMixin, Li
         """
         Optimize DB queries using select_related and Q searches.
         """
-        queryset = ArrivalReservation.objects.filter(is_deleted=False).select_related(
+        queryset = ArrivalReservation.objects.filter(
+            Q(is_deleted=False) | Q(status=ArrivalReservation.ReservationStatus.PROMOTED)
+        ).select_related(
             'arrival_item__arrival',
             'arrival_item__item',
             'arrival_item__arrival__partner',

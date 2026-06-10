@@ -369,12 +369,21 @@ class SalesService:
 
         # 3. AUTO-SOURCING: ARRIVALS
         if remaining_qty > 0 and not order_item.is_manual_allocate:
+            from django.db.models import ExpressionWrapper, DecimalField
+            from django.db.models.functions import Coalesce
+
             pending_arrivals = ArrivalItem.objects.filter(
                 item=order_item.item,
                 arrival__status__in=['scheduled', 'receiving'],
                 arrival__is_deleted=False,  # Exclude deleted arrivals
                 arrival__expected_date__lte=order_item.order.order_date, # MUST ARRIVE BEFORE SO DATE
-                expected_qty__gt=F('reserved_qty')
+            ).annotate(
+                expected_pieces_annotated=ExpressionWrapper(
+                    F('expected_qty') * Coalesce(F('packaging__quantity'), 1),
+                    output_field=DecimalField()
+                )
+            ).filter(
+                expected_pieces_annotated__gt=F('reserved_qty')
             ).order_by('arrival__expected_date')
             
             for arr_item in pending_arrivals:

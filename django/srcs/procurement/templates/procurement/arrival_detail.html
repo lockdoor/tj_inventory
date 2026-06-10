@@ -121,11 +121,27 @@
                                 {{ item.exp_date|date:"d M Y"|default:"-" }}
                             </td>
                             <td style="padding: 1rem 1.5rem; text-align: right; font-weight: 600; color: var(--text-main); font-size: 0.95rem;">
-                                {{ item.expected_qty|floatformat:2 }}
+                                {% if item.packaging %}
+                                    {{ item.expected_qty|floatformat:2 }} {{ item.packaging.name }}
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                        ({{ item.expected_pieces|floatformat:2 }} pcs)
+                                    </div>
+                                {% else %}
+                                    {{ item.expected_qty|floatformat:2 }} pcs
+                                {% endif %}
                             </td>
                             <td style="padding: 1rem 1.5rem; text-align: right;">
                                 {% if item.received_qty > 0 %}
-                                    <span style="color: var(--primary); font-weight: 700; font-size: 0.95rem;">{{ item.received_qty|floatformat:2 }}</span>
+                                    <span style="color: var(--primary); font-weight: 700; font-size: 0.95rem;">
+                                        {% if item.packaging %}
+                                            {{ item.received_qty|floatformat:2 }} {{ item.packaging.name }}
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                                ({{ item.received_pieces|floatformat:2 }} pcs)
+                                            </div>
+                                        {% else %}
+                                            {{ item.received_qty|floatformat:2 }} pcs
+                                        {% endif %}
+                                    </span>
                                 {% else %}
                                     <span style="color: var(--text-muted); font-size: 0.9rem;">Pending</span>
                                 {% endif %}
@@ -429,10 +445,14 @@ document.addEventListener('keydown', (e) => {
                                 </div>
                             </td>
                             <td style="padding: 1rem 0.5rem; text-align: right; font-weight: 600; color: var(--text-dim);">
-                                {{ item.expected_qty }}
-                                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">
-                                    {% if item.packaging %}{{ item.packaging.name }}{% else %}pcs{% endif %}
-                                </span>
+                                {% if item.packaging %}
+                                    {{ item.expected_qty }} {{ item.packaging.name }}
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 0.15rem;">
+                                        ({{ item.expected_pieces }} pcs)
+                                    </div>
+                                {% else %}
+                                    {{ item.expected_qty }} pcs
+                                {% endif %}
                             </td>
                             <td style="padding: 1rem 0.5rem; text-align: right;">
                                 <input type="number" name="qty_{{ item.id }}" value="{{ item.expected_qty }}" step="any" min="0" required

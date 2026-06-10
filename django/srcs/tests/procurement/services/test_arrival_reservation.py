@@ -95,6 +95,11 @@ def test_release_future_reservation(arrival_setup):
     assert arrival_setup.reserved_qty == Decimal("0.00")
     assert ArrivalReservation.objects.filter(is_deleted=False).count() == 0
 
+    # Verify status is CANCELLED on the soft-deleted reservation
+    res.refresh_from_db()
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.CANCELLED
+
 @pytest.mark.django_db
 def test_delete_by_reference_future(arrival_setup, test_user):
     """Test bulk deletion of future reservations."""

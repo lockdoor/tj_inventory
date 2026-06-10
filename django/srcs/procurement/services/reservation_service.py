@@ -17,7 +17,8 @@ class ArrivalReservationService:
         """
         total_reserved = ArrivalReservation.objects.filter(
             arrival_item=arrival_item,
-            is_deleted=False
+            is_deleted=False,
+            status=ArrivalReservation.ReservationStatus.RESERVED
         ).aggregate(total=Sum('quantity'))['total'] or 0
         
         arrival_item.reserved_qty = total_reserved
@@ -32,13 +33,14 @@ class ArrivalReservationService:
         if quantity <= 0:
             raise ValidationError("Quantity must be greater than zero")
 
-        # Check availability: expected_qty - current reservations
+        # Check availability: expected_pieces - current reservations
         reserved = ArrivalReservation.objects.filter(
             arrival_item=arrival_item,
-            is_deleted=False
+            is_deleted=False,
+            status=ArrivalReservation.ReservationStatus.RESERVED
         ).aggregate(total=Sum('quantity'))['total'] or 0
         
-        available = arrival_item.expected_qty - reserved
+        available = arrival_item.expected_pieces - reserved
 
         if quantity > available:
             raise ValidationError(
@@ -75,10 +77,11 @@ class ArrivalReservationService:
             # If increasing, check availability against the arrival line
             reserved = ArrivalReservation.objects.filter(
                 arrival_item=reservation.arrival_item,
-                is_deleted=False
+                is_deleted=False,
+                status=ArrivalReservation.ReservationStatus.RESERVED
             ).exclude(pk=reservation.pk).aggregate(total=Sum('quantity'))['total'] or 0
             
-            available = reservation.arrival_item.expected_qty - reserved
+            available = reservation.arrival_item.expected_pieces - reserved
             if new_quantity > available:
                 raise ValidationError(f"Insufficient expected quantity to increase reservation to {new_quantity}")
 
@@ -97,6 +100,8 @@ class ArrivalReservationService:
         Remove a future commitment.
         """
         arrival_item = reservation.arrival_item
+        reservation.status = ArrivalReservation.ReservationStatus.CANCELLED
+        reservation.save()
         reservation.delete(user=user)
         
         # Explicitly sync the arrival item

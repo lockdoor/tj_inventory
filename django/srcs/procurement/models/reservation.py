@@ -14,6 +14,11 @@ class ArrivalReservation(AuditableMixin):
         INTERNAL = 'internal', 'Internal Transfer'
         HOLD = 'hold', 'Quality/Maintenance Hold'
 
+    class ReservationStatus(models.TextChoices):
+        RESERVED = 'reserved', 'Reserved'
+        CANCELLED = 'cancelled', 'Cancelled'
+        PROMOTED = 'promoted', 'Promoted'
+
     # Future Link (Required)
     arrival_item = models.ForeignKey(
         'procurement.ArrivalItem',
@@ -47,6 +52,22 @@ class ArrivalReservation(AuditableMixin):
         null=True,
         blank=True,
         related_name='arrival_reservations'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=ReservationStatus.choices,
+        default=ReservationStatus.RESERVED,
+        help_text="Current lifecycle state of the reservation"
+    )
+
+    promoted_stock_reservation = models.ForeignKey(
+        'inventory.StockReservation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='arrival_sources',
+        help_text="The physical stock reservation created when this arrival line was received"
     )
     
     note = models.TextField(blank=True, default='')

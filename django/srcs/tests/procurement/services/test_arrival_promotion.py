@@ -119,6 +119,12 @@ class TestArrivalReservationPromotion:
         assert phys_res.quantity == Decimal("10.00")
         assert phys_res.sales_item == order_item
         
+        # Verify status and promoted_stock_reservation fields on the soft-deleted ArrivalReservation
+        arrival_lock.refresh_from_db()
+        assert arrival_lock.is_deleted is True
+        assert arrival_lock.status == ArrivalReservation.ReservationStatus.PROMOTED
+        assert arrival_lock.promoted_stock_reservation == phys_res
+        
         # --- C. Verify the origin_arrival_item lineage link is established ---
         assert phys_res.origin_arrival_item == self.arrival_item
 

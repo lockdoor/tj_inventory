@@ -122,9 +122,23 @@ class ArrivalItem(AuditableMixin):
     )
 
     @property
+    def expected_pieces(self):
+        """Total expected quantity in base units (pieces)."""
+        if self.packaging and self.packaging.quantity:
+            return self.expected_qty * self.packaging.quantity
+        return self.expected_qty
+
+    @property
+    def received_pieces(self):
+        """Total received quantity in base units (pieces)."""
+        if self.packaging and self.packaging.quantity:
+            return self.received_qty * self.packaging.quantity
+        return self.received_qty
+
+    @property
     def available_qty(self):
-        """Expected quantity remaining after reservations."""
-        return max(0, self.expected_qty - self.reserved_qty)
+        """Expected quantity remaining after reservations (in base pieces)."""
+        return max(0, self.expected_pieces - self.reserved_qty)
 
     class Meta:
         verbose_name = "Arrival Item"
@@ -139,9 +153,14 @@ class ArrivalItem(AuditableMixin):
                 is_deleted=False
             ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
-            if self.expected_qty < total_reserved:
+            if self.expected_pieces < total_reserved:
+                req_qty_pkg = total_reserved
+                if self.packaging and self.packaging.quantity:
+                    req_qty_pkg = total_reserved / self.packaging.quantity
+                
+                pkg_name = self.packaging.name if self.packaging else "pcs"
                 raise ValidationError({
-                    'expected_qty': f"Cannot reduce expected quantity below currently reserved quantity of {total_reserved}."
+                    'expected_qty': f"Cannot reduce expected quantity below currently reserved quantity of {req_qty_pkg:.2f} {pkg_name} ({total_reserved} pcs)."
                 })
 
     def save(self, *args, **kwargs):

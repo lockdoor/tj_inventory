@@ -545,3 +545,67 @@ def test_auto_allocation_by_linked_purchase_order(item, customer, supplier, ware
 
 def os_alloc_qty(alloc):
     return alloc.quantity
+
+
+@pytest.mark.django_db
+def test_arrival_sourcing_packaging_units(item, customer, supplier, warehouse, test_user):
+    """
+    Verify expected_pieces and availability calculations when packaging is selected.
+    """
+    from catalog.models import ItemPackaging
+    packaging = ItemPackaging.objects.create(
+        item=item,
+        name="Carton",
+        quantity=12,
+        created_by=test_user
+    )
+
+    # Create SO for 18 units (pieces)
+    so = SalesService.create_order(
+        document_no="SO-PKG-001",
+        partner=customer,
+        user=test_user,
+        order_date=date.today(),
+        items=[{'item': item, 'requested_qty': Decimal('18.00'), 'unit_price': Decimal('10.00')}]
+    )
+    so.status = SalesOrder.Status.CONFIRMED
+    so.save()
+
+    # Simulate PO creation by updating shortage status to PO_CREATED
+    Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
+
+    # Create Arrival for 2 Cartons (which is 24 pieces)
+    arrival = ArrivalService.create(
+        document_no="ARR-PKG-001",
+        partner=supplier,
+        warehouse=warehouse,
+        expected_date=date.today(),
+        user=test_user,
+        items=[{
+            'item': item,
+            'expected_qty': Decimal('2.00'),
+            'packaging': packaging
+        }]
+    )
+
+    arr_item = arrival.items.first()
+    # Check expected_pieces
+    assert arr_item.expected_pieces == Decimal('24.00')
+    # Check reserved_qty (18.00 pieces from SO)
+    assert arr_item.reserved_qty == Decimal('18.00')
+    # Check available_qty (24 - 18 = 6.00 pieces)
+    assert arr_item.available_qty == Decimal('6.00')
+
+    # Try to reduce expected_qty to 1 Carton (12 pieces).
+    # Since 18 pieces are reserved, this should raise a ValidationError.
+    arr_item.expected_qty = Decimal('1.00')
+    with pytest.raises(ValidationError) as excinfo:
+        arr_item.save()
+    assert "Cannot reduce expected quantity below currently reserved quantity" in str(excinfo.value)
+    
+    # Try to reduce expected_qty to 1.5 Cartons (18 pieces).
+    # This should be allowed because 18 pieces = 18 reserved.
+    arr_item.expected_qty = Decimal('1.50')
+    arr_item.save()
+    assert arr_item.expected_pieces == Decimal('18.00')
+
