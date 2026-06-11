@@ -62,6 +62,20 @@ class Arrival(AuditableMixin):
     def __str__(self):
         return f"{self.document_no} ({self.partner.name})"
 
+    def delete(self, user=None, *args, **kwargs):
+        self.refresh_version()
+        # Cascade soft-delete to child items
+        for item in self.items.filter(is_deleted=False):
+            item.delete(user=user, *args, **kwargs)
+        super().delete(user=user, *args, **kwargs)
+
+    def restore(self):
+        # Cascade restore to child items
+        for item in self.items.filter(is_deleted=True):
+            item.restore()
+        super().restore()
+
+
 
 class ArrivalItem(AuditableMixin):
     """

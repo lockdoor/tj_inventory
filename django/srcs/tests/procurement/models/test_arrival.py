@@ -105,3 +105,61 @@ class TestArrivalModel:
         assert arrival.created_by == user
         assert arrival.created_at is not None
         assert arrival.version == 1
+
+    def test_cascade_soft_delete_and_restore(self, user, partner, warehouse, item):
+        """Verify that soft-deleting an Arrival cascades to its ArrivalItems, and restoring it restores them too."""
+        arrival = Arrival.objects.create(
+            document_no="ARR-CASCADE",
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2024, 7, 1),
+            created_by=user
+        )
+        arrival_item_1 = ArrivalItem.objects.create(
+            arrival=arrival,
+            item=item,
+            expected_qty=100,
+            created_by=user
+        )
+        arrival_item_2 = ArrivalItem.objects.create(
+            arrival=arrival,
+            item=item,
+            expected_qty=200,
+            created_by=user
+        )
+        
+        # Verify initial state
+        assert not arrival.is_deleted
+        assert not arrival_item_1.is_deleted
+        assert not arrival_item_2.is_deleted
+
+        # Soft delete the arrival
+        arrival.delete(user=user)
+        
+        # Refresh from database
+        arrival.refresh_from_db()
+        arrival_item_1.refresh_from_db()
+        arrival_item_2.refresh_from_db()
+        
+        assert arrival.is_deleted
+        assert arrival.deleted_by == user
+        assert arrival_item_1.is_deleted
+        assert arrival_item_1.deleted_by == user
+        assert arrival_item_2.is_deleted
+        assert arrival_item_2.deleted_by == user
+
+        # Restore the arrival
+        arrival.restore()
+        
+        # Refresh from database
+        arrival.refresh_from_db()
+        arrival_item_1.refresh_from_db()
+        arrival_item_2.refresh_from_db()
+        
+        assert not arrival.is_deleted
+        assert arrival.deleted_by is None
+        assert not arrival_item_1.is_deleted
+        assert arrival_item_1.deleted_by is None
+        assert not arrival_item_2.is_deleted
+        assert arrival_item_2.deleted_by is None
+

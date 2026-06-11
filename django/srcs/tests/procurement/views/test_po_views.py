@@ -194,3 +194,81 @@ class TestPurchaseOrderPermissions:
         po_item2 = po2.items.first()
         assert po_item2.order_qty == 5.0
         assert po_item2.unit_cost == Decimal('12.50')
+
+    def test_create_po_from_shortage_expected_date_validation(self, client, authorized_user, supplier, item):
+        from datetime import date
+        # Create shortages with different expected dates
+        shortage1 = Shortage.objects.create(
+            item=item,
+            request_qty=5.0,
+            status='pending',
+            reference_type='other',
+            reference_id='REQ-003',
+            expected_date=date(2026, 6, 12),
+            created_by=authorized_user
+        )
+        shortage2 = Shortage.objects.create(
+            item=item,
+            request_qty=5.0,
+            status='pending',
+            reference_type='other',
+            reference_id='REQ-004',
+            expected_date=date(2026, 6, 18),
+            created_by=authorized_user
+        )
+
+        url = reverse('procurement:purchase-order-create-from-shortage')
+        client.login(username="authorized", password="password")
+
+        # 1. GET request: check prefilled expected date is the latest date (2026-06-18)
+        response = client.get(f"{url}?shortage_ids={shortage1.pk},{shortage2.pk}")
+        assert response.status_code == 200
+        assert response.context['selected_expected_date'] == '2026-06-18'
+        # Verify that the expected date display is present in the rendered content
+        assert b"Expected Date: 12 Jun 2026 to 18 Jun 2026" in response.content
+
+        # 2. POST request: try to create a PO with expected_date = 2026-06-15 (less than shortage2's expected_date of 2026-06-18)
+        import json
+        payload_fail = {
+            'partner': supplier.pk,
+            'document_no': 'PO-EXPECTED-FAIL',
+            'expected_date': '2026-06-15',
+            'note': 'Should fail',
+            'shortage_ids': f"{shortage1.pk},{shortage2.pk}",
+            'items_json': json.dumps([{
+                'item_id': item.pk,
+                'order_qty': 10.0,
+                'unit_cost': None,
+                'packaging_id': None
+            }])
+        }
+        response = client.post(url, data=payload_fail)
+        # Should not redirect (stay on form page due to validation error)
+        assert response.status_code == 200
+        # Check that error is in messages
+        messages_list = list(response.context['messages'])
+        assert any("cannot be earlier than shortage expected date of 2026-06-18" in str(m) for m in messages_list)
+        # Verify PO was not created
+        assert not PurchaseOrder.objects.filter(document_no='PO-EXPECTED-FAIL').exists()
+
+        # 3. POST request: create a PO with expected_date = 2026-06-20 (greater than both shortage expected dates)
+        payload_success = {
+            'partner': supplier.pk,
+            'document_no': 'PO-EXPECTED-SUCCESS',
+            'expected_date': '2026-06-20',
+            'note': 'Should succeed',
+            'shortage_ids': f"{shortage1.pk},{shortage2.pk}",
+            'items_json': json.dumps([{
+                'item_id': item.pk,
+                'order_qty': 10.0,
+                'unit_cost': None,
+                'packaging_id': None
+            }])
+        }
+        response = client.post(url, data=payload_success)
+        assert response.status_code == 302 # Success redirect
+        
+        # Verify PO was successfully created
+        po = PurchaseOrder.objects.get(document_no='PO-EXPECTED-SUCCESS')
+        assert po.expected_date == date(2026, 6, 20)
+

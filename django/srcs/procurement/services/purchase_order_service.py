@@ -79,6 +79,24 @@ class PurchaseOrderService:
             from procurement.models import Shortage
             from procurement.services.shortage_service import ShortageService
             shortages = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False, status=Shortage.Status.PENDING)
+            
+            # Backend validation check: PO expected date should not be less than any shortage expected date
+            if expected_date:
+                from datetime import date, datetime
+                val_date = expected_date
+                if isinstance(val_date, str):
+                    val_date = datetime.strptime(val_date, '%Y-%m-%d').date()
+                elif isinstance(val_date, datetime):
+                    val_date = val_date.date()
+                
+                for shortage in shortages:
+                    if shortage.expected_date and val_date < shortage.expected_date:
+                        raise ValidationError(
+                            f"Purchase Order expected date ({val_date.strftime('%Y-%m-%d')}) "
+                            f"cannot be earlier than shortage expected date of "
+                            f"{shortage.expected_date.strftime('%Y-%m-%d')} for {shortage.item.sku}."
+                        )
+
             for shortage in shortages:
                 ShortageService.link_to_po(shortage, po, user=user)
 
@@ -91,6 +109,23 @@ class PurchaseOrderService:
         Update PO header fields.
         """
         allowed_fields = ['expected_date', 'note', 'status']
+        
+        # Check expected_date constraints against linked shortages
+        if 'expected_date' in fields and fields['expected_date']:
+            val_date = fields['expected_date']
+            from datetime import date, datetime
+            if isinstance(val_date, str):
+                val_date = datetime.strptime(val_date, '%Y-%m-%d').date()
+            elif isinstance(val_date, datetime):
+                val_date = val_date.date()
+            
+            for shortage in po.shortages.filter(is_deleted=False):
+                if shortage.expected_date and val_date < shortage.expected_date:
+                    raise ValidationError(
+                        f"Purchase Order expected date ({val_date.strftime('%Y-%m-%d')}) "
+                        f"cannot be earlier than shortage expected date of "
+                        f"{shortage.expected_date.strftime('%Y-%m-%d')} for {shortage.item.sku}."
+                    )
         
         # Check transition rules if status is changing
         if 'status' in fields and fields['status'] != po.status:

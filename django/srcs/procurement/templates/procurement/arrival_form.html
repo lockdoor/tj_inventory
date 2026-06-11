@@ -138,6 +138,7 @@
                                 <label class="label-mini">Supplier Committed Qty</label>
                                 {{ item_form.expected_qty }}
                                 {% if item_form.expected_qty.errors %}<div class="error-msg">{{ item_form.expected_qty.errors.0 }}</div>{% endif %}
+                                <div class="calculated-qty-guide" style="font-size: 0.75rem; color: var(--primary-light); margin-top: 0.35rem; display: none;"></div>
                                 <div class="po-qty-context" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 0.35rem; display: none;">
                                     <span style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 0.25rem 0.5rem; border-radius: 6px; font-weight: 500;">
                                         <span style="display: inline-flex; align-items: center; gap: 0.15rem;"><i data-lucide="info" style="width: 11px; height: 11px; color: var(--primary-light);"></i> PO: <span class="po-qty-value" style="font-weight: 700; color: var(--primary-light);">0</span></span>
@@ -223,6 +224,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalForms = document.querySelector('input[id$="-TOTAL_FORMS"]');
     const currentArrivalId = '{% if object %}{{ object.id }}{% else %}{% endif %}';
 
+    function calculateRowQty(row) {
+        const qtyInput = row.querySelector('input[name$="-expected_qty"]');
+        const packagingSelect = row.querySelector('.packaging-select');
+        const guideDiv = row.querySelector('.calculated-qty-guide');
+        if (!qtyInput || !packagingSelect || !guideDiv) return;
+
+        const qty = parseFloat(qtyInput.value) || 0;
+        const selectedOption = packagingSelect.options[packagingSelect.selectedIndex];
+        
+        if (!selectedOption || !selectedOption.value) {
+            guideDiv.style.display = 'none';
+            return;
+        }
+
+        const multiplier = parseFloat(selectedOption.getAttribute('data-qty')) || 1;
+        const pkgName = selectedOption.getAttribute('data-name') || '';
+        const baseUnit = row.getAttribute('data-base-unit') || 'pcs';
+
+        if (multiplier > 1) {
+            const totalPieces = qty * multiplier;
+            const qtyStr = Number.isInteger(qty) ? qty.toString() : qty.toFixed(2);
+            const totalStr = Number.isInteger(totalPieces) ? totalPieces.toString() : totalPieces.toFixed(2);
+            guideDiv.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 0.25rem;"><i data-lucide="calculator" style="width: 12px; height: 12px;"></i> Calculated: <strong>${qtyStr}</strong> × <strong>${pkgName}</strong> (${multiplier} ${baseUnit}) = <strong style="color: var(--primary);">${totalStr} ${baseUnit}</strong></span>`;
+            guideDiv.style.display = 'block';
+            lucide.createIcons();
+        } else {
+            guideDiv.style.display = 'none';
+        }
+    }
+
     function updatePackagingOptions(row, itemId, selectedPackagingId = null) {
         const packagingSelect = row.querySelector('.packaging-select');
         if (!packagingSelect) return;
@@ -235,12 +266,14 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/catalog/api/items/${itemId}/packagings/`)
             .then(response => response.json())
             .then(data => {
+                row.setAttribute('data-base-unit', data.base_unit || 'pcs');
                 let html = '<option value="">---------</option>';
                 data.packagings.forEach(p => {
                     const selected = (selectedPackagingId && selectedPackagingId == p.id) ? 'selected' : '';
-                    html += `<option value="${p.id}" ${selected}>${p.display}</option>`;
+                    html += `<option value="${p.id}" data-qty="${p.quantity}" data-name="${p.name}" ${selected}>${p.display}</option>`;
                 });
                 packagingSelect.innerHTML = html;
+                calculateRowQty(row);
             })
             .catch(err => console.error("Error fetching packagings:", err));
     }
@@ -248,6 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupRowListeners(row) {
         const itemSelect = row.querySelector('.item-select');
         const packagingSelect = row.querySelector('.packaging-select');
+        const qtyInput = row.querySelector('input[name$="-expected_qty"]');
 
         if (itemSelect && packagingSelect) {
             const currentItemId = itemSelect.value;
@@ -260,6 +294,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             itemSelect.addEventListener('change', function() {
                 updatePackagingOptions(row, this.value, null);
+            });
+
+            packagingSelect.addEventListener('change', function() {
+                calculateRowQty(row);
+            });
+        }
+
+        if (qtyInput) {
+            qtyInput.addEventListener('input', function() {
+                calculateRowQty(row);
             });
         }
         
@@ -373,6 +417,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const newRow = firstRow.cloneNode(true);
         
         newRow.style.display = '';
+        newRow.removeAttribute('data-base-unit');
+        const newGuide = newRow.querySelector('.calculated-qty-guide');
+        if (newGuide) {
+            newGuide.innerHTML = '';
+            newGuide.style.display = 'none';
+        }
+        
         newRow.querySelectorAll('input, select').forEach(input => {
             const name = input.getAttribute('name');
             const id = input.getAttribute('id');

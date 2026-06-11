@@ -261,11 +261,27 @@ class PurchaseOrderCreateFromShortageView(LoginRequiredMixin, PermissionRequired
                 grouped_shortages[item.id] = {
                     'item': item,
                     'total_shortage_qty': 0,
-                    'shortage_ids': []
+                    'shortage_ids': [],
+                    'expected_dates': set()
                 }
             grouped_shortages[item.id]['total_shortage_qty'] += shortage.request_qty
             grouped_shortages[item.id]['shortage_ids'].append(shortage.id)
+            if shortage.expected_date:
+                grouped_shortages[item.id]['expected_dates'].add(shortage.expected_date)
+
+        for group in grouped_shortages.values():
+            dates = sorted(list(group['expected_dates']))
+            if not dates:
+                group['expected_date_display'] = "None"
+            elif len(dates) == 1:
+                group['expected_date_display'] = dates[0].strftime('%d %b %Y')
+            else:
+                group['expected_date_display'] = f"{dates[0].strftime('%d %b %Y')} to {dates[-1].strftime('%d %b %Y')}"
             
+        # Find the maximum expected date among the selected shortages to prefill PO expected date
+        expected_dates = [s.expected_date for s in shortages if s.expected_date]
+        selected_expected_date_str = max(expected_dates).strftime('%Y-%m-%d') if expected_dates else ''
+
         # Suggested PO Number
         suggested_no = PurchaseOrderService.get_suggested_PO_numbers()
         
@@ -284,6 +300,7 @@ class PurchaseOrderCreateFromShortageView(LoginRequiredMixin, PermissionRequired
         context = {
             'page_title': "Create Purchase Order from Shortages",
             'suggested_no': suggested_no,
+            'selected_expected_date': selected_expected_date_str,
             'suppliers': suppliers,
             'grouped_shortages': grouped_shortages.values(),
             'shortage_ids_str': shortage_ids_str,
@@ -423,10 +440,22 @@ class PurchaseOrderCreateFromShortageView(LoginRequiredMixin, PermissionRequired
                 grouped_shortages[item.id] = {
                     'item': item,
                     'total_shortage_qty': 0,
-                    'shortage_ids': []
+                    'shortage_ids': [],
+                    'expected_dates': set()
                 }
             grouped_shortages[item.id]['total_shortage_qty'] += shortage.request_qty
             grouped_shortages[item.id]['shortage_ids'].append(shortage.id)
+            if shortage.expected_date:
+                grouped_shortages[item.id]['expected_dates'].add(shortage.expected_date)
+
+        for group in grouped_shortages.values():
+            dates = sorted(list(group['expected_dates']))
+            if not dates:
+                group['expected_date_display'] = "None"
+            elif len(dates) == 1:
+                group['expected_date_display'] = dates[0].strftime('%d %b %Y')
+            else:
+                group['expected_date_display'] = f"{dates[0].strftime('%d %b %Y')} to {dates[-1].strftime('%d %b %Y')}"
             
         suppliers = Partner.objects.filter(status='active', is_supplier=True, is_deleted=False)
         all_pending = Shortage.objects.filter(status=Shortage.Status.PENDING, is_deleted=False)
