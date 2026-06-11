@@ -15,6 +15,7 @@ class Shortage(AuditableMixin):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
         PO_CREATED = 'po_created', 'PO Created'
+        PROMOTED = 'promoted', 'Promoted'
         CANCELLED = 'cancelled', 'Cancelled'
 
     item = models.ForeignKey(
@@ -58,6 +59,14 @@ class Shortage(AuditableMixin):
         blank=True,
         related_name='shortages',
         help_text="The PO created to address this shortage"
+    )
+    promoted_arrival_reservation = models.ForeignKey(
+        'procurement.ArrivalReservation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='promoted_shortages',
+        help_text="The arrival reservation created when this shortage was promoted"
     )
     note = models.TextField(
         blank=True,

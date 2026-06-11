@@ -351,13 +351,21 @@ class TestSalesOrderDetailAndRefreshViews:
         client.force_login(test_user)
         url = reverse('sales:sales-order-item-allocate', kwargs={'item_pk': item_line.pk})
 
-        # Test GET: ARR-ONTIME should be in context, ARR-LATE should NOT
+        # Test GET: ARR-ONTIME and ARR-LATE should both be in context
         response = client.get(url)
         assert response.status_code == 200
         arrival_items_in_context = list(response.context['arrival_items'])
         
         assert item_ontime in arrival_items_in_context
-        assert item_late not in arrival_items_in_context
+        assert item_late in arrival_items_in_context
+        
+        # Verify the list ordering (nearest expected date first)
+        assert arrival_items_in_context[0] == item_ontime
+        assert arrival_items_in_context[1] == item_late
+        
+        # Verify the late flag is set correctly
+        assert arrival_items_in_context[0].is_late is False
+        assert arrival_items_in_context[1].is_late is True
 
         # Test POST: submitting late arrival should throw validation error & display error flash message
         payload = {

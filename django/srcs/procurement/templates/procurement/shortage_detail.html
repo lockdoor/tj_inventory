@@ -30,6 +30,8 @@
                         <span class="badge-status badge-pending">Pending</span>
                     {% elif shortage.status == 'po_created' %}
                         <span class="badge-status badge-po">PO Created</span>
+                    {% elif shortage.status == 'promoted' %}
+                        <span class="badge-status badge-promoted">Promoted</span>
                     {% elif shortage.status == 'cancelled' %}
                         <span class="badge-status badge-cancelled">Cancelled</span>
                     {% endif %}
@@ -153,6 +155,8 @@
                         <span class="badge-status badge-pending">Pending</span>
                     {% elif shortage.status == 'po_created' %}
                         <span class="badge-status badge-po">PO Created</span>
+                    {% elif shortage.status == 'promoted' %}
+                        <span class="badge-status badge-promoted">Promoted</span>
                     {% elif shortage.status == 'cancelled' %}
                         <span class="badge-status badge-cancelled">Cancelled</span>
                     {% endif %}
@@ -163,6 +167,15 @@
                 <div>
                     <a href="{% url 'procurement:purchase-order-detail' shortage.purchase_order.pk %}" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary-light); text-decoration: none; border-bottom: 1px dashed rgba(16, 185, 129, 0.4); padding-bottom: 1px;">
                         {{ shortage.purchase_order.document_no }}
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if shortage.promoted_arrival_reservation %}
+                <div style="color: var(--text-muted); font-weight: 600;">Linked Res:</div>
+                <div>
+                    <a href="{% url 'procurement:arrival-reservation-detail' shortage.promoted_arrival_reservation.pk %}" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary-light); text-decoration: none; border-bottom: 1px dashed rgba(99, 102, 241, 0.4); padding-bottom: 1px;">
+                        Res #{{ shortage.promoted_arrival_reservation.pk }} ({{ shortage.promoted_arrival_reservation.arrival_item.arrival.document_no }})
                     </a>
                 </div>
                 {% endif %}
@@ -353,6 +366,27 @@
             </p>
         </div>
     </div>
+    {% elif shortage.status == 'promoted' %}
+    <div class="glass-card" style="padding: 2rem; border: 1px solid rgba(99, 102, 241, 0.1); background: rgba(99, 102, 241, 0.03); display: flex; align-items: center; gap: 1rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div>
+            <h3 style="font-size: 1.05rem; font-weight: 700; color: #818cf8; margin: 0 0 0.15rem 0;">Promoted to Arrival Reservation</h3>
+            <p style="color: var(--text-dim); margin: 0; font-size: 0.85rem;">
+                This shortage has been promoted to Arrival Reservation
+                {% if shortage.promoted_arrival_reservation %}
+                    <a href="{% url 'procurement:arrival-reservation-detail' shortage.promoted_arrival_reservation.pk %}" style="color: var(--primary-light); font-weight: 600; text-decoration: none; border-bottom: 1px dashed rgba(99, 102, 241, 0.4);">
+                        #{{ shortage.promoted_arrival_reservation.pk }}
+                    </a>
+                    (Arrival: {{ shortage.promoted_arrival_reservation.arrival_item.arrival.document_no }}).
+                {% else %}
+                    record.
+                {% endif %}
+            </p>
+        </div>
+    </div>
     {% endif %}
 </div>
 
@@ -424,6 +458,11 @@
         background: rgba(107, 114, 128, 0.12);
         color: #9ca3af;
         border: 1px solid rgba(107, 114, 128, 0.2);
+    }
+    .badge-promoted {
+        background: rgba(99, 102, 241, 0.12);
+        color: #818cf8;
+        border: 1px solid rgba(99, 102, 241, 0.2);
     }
 
     /* Cancel button styling */

@@ -660,11 +660,10 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             status='active'
         ).exclude(balance=0).select_related('warehouse').order_by('exp_date', 'created_at')
 
-        # 3. Fetch expected arrivals preloaded (must arrive on or before order expected date)
+        # 3. Fetch all expected arrivals preloaded (active scheduled/receiving) ordered by expected date (nearest first)
         arrival_items = ArrivalItem.objects.filter(
             item=item,
             arrival__status__in=['scheduled', 'receiving'],
-            arrival__expected_date__lte=order.order_date,
             arrival__is_deleted=False
         ).select_related('arrival__warehouse', 'arrival').order_by('arrival__expected_date')
 
@@ -674,6 +673,7 @@ class SalesOrderItemAllocateView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             s.available_qty_for_ui = float(s.available_qty) + s.allocated_qty
 
         for ai in arrival_items:
+            ai.is_late = ai.arrival.expected_date > order.order_date
             ai.allocated_qty = arrival_alloc_map.get(ai.pk, 0.0)
             ai.available_qty_for_ui = float(ai.available_qty) + ai.allocated_qty
 

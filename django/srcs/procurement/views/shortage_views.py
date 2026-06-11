@@ -21,7 +21,9 @@ class ShortageListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Shortage.objects.filter(is_deleted=False).select_related(
+        queryset = Shortage.objects.filter(
+            Q(is_deleted=False) | Q(status=Shortage.Status.PROMOTED)
+        ).select_related(
             'item',
             'purchase_order',
             'created_by'
@@ -81,7 +83,9 @@ class ShortageDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     raise_exception = True
 
     def get_queryset(self):
-        return Shortage.objects.filter(is_deleted=False).select_related(
+        return Shortage.objects.filter(
+            Q(is_deleted=False) | Q(status=Shortage.Status.PROMOTED)
+        ).select_related(
             'item',
             'purchase_order',
             'created_by',

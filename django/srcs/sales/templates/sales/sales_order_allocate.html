@@ -194,9 +194,12 @@
                                 </thead>
                                 <tbody>
                                     {% for arrival_item in arrival_items %}
-                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background-color 0.2s;">
+                                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background-color 0.2s; {% if arrival_item.is_late %}opacity: 0.55; background: rgba(244, 63, 94, 0.01);{% endif %}">
                                             <td style="padding: 1rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
                                                 <span style="color: var(--primary-light);">{{ arrival_item.arrival.document_no }}</span>
+                                                {% if arrival_item.is_late %}
+                                                    <span style="font-size: 0.65rem; color: #fb7185; font-weight: 700; border: 1px solid rgba(244, 63, 94, 0.2); background: rgba(244, 63, 94, 0.1); padding: 0.15rem 0.4rem; border-radius: 4px; margin-left: 0.5rem; text-transform: uppercase; letter-spacing: 0.03em;">Late Arrival</span>
+                                                {% endif %}
                                                 {% if arrival_item.packaging %}
                                                     <div style="font-size: 0.7rem; color: #10b981; font-weight: 500; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.2rem;">
                                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
@@ -217,22 +220,35 @@
                                             </td>
                                             <td style="padding: 1rem 0.75rem; text-align: right;">
                                                 <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
-                                                    <input type="number" 
-                                                           name="arrival_qty_{{ arrival_item.pk }}" 
-                                                           class="glass-input qty-selector arrival-qty-selector" 
-                                                           min="0" 
-                                                           step="0.01" 
-                                                           value="{% if arrival_item.allocated_qty > 0 %}{{ arrival_item.allocated_qty|floatformat:2 }}{% endif %}" 
-                                                           placeholder="0.00" 
-                                                           style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
-                                                           data-max-allowed="{{ arrival_item.available_qty_for_ui }}"
-                                                           data-field-name="Arrival Item in {{ arrival_item.arrival.document_no }}">
-                                                    <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
-                                                        Max
-                                                    </button>
-                                                    <button type="button" class="btn-micro reset-zero-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
-                                                        Reset
-                                                    </button>
+                                                    {% if arrival_item.is_late %}
+                                                        <span style="font-size: 0.75rem; color: #fb7185; font-style: italic; margin-right: 0.5rem;" title="To select this, change the Sales Order expected fulfillment date to be on or after the arrival date.">
+                                                            Needs SO Date &ge; {{ arrival_item.arrival.expected_date|date:"Y-m-d" }}
+                                                        </span>
+                                                        <input type="number" 
+                                                               class="glass-input qty-selector" 
+                                                               disabled 
+                                                               value="" 
+                                                               placeholder="Locked" 
+                                                               style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem; background: rgba(255, 255, 255, 0.02); cursor: not-allowed; border-color: rgba(255, 255, 255, 0.05);"
+                                                               title="To select this, change the Sales Order expected fulfillment date to be on or after the arrival date.">
+                                                    {% else %}
+                                                        <input type="number" 
+                                                               name="arrival_qty_{{ arrival_item.pk }}" 
+                                                               class="glass-input qty-selector arrival-qty-selector" 
+                                                               min="0" 
+                                                               step="0.01" 
+                                                               value="{% if arrival_item.allocated_qty > 0 %}{{ arrival_item.allocated_qty|floatformat:2 }}{% endif %}" 
+                                                               placeholder="0.00" 
+                                                               style="width: 110px; text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 0.4rem 0.75rem;"
+                                                               data-max-allowed="{{ arrival_item.available_qty_for_ui }}"
+                                                               data-field-name="Arrival Item in {{ arrival_item.arrival.document_no }}">
+                                                        <button type="button" class="btn-micro fill-max-btn" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--primary-light); padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                            Max
+                                                        </button>
+                                                        <button type="button" class="btn-micro reset-zero-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                                            Reset
+                                                        </button>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>

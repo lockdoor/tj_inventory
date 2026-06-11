@@ -49,8 +49,6 @@ def test_auto_allocation_on_arrival_creation(item, customer, supplier, warehouse
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('30.00'), 'unit_price': Decimal('10.00')}]
     )
-    so1.status = SalesOrder.Status.CONFIRMED
-    so1.save()
 
     # Create second Sales Order for 20 units
     so2 = SalesService.create_order(
@@ -60,8 +58,6 @@ def test_auto_allocation_on_arrival_creation(item, customer, supplier, warehouse
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('20.00'), 'unit_price': Decimal('10.00')}]
     )
-    so2.status = SalesOrder.Status.CONFIRMED
-    so2.save()
 
     # Verify shortages are created and ordered
     shortages = Shortage.objects.filter(item=item, status=Shortage.Status.PENDING).order_by('created_at')
@@ -131,8 +127,7 @@ def test_auto_allocation_partial_split(item, customer, supplier, warehouse, test
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('50.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -174,8 +169,7 @@ def test_revert_to_shortages_on_cancellation(item, customer, supplier, warehouse
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -220,8 +214,7 @@ def test_revert_to_shortages_on_deletion(item, customer, supplier, warehouse, te
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -261,8 +254,7 @@ def test_revert_remaining_on_short_receipt_close(item, customer, supplier, wareh
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -330,8 +322,7 @@ def test_full_receipt_promotion(item, customer, supplier, warehouse, test_user):
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -382,8 +373,7 @@ def test_block_reducing_expected_qty_below_reservations(item, customer, supplier
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -420,8 +410,7 @@ def test_revert_to_shortages_on_item_line_deletion(item, customer, supplier, war
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)
@@ -472,8 +461,6 @@ def test_auto_allocation_by_linked_purchase_order(item, customer, supplier, ware
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so1.status = SalesOrder.Status.CONFIRMED
-    so1.save()
 
     # Create SO-002
     so2 = SalesService.create_order(
@@ -483,8 +470,6 @@ def test_auto_allocation_by_linked_purchase_order(item, customer, supplier, ware
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('10.00'), 'unit_price': Decimal('10.00')}]
     )
-    so2.status = SalesOrder.Status.CONFIRMED
-    so2.save()
 
     # Create two different Purchase Orders
     po1 = PurchaseOrder.objects.create(
@@ -532,8 +517,7 @@ def test_auto_allocation_by_linked_purchase_order(item, customer, supplier, ware
 
     # SO-002 should NOT be allocated
     so2.refresh_from_db()
-    # It remains CONFIRMED since it has outstanding shortages but was set to confirmed in the test setup
-    assert so2.status == SalesOrder.Status.CONFIRMED
+    assert so2.status == SalesOrder.Status.DRAFT
     so2_item = so2.items.first()
     so2_item.refresh_from_db()
     assert so2_item.allocations.filter(is_deleted=False, source_type=SalesAllocation.SourceType.SHORTAGE).count() == 1
@@ -568,8 +552,7 @@ def test_arrival_sourcing_packaging_units(item, customer, supplier, warehouse, t
         order_date=date.today(),
         items=[{'item': item, 'requested_qty': Decimal('18.00'), 'unit_price': Decimal('10.00')}]
     )
-    so.status = SalesOrder.Status.CONFIRMED
-    so.save()
+    # Simulate PO creation by updating shortage status to PO_CREATED
 
     # Simulate PO creation by updating shortage status to PO_CREATED
     Shortage.objects.filter(reference_id=str(so.id), is_deleted=False).update(status=Shortage.Status.PO_CREATED)

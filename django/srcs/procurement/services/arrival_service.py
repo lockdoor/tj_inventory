@@ -497,14 +497,13 @@ class ArrivalService:
             if available_qty <= 0:
                 continue
 
-            # Find PO-created shortages for this item associated with confirmed or preorder Sales Orders, ordered by FIFO (oldest first)
+            # Find PO-created shortages for this item associated with draft Sales Orders (due to shortage gating), ordered by FIFO (oldest first)
             query_filters = {
                 'item': arrival_item.item,
                 'status': Shortage.Status.PO_CREATED,
                 'is_deleted': False,
                 'sales_allocations__order_item__order__status__in': [
-                    SalesOrder.Status.CONFIRMED,
-                    SalesOrder.Status.PREORDER
+                    SalesOrder.Status.DRAFT
                 ]
             }
             if arrival.purchase_order:
@@ -596,10 +595,28 @@ class ArrivalService:
 
                     # Update the shortage record
                     if alloc_take < shortage.request_qty:
+                        # Split shortage: create a soft-deleted, promoted record for the allocated portion
+                        Shortage.objects.create(
+                            item=shortage.item,
+                            request_qty=alloc_take,
+                            reference_type=shortage.reference_type,
+                            reference_id=shortage.reference_id,
+                            expected_date=shortage.expected_date,
+                            purchase_order=shortage.purchase_order,
+                            status=Shortage.Status.PROMOTED,
+                            promoted_arrival_reservation=arrival_lock,
+                            created_by=user or shortage.created_by,
+                            is_deleted=True,
+                            note=f"Split promotion of {alloc_take} from shortage #{shortage.pk} to arrival reservation #{arrival_lock.pk}"
+                        )
                         shortage.request_qty -= alloc_take
                         shortage.save(update_fields=['request_qty', 'updated_at'])
                     else:
-                        shortage.delete()
+                        # Full promotion: transition status and link, then soft-delete
+                        shortage.status = Shortage.Status.PROMOTED
+                        shortage.promoted_arrival_reservation = arrival_lock
+                        shortage.save(update_fields=['status', 'promoted_arrival_reservation', 'updated_at'])
+                        shortage.delete(user=user)
 
                     available_qty -= alloc_take
 

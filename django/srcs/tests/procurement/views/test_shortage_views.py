@@ -236,6 +236,41 @@ class TestShortageListViews:
         assert shortage_card['badge'] == 'Shortages'
         assert shortage_card['icon_name'] == 'alert-triangle'
 
+    def test_shortage_list_view_promoted_shortage_rendering(self, client, test_user, item_a, partner):
+        from procurement.models import ArrivalReservation, ArrivalItem, Arrival
+        from inventory.models import Warehouse
+        # Create a warehouse
+        wh = Warehouse.objects.create(name="WH A", code="WHA", created_by=test_user)
+        # Create an arrival
+        arr = Arrival.objects.create(document_no="ARR-PROMOTED", partner=partner, warehouse=wh, expected_date="2026-06-30", created_by=test_user)
+        arr_item = ArrivalItem.objects.create(arrival=arr, item=item_a, expected_qty=Decimal("10.00"), created_by=test_user)
+        # Create arrival reservation
+        res = ArrivalReservation.objects.create(arrival_item=arr_item, quantity=Decimal("10.00"), reference_no="SO-PROMOTED", created_by=test_user)
+        
+        # Create a promoted shortage linked to this reservation (soft-deleted but status=PROMOTED)
+        shortage = Shortage.objects.create(
+            item=item_a,
+            request_qty=Decimal("10.00"),
+            status=Shortage.Status.PROMOTED,
+            promoted_arrival_reservation=res,
+            created_by=test_user,
+            is_deleted=True
+        )
+
+        client.force_login(test_user)
+        
+        # 1. Verify list view renders successfully when filtering by status=promoted
+        list_url = reverse('procurement:shortage-list')
+        response = client.get(list_url, {'status': 'promoted'})
+        assert response.status_code == 200
+        assert shortage in response.context['shortages']
+
+        # 2. Verify detail view renders successfully
+        detail_url = reverse('procurement:shortage-detail', kwargs={'pk': shortage.pk})
+        response = client.get(detail_url)
+        assert response.status_code == 200
+        assert response.context['shortage'] == shortage
+
     def test_shortage_create_view_permissions(self, client, unauthorized_user, test_user):
         url = reverse('procurement:shortage-create')
 

@@ -69,6 +69,9 @@
             <a href="?{% if q %}q={{ q }}&{% endif %}status=po_created" class="tab-link {% if current_status == 'po_created' %}active{% endif %}">
                 PO Created
             </a>
+            <a href="?{% if q %}q={{ q }}&{% endif %}status=promoted" class="tab-link {% if current_status == 'promoted' %}active{% endif %}">
+                Promoted
+            </a>
             <a href="?{% if q %}q={{ q }}&{% endif %}status=cancelled" class="tab-link {% if current_status == 'cancelled' %}active{% endif %}">
                 Cancelled
             </a>
@@ -167,6 +170,15 @@
                                     {% if shortage.purchase_order %}
                                         <a href="{% url 'procurement:purchase-order-detail' shortage.purchase_order.pk %}" style="text-decoration: none; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 600; border-bottom: 1px dashed rgba(16, 185, 129, 0.4); display: inline-block; width: max-content;">
                                             {{ shortage.purchase_order.document_no }}
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% elif shortage.status == 'promoted' %}
+                                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                                    <span class="badge badge-promoted">Promoted</span>
+                                    {% if shortage.promoted_arrival_reservation %}
+                                        <a href="{% url 'procurement:arrival-reservation-detail' shortage.promoted_arrival_reservation.pk %}" style="text-decoration: none; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; color: var(--primary-light); font-weight: 600; border-bottom: 1px dashed rgba(99, 102, 241, 0.4); display: inline-block; width: max-content;">
+                                            Res #{{ shortage.promoted_arrival_reservation.pk }}
                                         </a>
                                     {% endif %}
                                 </div>
@@ -286,6 +298,11 @@
         background: rgba(16, 185, 129, 0.08);
         color: var(--primary-light);
         border-color: rgba(16, 185, 129, 0.15);
+    }
+    .badge-promoted {
+        background: rgba(99, 102, 241, 0.08);
+        color: #818cf8;
+        border-color: rgba(99, 102, 241, 0.15);
     }
     .badge-cancelled {
         background: rgba(148, 163, 184, 0.08);
