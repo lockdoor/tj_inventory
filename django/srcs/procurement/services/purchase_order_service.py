@@ -245,6 +245,18 @@ class PurchaseOrderService:
         return po
 
     @staticmethod
+    @transaction.atomic
+    def close(po, *, user):
+        """Transition PO to CLOSED status."""
+        if po.status != PurchaseOrder.Status.SUBMITTED:
+            raise ValidationError("Only Submitted Purchase Orders can be closed.")
+        
+        po.status = PurchaseOrder.Status.CLOSED
+        po.updated_by = user
+        po.save()
+        return po
+
+    @staticmethod
     def get_suggested_PO_numbers():
         from django.utils import timezone
         today_str = timezone.now().strftime('%Y%m%d')

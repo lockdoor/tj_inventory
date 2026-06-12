@@ -58,6 +58,48 @@ class TestArrivalModel:
         assert arrival.warehouse == warehouse
         assert str(arrival) == "ARR-2024-001 (Supplier B)"
 
+    def test_arrival_cannot_reference_closed_po(self, user, partner, warehouse, po):
+        """Verify that an arrival cannot reference a Closed PO."""
+        from django.core.exceptions import ValidationError
+        po.status = PurchaseOrder.Status.CLOSED
+        po.save()
+
+        with pytest.raises(ValidationError) as excinfo:
+            arrival = Arrival(
+                document_no="ARR-CLOSED-PO",
+                purchase_order=po,
+                partner=partner,
+                warehouse=warehouse,
+                expected_date=date(2024, 7, 1),
+                created_by=user
+            )
+            arrival.full_clean()
+        
+        assert "Cannot reference a Closed Purchase Order." in str(excinfo.value)
+
+    def test_arrival_cannot_update_reference_to_closed_po(self, user, partner, warehouse, po):
+        """Verify that an existing arrival cannot be updated to reference a Closed PO."""
+        from django.core.exceptions import ValidationError
+        # Create arrival with no PO
+        arrival = Arrival.objects.create(
+            document_no="ARR-UPDATE-PO",
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2024, 7, 1),
+            created_by=user
+        )
+        
+        # Close the PO
+        po.status = PurchaseOrder.Status.CLOSED
+        po.save()
+
+        # Try to link it to the closed PO
+        arrival.purchase_order = po
+        with pytest.raises(ValidationError) as excinfo:
+            arrival.full_clean()
+        
+        assert "Cannot reference a Closed Purchase Order." in str(excinfo.value)
+
     def test_standalone_arrival(self, user, partner, warehouse):
         """Verify that an arrival can exist without a PO."""
         arrival = Arrival.objects.create(

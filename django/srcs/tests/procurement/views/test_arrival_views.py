@@ -116,3 +116,42 @@ class TestArrivalCreateView:
         form = response.context['form']
         assert form.initial.get('document_no') is not None
         assert form.initial.get('document_no').startswith("ARR-")
+
+    def test_create_arrival_referencing_closed_po_fails(self, client, test_user, sample_arrival):
+        client.force_login(test_user)
+        
+        # Create a purchase order and close it
+        from procurement.models.purchase_order import PurchaseOrder
+        po = PurchaseOrder.objects.create(
+            document_no="PO-CLOSED-VAL",
+            partner=sample_arrival.partner,
+            status=PurchaseOrder.Status.CLOSED,
+            created_by=test_user
+        )
+
+        url = reverse('procurement:arrival-create')
+        
+        form_data = {
+            'document_no': 'ARR-CLOSED-VAL-TEST',
+            'purchase_order': po.pk,
+            'partner': sample_arrival.partner.pk,
+            'warehouse': sample_arrival.warehouse.pk,
+            'expected_date': '2026-06-20',
+            'note': 'Should fail',
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            'items-0-item': sample_arrival.items.first().item.pk,
+            'items-0-expected_qty': '10',
+            'items-0-received_qty': '0',
+            'items-0-mfg_date': '',
+            'items-0-exp_date': '',
+            'items-0-id': '',
+        }
+        
+        response = client.post(url, data=form_data)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert not form.is_valid()
+        assert 'purchase_order' in form.errors

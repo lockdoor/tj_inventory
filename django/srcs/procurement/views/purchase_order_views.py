@@ -170,6 +170,19 @@ class PurchaseOrderRevertView(LoginRequiredMixin, PermissionRequiredMixin, View)
             
         return redirect('procurement:purchase-order-detail', pk=pk)
 
+class PurchaseOrderCloseView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'procurement.change_purchaseorder'
+
+    def post(self, request, pk):
+        po = get_object_or_404(PurchaseOrder, pk=pk)
+        try:
+            PurchaseOrderService.close(po, user=request.user)
+            messages.success(request, f"Purchase Order {po.document_no} closed successfully.")
+        except ValidationError as e:
+            messages.error(request, str(e))
+            
+        return redirect('procurement:purchase-order-detail', pk=pk)
+
 class PurchaseOrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     permission_required = 'procurement.delete_purchaseorder'
 

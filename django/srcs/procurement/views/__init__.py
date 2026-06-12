@@ -5,6 +5,7 @@ from .purchase_order_views import (
     PurchaseOrderDetailView,
     PurchaseOrderSubmitView,
     PurchaseOrderRevertView,
+    PurchaseOrderCloseView,
     PurchaseOrderDeleteView,
     PurchaseOrderItemsAPIView,
     PurchaseOrderCreateFromShortageView

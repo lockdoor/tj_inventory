@@ -56,6 +56,14 @@ class PurchaseOrder(AuditableMixin):
         total = sum(item.subtotal for item in self.items.all())
         return total
 
+    @property
+    def is_sufficient(self):
+        """Return True if all items have arrival pieces greater than or equal to order pieces."""
+        for item in self.items.all():
+            if item.arrival_pieces < item.order_pieces:
+                return False
+        return True
+
 
 class PurchaseOrderItem(models.Model):
     """

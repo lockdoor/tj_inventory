@@ -241,3 +241,48 @@ class TestPurchaseOrderModel:
         
         # Refreshed po_line should still show 75 (deleted shipment is excluded)
         assert po_line.arrival_qty == 75
+
+    def test_purchase_order_is_sufficient(self, user, partner, item):
+        """Verify that is_sufficient property correctly checks arrival pieces vs order pieces."""
+        warehouse = Warehouse.objects.create(name="WH-PO-SUFF", code="WH-SUFF", created_by=user)
+        po = PurchaseOrder.objects.create(document_no="PO-SUFF-01", partner=partner, created_by=user)
+        po_line = PurchaseOrderItem.objects.create(purchase_order=po, item=item, order_qty=100)
+        
+        # Initially, arrival qty is 0/100, so it's not sufficient
+        assert not po.is_sufficient
+
+        # Create arrival for 50 pieces, still insufficient
+        arrival1 = Arrival.objects.create(
+            document_no="ARR-SUFF-1",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 1),
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival1,
+            item=item,
+            po_item=po_line,
+            expected_qty=50,
+            created_by=user
+        )
+        assert not po.is_sufficient
+
+        # Create another arrival for 50 pieces (total 100/100), now sufficient
+        arrival2 = Arrival.objects.create(
+            document_no="ARR-SUFF-2",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 2),
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival2,
+            item=item,
+            po_item=po_line,
+            expected_qty=50,
+            created_by=user
+        )
+        assert po.is_sufficient

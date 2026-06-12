@@ -272,3 +272,35 @@ class TestPurchaseOrderPermissions:
         po = PurchaseOrder.objects.get(document_no='PO-EXPECTED-SUCCESS')
         assert po.expected_date == date(2026, 6, 20)
 
+    def test_close_view_success(self, client, authorized_user, supplier):
+        po = PurchaseOrder.objects.create(
+            document_no="PO-CLOSE-001",
+            partner=supplier,
+            status=PurchaseOrder.Status.SUBMITTED,
+            created_by=authorized_user
+        )
+        url = reverse('procurement:purchase-order-close', kwargs={'pk': po.pk})
+        client.login(username="authorized", password="password")
+        
+        response = client.post(url)
+        assert response.status_code == 302 # Redirect on success
+        
+        po.refresh_from_db()
+        assert po.status == PurchaseOrder.Status.CLOSED
+
+    def test_close_view_blocked_for_draft(self, client, authorized_user, supplier):
+        po = PurchaseOrder.objects.create(
+            document_no="PO-CLOSE-002",
+            partner=supplier,
+            status=PurchaseOrder.Status.DRAFT,
+            created_by=authorized_user
+        )
+        url = reverse('procurement:purchase-order-close', kwargs={'pk': po.pk})
+        client.login(username="authorized", password="password")
+        
+        response = client.post(url)
+        assert response.status_code == 302 # Redirect back to detail with error message
+        
+        po.refresh_from_db()
+        assert po.status == PurchaseOrder.Status.DRAFT
+

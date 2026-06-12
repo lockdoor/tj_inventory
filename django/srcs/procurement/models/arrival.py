@@ -62,6 +62,21 @@ class Arrival(AuditableMixin):
     def __str__(self):
         return f"{self.document_no} ({self.partner.name})"
 
+    def clean(self):
+        super().clean()
+        if self.purchase_order and self.purchase_order.status == self.purchase_order.Status.CLOSED:
+            is_new = self.pk is None
+            if is_new:
+                raise ValidationError({
+                    'purchase_order': "Cannot reference a Closed Purchase Order."
+                })
+            else:
+                orig = Arrival.objects.filter(pk=self.pk).first()
+                if orig and orig.purchase_order_id != self.purchase_order_id:
+                    raise ValidationError({
+                        'purchase_order': "Cannot reference a Closed Purchase Order."
+                    })
+
     def delete(self, user=None, *args, **kwargs):
         self.refresh_version()
         # Cascade soft-delete to child items
