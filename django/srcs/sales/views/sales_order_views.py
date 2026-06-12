@@ -820,5 +820,39 @@ class SalesOrderRevertToDraftView(LoginRequiredMixin, PermissionRequiredMixin, V
         return redirect('sales:sales-order-detail', pk=order.pk)
 
 
+class SalesOrderItemDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """
+    Endpoint to immediately delete an item line from a Draft Sales Order and release all reserves/allocations.
+    """
+    permission_required = 'sales.change_salesorder'
+    raise_exception = True
+
+    def post(self, request, *args, **kwargs):
+        from django.http import JsonResponse
+        from sales.models import SalesOrderItem
+        order = get_object_or_404(SalesOrder, pk=self.kwargs.get('pk'), is_deleted=False)
+        if order.status != SalesOrder.Status.DRAFT:
+            return JsonResponse({'success': False, 'error': 'Only draft sales orders can be modified.'}, status=400)
+            
+        item_id = self.kwargs.get('item_id')
+        try:
+            order_item = order.items.get(item_id=item_id)
+        except SalesOrderItem.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Item not found in this sales order.'}, status=404)
+
+        try:
+            with transaction.atomic():
+                order.updated_by = request.user
+                order.save(update_fields=['updated_by'])
+                
+                # Delete the item line, which triggers pre_delete signal to release reservations
+                order_item.delete()
+                
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+
 
 

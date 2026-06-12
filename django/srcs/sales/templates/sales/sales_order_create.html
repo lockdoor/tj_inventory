@@ -220,6 +220,31 @@
         gap: 1.5rem;
     }
     
+    /* Highlight catalog card when item is in cart */
+    .catalog-item-card.in-cart-highlight {
+        border-color: rgba(52, 211, 153, 0.35) !important;
+        background: rgba(52, 211, 153, 0.02) !important;
+        box-shadow: 0 0 15px rgba(52, 211, 153, 0.04) !important;
+    }
+    .catalog-item-card.in-cart-highlight:hover {
+        border-color: rgba(52, 211, 153, 0.5) !important;
+        background: rgba(52, 211, 153, 0.03) !important;
+    }
+    .catalog-item-card.in-cart-highlight .glass-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: rgba(255, 255, 255, 0.01) !important;
+        color: var(--text-dim) !important;
+        border-color: rgba(255, 255, 255, 0.02) !important;
+    }
+    .catalog-item-card.in-cart-highlight .btn-add-item:disabled {
+        opacity: 0.75;
+        cursor: not-allowed;
+        background: rgba(52, 211, 153, 0.15) !important;
+        border-color: rgba(52, 211, 153, 0.2) !important;
+        color: #34d399 !important;
+    }
+    
     /* Elegant Product Card */
     .catalog-item-card {
         background: rgba(255, 255, 255, 0.015);
@@ -613,6 +638,10 @@
                 
                 visibleCount++;
                 
+                const isInCart = cart.some(c => c.item_id === item.id);
+                const disabledAttr = isInCart ? 'disabled' : '';
+                const btnText = isInCart ? '<i data-lucide="check" style="width:14px;height:14px;"></i> In Cart' : '<i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add';
+                
                 // Construct lot rows html
                 let lotRowsHtml = '';
                 if (item.lots && item.lots.length > 0) {
@@ -655,7 +684,7 @@
                     packagingSelectHtml = `
                         <div class="compact-input-group">
                             <span class="compact-input-label">Packaging</span>
-                            <select id="pkg-select-${item.id}" class="glass-input compact-input pkg-select-elem" data-item-id="${item.id}" data-prev-qty="1" style="width: 140px; padding: 0.4rem 0.5rem; text-align: left; font-size: 0.8rem; height: 38px;">
+                            <select id="pkg-select-${item.id}" class="glass-input compact-input pkg-select-elem" data-item-id="${item.id}" data-prev-qty="1" style="width: 140px; padding: 0.4rem 0.5rem; text-align: left; font-size: 0.8rem; height: 38px;" ${disabledAttr}>
                                 ${packagingOptionsHtml}
                             </select>
                         </div>
@@ -667,14 +696,17 @@
                 const reservedPill = item.total_reserved > 0 ? `<span class="stock-badge-pill badge-reserved"><i data-lucide="clock" style="width:12px;height:12px;"></i> ${item.total_reserved.toFixed(2)} ${item.unit} reserved</span>` : '';
 
                 const itemCard = document.createElement('div');
-                itemCard.className = 'catalog-item-card';
+                itemCard.className = 'catalog-item-card' + (isInCart ? ' in-cart-highlight' : '');
                 itemCard.innerHTML = `
                     <div class="product-row">
                         <div class="product-avatar">
                             <i data-lucide="package" style="width: 24px; height: 24px;"></i>
                         </div>
                         <div class="product-details">
-                            <h4 class="product-name">${item.name}</h4>
+                            <h4 class="product-name">
+                                ${item.name}
+                                ${isInCart ? `<span class="stock-badge-pill" style="background: rgba(52, 211, 153, 0.1); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.2); font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.4rem; display: inline-flex; align-items: center; gap: 0.2rem; margin-left: 0.5rem;"><i data-lucide="shopping-cart" style="width: 10px; height: 10px;"></i> In Cart</span>` : ''}
+                            </h4>
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <span class="product-sku-badge">${item.sku}</span>
                                 <span style="font-size: 0.8rem; color: var(--text-dim);">/ ${item.unit}</span>
@@ -692,17 +724,17 @@
                                 ${packagingSelectHtml}
                                 <div class="compact-input-group">
                                     <span class="compact-input-label">Price ($)</span>
-                                    <input type="number" id="price-input-${item.id}" value="10.00" min="0.00" step="0.01" class="glass-input compact-input" placeholder="Price" style="width: 100px; height: 38px;">
+                                    <input type="number" id="price-input-${item.id}" value="10.00" min="0.00" step="0.01" class="glass-input compact-input" placeholder="Price" style="width: 100px; height: 38px;" ${disabledAttr}>
                                 </div>
                                 <div class="compact-input-group">
                                     <span class="compact-input-label">Qty</span>
-                                    <input type="number" id="qty-input-${item.id}" value="1" min="1" step="1" class="glass-input compact-input" placeholder="Qty" style="width: 75px; height: 38px;">
+                                    <input type="number" id="qty-input-${item.id}" value="1" min="1" step="1" class="glass-input compact-input" placeholder="Qty" style="width: 75px; height: 38px;" ${disabledAttr}>
                                 </div>
-                                <button type="button" class="btn btn-primary btn-add-item" data-item-id="${item.id}" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-md); height: 38px;">
-                                    <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
-                                    Add
+                                <button type="button" class="btn btn-primary btn-add-item" data-item-id="${item.id}" style="padding: 0.5rem 1rem; font-size: 0.85rem; border-radius: var(--radius-md); height: 38px;" ${disabledAttr}>
+                                    ${btnText}
                                 </button>
                             </div>
+                            ${isInCart ? `<div style="font-size: 0.725rem; color: #34d399; margin-top: 0.4rem; text-align: right; width: 100%; display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem; font-weight: 500;"><i data-lucide="info" style="width: 12px; height: 12px;"></i> Remove from cart to edit details</div>` : ''}
                             <div id="pkg-calc-${item.id}" style="font-size: 0.725rem; color: var(--primary-light); margin-top: 0.15rem; text-align: right; width: 100%; display: none; font-weight: 500;"></div>
                         </div>
                     </div>
@@ -799,6 +831,9 @@
         // 6. Shopping Cart Render Logic
         function updateCart() {
             cartContainer.innerHTML = '';
+            
+            // Re-render catalog to update highlights and disabled state
+            renderCatalog(catalogSearch ? catalogSearch.value : '');
             
             if (cart.length === 0) {
                 cartEmptyPlaceholder.style.display = 'block';
@@ -1005,14 +1040,86 @@
             }, 1000);
         });
 
+        // Modal Delete Actions
+        let pendingDeleteIndex = null;
+
+        window.openDeleteCartItemModal = function(index) {
+            pendingDeleteIndex = index;
+            const line = cart[index];
+            const warningText = document.getElementById('delete-modal-warning-text');
+            const isUpdateMode = {{ is_update|yesno:"true,false" }};
+
+            if (isUpdateMode) {
+                warningText.innerHTML = `Are you sure you want to remove <strong>${line.name}</strong>? This will immediately delete this line item from the Sales Order on the backend and release all of its reservations and shortages.`;
+            } else {
+                warningText.innerHTML = `Are you sure you want to remove <strong>${line.name}</strong> from your shopping cart?`;
+            }
+
+            document.getElementById('delete-cart-item-modal').style.display = 'flex';
+            lucide.createIcons();
+        };
+
+        window.closeDeleteCartItemModal = function() {
+            pendingDeleteIndex = null;
+            document.getElementById('delete-cart-item-modal').style.display = 'none';
+        };
+
         // Cart Actions (Remove)
         cartContainer.addEventListener('click', (e) => {
             const removeBtn = e.target.closest('.btn-remove-cart');
             if (removeBtn) {
                 const idx = parseInt(removeBtn.getAttribute('data-index'));
+                openDeleteCartItemModal(idx);
+                return;
+            }
+        });
+
+        // Modal Confirm Delete Button Listener
+        document.getElementById('confirm-delete-btn').addEventListener('click', () => {
+            if (pendingDeleteIndex === null) return;
+            const idx = pendingDeleteIndex;
+            const line = cart[idx];
+            const isUpdateMode = {{ is_update|yesno:"true,false" }};
+
+            if (isUpdateMode) {
+                const orderId = "{{ order.pk }}";
+                const deleteUrl = `/sales/orders/${orderId}/items/${line.item_id}/delete/`;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                const confirmBtn = document.getElementById('confirm-delete-btn');
+                const originalText = confirmBtn.textContent;
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Removing...';
+
+                fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => { throw new Error(data.error || 'Failed to delete item.') });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    cart.splice(idx, 1);
+                    updateCart();
+                    closeDeleteCartItemModal();
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                })
+                .finally(() => {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = originalText;
+                });
+            } else {
                 cart.splice(idx, 1);
                 updateCart();
-                return;
+                closeDeleteCartItemModal();
             }
         });
 
@@ -1030,8 +1137,24 @@
         });
 
         // Initial Runs
-        renderCatalog();
-        updateCart();
+        updateCart(); // calls renderCatalog internally
     });
 </script>
+
+<!-- Delete Cart Item Modal -->
+<div id="delete-cart-item-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="width: 100%; max-width: 450px; padding: 2rem; border-radius: var(--radius-lg); text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: var(--shadow-lg);">
+        <div style="background: rgba(239, 68, 68, 0.1); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; border: 1px solid rgba(239, 68, 68, 0.2);">
+            <i data-lucide="alert-triangle" style="width: 24px; height: 24px; color: var(--error);"></i>
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text-main);">Remove Item?</h3>
+        <p id="delete-modal-warning-text" style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; margin-bottom: 2rem;">
+            Are you sure you want to remove this item?
+        </p>
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="button" id="confirm-delete-btn" class="btn btn-primary" style="background: var(--error); border-color: var(--error); padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600;">Remove</button>
+            <button type="button" onclick="closeDeleteCartItemModal()" class="btn-secondary-glass" style="padding: 0.75rem 1.5rem; font-weight: 600; border-radius: 8px; color: var(--text-main); cursor: pointer; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">Cancel</button>
+        </div>
+    </div>
+</div>
 {% endblock %}

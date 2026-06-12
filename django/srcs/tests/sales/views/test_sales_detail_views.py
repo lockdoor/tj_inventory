@@ -789,6 +789,52 @@ class TestSalesOrderDetailAndRefreshViews:
         assert response.context['allocated_items'] == 1
         assert response.context['total_items'] == 1
 
+    def test_sales_order_item_delete_success(self, client, test_user, sales_order, item, warehouse):
+        # Setup active reservations to verify clean release
+        stock = Stock.objects.create(
+            item=item,
+            warehouse=warehouse,
+            lot_number="LOT-DELETE-LINE-TEST",
+            balance=Decimal("10.00"),
+            reserved_qty=Decimal("0.00"),
+            created_by=test_user
+        )
+        item_line = sales_order.items.first()
+        from sales.services.sales_service import SalesService
+        SalesService.refresh_allocation(item_line)
+        
+        assert item_line.allocations.filter(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False).exists() is True
+        physical_res = item_line.allocations.filter(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False).first().physical_reservation
+        assert physical_res.is_deleted is False
+
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-delete', kwargs={'pk': sales_order.pk, 'item_id': item.pk})
+        
+        response = client.post(url)
+        assert response.status_code == 200
+        assert response.json() == {'success': True}
+
+        # Verify item line is deleted
+        assert sales_order.items.filter(item=item).exists() is False
+
+        # Verify physical stock reservation is released (soft-deleted)
+        physical_res.refresh_from_db()
+        assert physical_res.is_deleted is True
+
+    def test_sales_order_item_delete_blocked_non_draft(self, client, test_user, sales_order, item):
+        # Cancel order so it's not Draft
+        from sales.services.sales_service import SalesService
+        SalesService.cancel_order(sales_order, user=test_user)
+        
+        client.force_login(test_user)
+        url = reverse('sales:sales-order-item-delete', kwargs={'pk': sales_order.pk, 'item_id': item.pk})
+        
+        response = client.post(url)
+        assert response.status_code == 400
+        assert 'success' in response.json()
+        assert response.json()['success'] is False
+
+
 
 
 

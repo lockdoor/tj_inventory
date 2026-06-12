@@ -10,6 +10,7 @@ from .sales_order_views import (
     SalesOrderReleaseToWarehouseView,
     SalesOrderConfirmView,
     SalesOrderRevertToDraftView,
+    SalesOrderItemDeleteView,
 )
 from .attachment_views import (
     SalesOrderAttachmentUploadView,
