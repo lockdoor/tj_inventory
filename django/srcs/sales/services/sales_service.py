@@ -17,7 +17,7 @@ class SalesService:
 
     @staticmethod
     @transaction.atomic
-    def create_order(*, document_no, partner, user, order_date=None, order_type=SalesOrder.OrderType.NORMAL, items=None, note=''):
+    def create_order(*, document_no, partner, user, order_date=None, order_type=SalesOrder.OrderType.NORMAL, items=None, note='', customer_po_no=None, invoice_no=None):
         """
         Create a new Sales Order and optionally its items.
         """
@@ -26,6 +26,8 @@ class SalesService:
             'partner': partner,
             'order_type': order_type,
             'note': note,
+            'customer_po_no': customer_po_no,
+            'invoice_no': invoice_no,
             'created_by': user
         }
         if order_date:
@@ -41,7 +43,7 @@ class SalesService:
 
     @staticmethod
     @transaction.atomic
-    def update_order(order: SalesOrder, *, document_no, partner, user, order_date=None, order_type=SalesOrder.OrderType.NORMAL, items=None, note=''):
+    def update_order(order: SalesOrder, *, document_no, partner, user, order_date=None, order_type=SalesOrder.OrderType.NORMAL, items=None, note='', customer_po_no=None, invoice_no=None):
         """
         Update an existing draft Sales Order and its item lines.
         """
@@ -59,6 +61,8 @@ class SalesService:
         order.partner = partner
         order.order_type = order_type
         order.note = note
+        order.customer_po_no = customer_po_no
+        order.invoice_no = invoice_no
         order.updated_by = user
         if order_date:
             order.order_date = order_date

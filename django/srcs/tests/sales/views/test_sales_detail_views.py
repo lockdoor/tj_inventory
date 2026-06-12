@@ -559,6 +559,9 @@ class TestSalesOrderDetailAndRefreshViews:
     def test_sales_order_edit_view_get_draft(self, client, test_user, sales_order):
         # By default sales_order status is 'draft' when created in create_order
         assert sales_order.status == SalesOrder.Status.DRAFT
+        sales_order.customer_po_no = "CUST-PO-EDIT-GET"
+        sales_order.invoice_no = "CUST-INV-EDIT-GET"
+        sales_order.save()
 
         client.force_login(test_user)
         url = reverse('sales:sales-order-edit', kwargs={'pk': sales_order.pk})
@@ -568,6 +571,8 @@ class TestSalesOrderDetailAndRefreshViews:
         assert response.context['page_title'] == f"Edit Sales Order: {sales_order.document_no}"
         assert response.context['breadcrumb_title'] == "Edit Sales Order"
         assert response.context['submit_button_text'] == "Save Sales Order Changes"
+        assert response.context['selected_customer_po_no'] == "CUST-PO-EDIT-GET"
+        assert response.context['selected_invoice_no'] == "CUST-INV-EDIT-GET"
         assert 'prepopulated_items_json' in response.context
         
         # Parse prepopulated cart items and verify matches
@@ -613,6 +618,8 @@ class TestSalesOrderDetailAndRefreshViews:
             'order_date': '2026-06-01',
             'document_no': 'SO-EDITED-NO',
             'note': 'This order has been successfully modified.',
+            'customer_po_no': 'EDITED-PO-111',
+            'invoice_no': 'EDITED-INV-222',
             'items_json': json.dumps(cart_payload)
         }
 
@@ -626,6 +633,8 @@ class TestSalesOrderDetailAndRefreshViews:
         assert sales_order.partner == customer2
         assert sales_order.order_type == SalesOrder.OrderType.PREORDER
         assert sales_order.note == 'This order has been successfully modified.'
+        assert sales_order.customer_po_no == 'EDITED-PO-111'
+        assert sales_order.invoice_no == 'EDITED-INV-222'
         
         # Verify old items deleted and new items created
         assert sales_order.items.count() == 1

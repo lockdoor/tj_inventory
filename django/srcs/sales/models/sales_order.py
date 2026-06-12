@@ -45,6 +45,18 @@ class SalesOrder(AuditableMixin):
         default=timezone.now,
         help_text="Target timeline expected to fulfill the order"
     )
+    customer_po_no = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Customer PO number (non-unique reference)"
+    )
+    invoice_no = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Invoice number reference"
+    )
     note = models.TextField(blank=True, default='')
 
     class Meta:

@@ -475,6 +475,51 @@ class TestSalesServiceAllocation:
         assert new_shortage.request_qty == 15
         assert new_shortage.is_deleted is False
 
+    def test_customer_po_and_invoice_fields_create_and_update(self, item, partner, user):
+        """
+        Verify that create_order and update_order save and update
+        customer_po_no and invoice_no correctly, and support null/blank values.
+        """
+        # 1. Create order with PO and invoice numbers
+        order = SalesService.create_order(
+            document_no="SO-PO-TEST-1",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            customer_po_no="CUST-PO-123",
+            invoice_no="CUST-INV-456",
+            items=[{'item': item, 'requested_qty': 10, 'unit_price': 100}]
+        )
+        assert order.customer_po_no == "CUST-PO-123"
+        assert order.invoice_no == "CUST-INV-456"
+
+        # 2. Update order with new PO and invoice numbers
+        updated_order = SalesService.update_order(
+            order,
+            document_no="SO-PO-TEST-1",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            customer_po_no="CUST-PO-789",
+            invoice_no="CUST-INV-999",
+            items=[{'item': item, 'requested_qty': 10, 'unit_price': 100}]
+        )
+        assert updated_order.customer_po_no == "CUST-PO-789"
+        assert updated_order.invoice_no == "CUST-INV-999"
+
+        # 3. Update order resetting them to None/blank
+        final_order = SalesService.update_order(
+            updated_order,
+            document_no="SO-PO-TEST-1",
+            partner=partner,
+            user=user,
+            order_date=date.today(),
+            customer_po_no=None,
+            invoice_no="",
+            items=[{'item': item, 'requested_qty': 10, 'unit_price': 100}]
+        )
+        assert final_order.customer_po_no is None
+        assert final_order.invoice_no == ""
 
 
 @mark_db

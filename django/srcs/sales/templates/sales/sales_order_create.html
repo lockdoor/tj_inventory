@@ -20,10 +20,17 @@
             </h1>
             <p style="color: var(--text-dim); font-size: 1.1rem;">{{ page_description|default:"Fill order headers and add catalog products to your shopping cart." }}</p>
         </div>
+        {% if is_update %}
+        <a href="{% url 'sales:sales-order-detail' order.pk %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem;">
+            <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
+            Cancel
+        </a>
+        {% else %}
         <a href="{% url 'sales:sales-order-list' %}" class="btn btn-outline" style="border-radius: 12px; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.25rem;">
             <i data-lucide="arrow-left" style="width: 18px; height: 18px;"></i>
             Back to List
         </a>
+        {% endif %}
     </div>
 
     <form id="sales-order-form" method="post" action="{{ form_action_url }}">
@@ -80,6 +87,20 @@
                             <span style="font-size: 0.725rem; color: var(--text-muted); opacity: 0.75; margin-top: 0.25rem;">
                                 Target timeline expected to fulfill the order. Sourcing allocations (arrivals) must land on or before this date.
                             </span>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="customer_po_no-input">Customer PO Number</label>
+                            <input type="text" name="customer_po_no" id="customer_po_no-input" value="{{ selected_customer_po_no|default:"" }}" placeholder="e.g. PO-Cust-12345" class="glass-input">
+                            <span class="help-text">Reference number from the customer.</span>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="invoice_no-input">Invoice Number</label>
+                            <input type="text" name="invoice_no" id="invoice_no-input" value="{{ selected_invoice_no|default:"" }}" placeholder="e.g. INV-9999" class="glass-input">
+                            <span class="help-text">Optional customer invoice reference.</span>
                         </div>
                     </div>
 

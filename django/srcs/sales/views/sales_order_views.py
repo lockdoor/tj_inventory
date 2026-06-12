@@ -84,6 +84,7 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'items_list': items_data,
             'order_types': SalesOrder.OrderType.choices,
             'form_action_url': reverse('sales:sales-order-create'),
+            'is_update': False,
         }
         return render(request, self.template_name, context)
 
@@ -93,6 +94,8 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         order_date = request.POST.get('order_date')
         document_no = request.POST.get('document_no', '').strip()
         note = request.POST.get('note', '').strip()
+        customer_po_no = request.POST.get('customer_po_no', '').strip() or None
+        invoice_no = request.POST.get('invoice_no', '').strip() or None
         items_json = request.POST.get('items_json')
 
         errors = []
@@ -156,7 +159,7 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if errors:
             for err in errors:
                 messages.error(request, err)
-            return self._re_render_form(request, document_no, partner_id, order_type, order_date, note, items_json)
+            return self._re_render_form(request, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no, invoice_no)
 
         try:
             with transaction.atomic():
@@ -171,7 +174,9 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     order_date=order_date if order_date else None,
                     order_type=order_type,
                     items=items_list,
-                    note=note
+                    note=note,
+                    customer_po_no=customer_po_no,
+                    invoice_no=invoice_no
                 )
             
             messages.success(request, f"Sales Order {order.document_no} successfully created!")
@@ -179,9 +184,9 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
         except (ValidationError, IntegrityError, Exception) as e:
             messages.error(request, str(e))
-            return self._re_render_form(request, document_no, partner_id, order_type, order_date, note, items_json)
+            return self._re_render_form(request, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no, invoice_no)
 
-    def _re_render_form(self, request, document_no, partner_id, order_type, order_date, note, items_json):
+    def _re_render_form(self, request, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no=None, invoice_no=None):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
@@ -196,12 +201,15 @@ class SalesOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'selected_order_type': order_type,
             'selected_order_date': order_date,
             'selected_note': note,
+            'selected_customer_po_no': customer_po_no,
+            'selected_invoice_no': invoice_no,
             'prepopulated_items_json': items_json,
             'customers': customers,
             'items_data_json': json.dumps(items_data),
             'items_list': items_data,
             'order_types': SalesOrder.OrderType.choices,
             'form_action_url': reverse('sales:sales-order-create'),
+            'is_update': False,
         }
         return render(request, self.template_name, context)
 
@@ -246,6 +254,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'selected_order_type': order.order_type,
             'selected_order_date': order.order_date.strftime('%Y-%m-%d') if order.order_date else '',
             'selected_note': order.note,
+            'selected_customer_po_no': order.customer_po_no,
+            'selected_invoice_no': order.invoice_no,
             'prepopulated_items_json': json.dumps(prepopulated_items),
             'customers': customers,
             'items_data_json': json.dumps(items_data),
@@ -253,6 +263,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'order_types': SalesOrder.OrderType.choices,
             'form_action_url': reverse('sales:sales-order-edit', kwargs={'pk': order.pk}),
             'submit_button_text': "Save Sales Order Changes",
+            'is_update': True,
+            'order': order,
         }
         return render(request, self.template_name, context)
 
@@ -268,6 +280,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         order_date = request.POST.get('order_date')
         document_no = request.POST.get('document_no', '').strip()
         note = request.POST.get('note', '').strip()
+        customer_po_no = request.POST.get('customer_po_no', '').strip() or None
+        invoice_no = request.POST.get('invoice_no', '').strip() or None
         items_json = request.POST.get('items_json')
 
         errors = []
@@ -331,7 +345,7 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if errors:
             for err in errors:
                 messages.error(request, err)
-            return self._re_render_form(request, order, document_no, partner_id, order_type, order_date, note, items_json)
+            return self._re_render_form(request, order, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no, invoice_no)
 
         try:
             with transaction.atomic():
@@ -347,7 +361,9 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     order_date=order_date if order_date else None,
                     order_type=order_type,
                     items=items_list,
-                    note=note
+                    note=note,
+                    customer_po_no=customer_po_no,
+                    invoice_no=invoice_no
                 )
             
             messages.success(request, f"Sales Order {order.document_no} successfully updated!")
@@ -355,9 +371,9 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
         except (ValidationError, IntegrityError, Exception) as e:
             messages.error(request, str(e))
-            return self._re_render_form(request, order, document_no, partner_id, order_type, order_date, note, items_json)
+            return self._re_render_form(request, order, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no, invoice_no)
 
-    def _re_render_form(self, request, order, document_no, partner_id, order_type, order_date, note, items_json):
+    def _re_render_form(self, request, order, document_no, partner_id, order_type, order_date, note, items_json, customer_po_no=None, invoice_no=None):
         # Fetch active customers
         customers = Partner.objects.filter(is_customer=True, is_deleted=False, status='active')
 
@@ -373,6 +389,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'selected_order_type': order_type,
             'selected_order_date': order_date,
             'selected_note': note,
+            'selected_customer_po_no': customer_po_no,
+            'selected_invoice_no': invoice_no,
             'prepopulated_items_json': items_json,
             'customers': customers,
             'items_data_json': json.dumps(items_data),
@@ -380,6 +398,8 @@ class SalesOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, View):
             'order_types': SalesOrder.OrderType.choices,
             'form_action_url': reverse('sales:sales-order-edit', kwargs={'pk': order.pk}),
             'submit_button_text': "Save Sales Order Changes",
+            'is_update': True,
+            'order': order,
         }
         return render(request, self.template_name, context)
 

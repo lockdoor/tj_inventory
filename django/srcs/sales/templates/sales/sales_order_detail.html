@@ -178,6 +178,20 @@
                         <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.order_date|date:"l, d M Y" }}</div>
                     </div>
 
+                    {% if sales_order.customer_po_no %}
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Customer PO Number</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.customer_po_no }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if sales_order.invoice_no %}
+                    <div>
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.25rem;">Invoice Number</label>
+                        <div style="color: var(--text-main); font-weight: 600;">{{ sales_order.invoice_no }}</div>
+                    </div>
+                    {% endif %}
+
                     {% if sales_order.note %}
                     <div style="margin-top: 0.5rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1);">
                         <label style="display: block; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem;">Note / Terms</label>

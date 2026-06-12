@@ -63,9 +63,14 @@
                 {% for order in sales_orders %}
                 <tr class="table-row" style="border-bottom: 1px solid rgba(255,255,255,0.03); transition: var(--transition);">
                     <td style="padding: 1.25rem 1.5rem;">
-                        <a href="{% url 'sales:sales-order-detail' order.pk %}" style="color: var(--primary-light); font-weight: 600; font-family: 'JetBrains Mono', monospace; text-decoration: none;">
-                            {{ order.document_no }}
-                        </a>
+                        <div style="display: flex; flex-direction: column;">
+                            <a href="{% url 'sales:sales-order-detail' order.pk %}" style="color: var(--primary-light); font-weight: 600; font-family: 'JetBrains Mono', monospace; text-decoration: none;">
+                                {{ order.document_no }}
+                            </a>
+                            {% if order.customer_po_no %}
+                                <span style="font-size: 0.725rem; color: #fbbf24; font-weight: 500; margin-top: 0.15rem;">PO: {{ order.customer_po_no }}</span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td style="padding: 1.25rem 1.5rem;">
                         <div style="display: flex; flex-direction: column;">

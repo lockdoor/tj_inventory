@@ -276,6 +276,8 @@ class TestSalesOrderCreateView:
             'order_date': '2026-05-22',
             'document_no': 'SO-T-1234',
             'note': 'This is a test sales order note.',
+            'customer_po_no': 'CUST-PO-VIEW-123',
+            'invoice_no': 'CUST-INV-VIEW-456',
             'items_json': json.dumps(cart_data)
         }
 
@@ -287,6 +289,8 @@ class TestSalesOrderCreateView:
         assert so.partner == partner
         assert so.order_type == SalesOrder.OrderType.NORMAL
         assert so.note == 'This is a test sales order note.'
+        assert so.customer_po_no == 'CUST-PO-VIEW-123'
+        assert so.invoice_no == 'CUST-INV-VIEW-456'
         assert so.created_by == user
         assert so.order_date == date(2026, 5, 22)
 
