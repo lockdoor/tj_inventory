@@ -89,12 +89,12 @@ class SalesService:
                         if allocation.source_type == SalesAllocation.SourceType.STOCK:
                             if allocation.physical_reservation:
                                 from inventory.services import ReservationService
-                                ReservationService.release(allocation.physical_reservation)
+                                ReservationService.release(allocation.physical_reservation, user=user)
                             allocation.delete(user=user)
                         elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
                             if allocation.arrival_reservation:
                                 from procurement.services import ArrivalReservationService
-                                ArrivalReservationService.release(allocation.arrival_reservation)
+                                ArrivalReservationService.release(allocation.arrival_reservation, user=user)
                             allocation.delete(user=user)
                             
                     order_item.requested_qty = requested_qty
@@ -102,7 +102,7 @@ class SalesService:
                     order_item.save(update_fields=['requested_qty', 'unit_price'])
                     
                     # Refresh allocations to adjust the remaining shortage or auto-allocation in-place
-                    SalesService.refresh_allocation(order_item)
+                    SalesService.refresh_allocation(order_item, user=user)
                 else:
                     # Create new line
                     is_manual = manual_allocate_map.get(item_obj.pk, False)
@@ -111,7 +111,8 @@ class SalesService:
                         item=item_obj,
                         requested_qty=requested_qty,
                         unit_price=unit_price,
-                        is_manual_allocate=is_manual
+                        is_manual_allocate=is_manual,
+                        user=user
                     )
 
         # Cleanly release allocations and delete lines that are no longer in the updated order
@@ -121,11 +122,11 @@ class SalesService:
                     if allocation.source_type == SalesAllocation.SourceType.STOCK:
                         if allocation.physical_reservation:
                             from inventory.services import ReservationService
-                            ReservationService.release(allocation.physical_reservation)
+                            ReservationService.release(allocation.physical_reservation, user=user)
                     elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
                         if allocation.arrival_reservation:
                             from procurement.services import ArrivalReservationService
-                            ArrivalReservationService.release(allocation.arrival_reservation)
+                            ArrivalReservationService.release(allocation.arrival_reservation, user=user)
                     elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                         if allocation.shortage:
                             if allocation.shortage.status == 'pending':
@@ -148,7 +149,7 @@ class SalesService:
             item.is_manual_allocate = False
             item.status = SalesOrderItem.Status.CANCELLED
             item.save()
-            SalesService.refresh_allocation(item)
+            SalesService.refresh_allocation(item, user=user)
         
         order.status = SalesOrder.Status.CANCELLED
         order.updated_by = user
@@ -157,7 +158,7 @@ class SalesService:
 
     @staticmethod
     @transaction.atomic
-    def add_item(order: SalesOrder, *, item, requested_qty, unit_price, is_manual_allocate=False):
+    def add_item(order: SalesOrder, *, item, requested_qty, unit_price, is_manual_allocate=False, user=None):
         """
         Add an item to the order and trigger initial allocation.
         """
@@ -174,13 +175,13 @@ class SalesService:
         )
         
         # Trigger initial allocation
-        SalesService.refresh_allocation(order_item)
+        SalesService.refresh_allocation(order_item, user=user or order.updated_by or order.created_by)
         
         return order_item
 
     @staticmethod
     @transaction.atomic
-    def manual_allocate_stock(order_item: SalesOrderItem, stock: Stock, quantity: float):
+    def manual_allocate_stock(order_item: SalesOrderItem, stock: Stock, quantity: float, user=None):
         """
         Allows a user to manually pick a specific lot (Shopping Cart style).
         """
@@ -190,7 +191,8 @@ class SalesService:
             quantity=quantity,
             reference_no=str(order_item.order.id),
             reference_type=StockReservation.ReferenceType.SALES_ORDER,
-            sales_item=order_item
+            sales_item=order_item,
+            created_by=user
         )
         
         SalesAllocation.objects.create(
@@ -205,11 +207,11 @@ class SalesService:
         order_item.save(update_fields=['is_manual_allocate'])
         
         # Refresh to fill any remaining gaps automatically
-        SalesService.refresh_allocation(order_item)
+        SalesService.refresh_allocation(order_item, user=user)
 
     @staticmethod
     @transaction.atomic
-    def manual_allocate_arrival(order_item: SalesOrderItem, arrival_item: ArrivalItem, quantity: float):
+    def manual_allocate_arrival(order_item: SalesOrderItem, arrival_item: ArrivalItem, quantity: float, user=None):
         """
         Allows a user to manually pick a specific incoming shipment.
         """
@@ -220,7 +222,8 @@ class SalesService:
             quantity=quantity,
             reference_no=str(order_item.order.id),
             reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
-            sales_item=order_item
+            sales_item=order_item,
+            created_by=user
         )
         
         SalesAllocation.objects.create(
@@ -235,11 +238,11 @@ class SalesService:
         order_item.save(update_fields=['is_manual_allocate'])
         
         # Refresh to fill any remaining gaps automatically
-        SalesService.refresh_allocation(order_item)
+        SalesService.refresh_allocation(order_item, user=user)
 
     @staticmethod
     @transaction.atomic
-    def refresh_allocation(order_item: SalesOrderItem):
+    def refresh_allocation(order_item: SalesOrderItem, user=None):
         """
         The 'Smart Allocation' Engine (Gap Filler).
         1. Respects Manual selections.
@@ -250,6 +253,9 @@ class SalesService:
             raise ValidationError(
                 f"Cannot refresh allocations for order {order_item.order.document_no} because it is not in Draft status."
             )
+
+        # Resolve user context
+        user = user or order_item.order.updated_by or order_item.order.created_by
 
         remaining_qty = order_item.requested_qty
         
@@ -301,12 +307,12 @@ class SalesService:
             if allocation.source_type == SalesAllocation.SourceType.STOCK:
                 if allocation.physical_reservation:
                     from inventory.services import ReservationService
-                    ReservationService.release(allocation.physical_reservation)
+                    ReservationService.release(allocation.physical_reservation, user=user)
             
             elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
                 if allocation.arrival_reservation:
                     from procurement.services import ArrivalReservationService
-                    ArrivalReservationService.release(allocation.arrival_reservation)
+                    ArrivalReservationService.release(allocation.arrival_reservation, user=user)
             
             elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                 if allocation.shortage:
@@ -319,7 +325,7 @@ class SalesService:
                         remaining_qty -= allocation.quantity
             
             if is_volatile:
-                allocation.delete(user=order_item.order.updated_by or order_item.order.created_by)
+                allocation.delete(user=user)
  
         # 2. AUTO-SOURCING: ACTUAL STOCK (FEFO)
         if remaining_qty > 0 and not order_item.is_manual_allocate:
@@ -348,7 +354,7 @@ class SalesService:
                             ReservationService.update_reservation(
                                 physical_lock,
                                 take,
-                                user=order_item.order.updated_by or order_item.order.created_by
+                                user=user
                             )
                         existing_deleted_alloc.restore()
                         existing_deleted_alloc.quantity = take
@@ -360,7 +366,8 @@ class SalesService:
                             quantity=take,
                             reference_no=str(order_item.order.id),
                             reference_type=StockReservation.ReferenceType.SALES_ORDER,
-                            sales_item=order_item
+                            sales_item=order_item,
+                            created_by=user
                         )
                         SalesAllocation.objects.create(
                             order_item=order_item,
@@ -406,7 +413,7 @@ class SalesService:
                         arrival_lock = existing_deleted_alloc.arrival_reservation
                         if arrival_lock:
                             arrival_lock.restore()
-                            ArrivalReservationService.update_reservation(arrival_lock, take)
+                            ArrivalReservationService.update_reservation(arrival_lock, take, user=user)
                         existing_deleted_alloc.restore()
                         existing_deleted_alloc.quantity = take
                         existing_deleted_alloc.is_manual = False
@@ -417,7 +424,8 @@ class SalesService:
                             quantity=take,
                             reference_no=str(order_item.order.id),
                             reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
-                            sales_item=order_item
+                            sales_item=order_item,
+                            created_by=user
                         )
                         SalesAllocation.objects.create(
                             order_item=order_item,
@@ -440,7 +448,7 @@ class SalesService:
                 gap_record = ShortageService.create(
                     item=order_item.item,
                     request_qty=remaining_qty,
-                    user=order_item.order.created_by,
+                    user=user,
                     reference_type=Shortage.ReferenceType.SELL_ORDER,
                     reference_id=str(order_item.order.id),
                     expected_date=order_item.order.order_date,
@@ -472,7 +480,7 @@ class SalesService:
         else:
             # If remaining_qty is 0, any existing pending shortage is no longer needed
             if existing_shortage_alloc:
-                existing_shortage_alloc.delete(user=order_item.order.updated_by or order_item.order.created_by)
+                existing_shortage_alloc.delete(user=user)
             if existing_shortage:
                 existing_shortage.delete()
 
@@ -602,7 +610,8 @@ class SalesService:
                     # Update quantity in-place
                     ArrivalReservationService.update_reservation(
                         existing_alloc.arrival_reservation,
-                        submitted_qty
+                        submitted_qty,
+                        user=user
                     )
                     existing_alloc.quantity = submitted_qty
                     existing_alloc.is_manual = True
@@ -643,7 +652,7 @@ class SalesService:
         order_item.save(update_fields=['is_manual_allocate'])
 
         # 4. Trigger smart allocation engine to calculate remaining shortages
-        SalesService.refresh_allocation(order_item)
+        SalesService.refresh_allocation(order_item, user=user)
 
     @staticmethod
     @transaction.atomic
@@ -661,10 +670,10 @@ class SalesService:
         for allocation in list(order_item.allocations.filter(is_deleted=False)):
             if allocation.source_type == SalesAllocation.SourceType.STOCK:
                 if allocation.physical_reservation:
-                    ReservationService.release(allocation.physical_reservation)
+                    ReservationService.release(allocation.physical_reservation, user=user)
             elif allocation.source_type == SalesAllocation.SourceType.ARRIVAL:
                 if allocation.arrival_reservation:
-                    ArrivalReservationService.release(allocation.arrival_reservation)
+                    ArrivalReservationService.release(allocation.arrival_reservation, user=user)
             elif allocation.source_type == SalesAllocation.SourceType.SHORTAGE:
                 if allocation.shortage:
                     if allocation.shortage.status == 'pending':
@@ -676,7 +685,7 @@ class SalesService:
         order_item.save(update_fields=['is_manual_allocate'])
 
         # Re-run automatic waterfall matching
-        SalesService.refresh_allocation(order_item)
+        SalesService.refresh_allocation(order_item, user=user)
 
     @staticmethod
     def get_catalog_items_data():
@@ -713,9 +722,10 @@ class SalesService:
                 
                 res_list = []
                 # Only include active, non-soft-deleted reservations
-                for res in stock.reservations.filter(is_deleted=False):
+                for res in stock.reservations.filter(is_deleted=False, stock_id=stock.id, 
+                    status=StockReservation.ReservationStatus.RESERVED):
                     res_list.append({
-                        'reference_no': res.reference_no,
+                        'reference_no': res.reference_display_name,
                         'reference_type': res.get_reference_type_display(),
                         'quantity': float(res.quantity),
                         'created_by': res.created_by.username if res.created_by else 'System',

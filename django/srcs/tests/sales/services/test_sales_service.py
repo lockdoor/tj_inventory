@@ -607,3 +607,87 @@ class TestSalesOrderHardDeleteCleanup:
 
         # E. Shortages for this sales order must be soft-deleted
         assert not Shortage.objects.filter(reference_id=str(order.id), is_deleted=False).exists()
+
+    def test_user_recorded_on_reservation_crud(self, item, partner, user, supplier, warehouse):
+        """Verify that the correct requesting user is recorded on StockReservation and ArrivalReservation CRUD."""
+        # Create a second user for operations
+        operator = User.objects.create_user(username='operator', password='password')
+
+        # Setup stock lot and arrival item
+        stock = Stock.objects.create(
+            item=item, warehouse=warehouse, lot_number="LOT-CRUD-USER", balance=100, created_by=user
+        )
+        arrival = Arrival.objects.create(
+            document_no="ARR-CRUD-USER", partner=supplier, warehouse=warehouse, expected_date=date.today(), status='scheduled', created_by=user
+        )
+        arrival_item = ArrivalItem.objects.create(
+            arrival=arrival, item=item, expected_qty=100, created_by=user
+        )
+
+        # 1. Create Sales Order by operator
+        order = SalesService.create_order(
+            document_no="SO-CRUD-USER",
+            partner=partner,
+            user=operator,
+            order_date=date.today()
+        )
+        order_item = SalesService.add_item(order, item=item, requested_qty=250, unit_price=10, user=operator)
+
+        # Since it's automatic allocation (waterfall), it allocates stock and then shortages.
+        # Let's verify that the stock reservation created has created_by = operator
+        stock_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
+        assert stock_alloc.physical_reservation.created_by == operator
+
+        # Let's verify that the shortage created has created_by = operator
+        shortage_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.SHORTAGE, is_deleted=False)
+        assert shortage_alloc.shortage.created_by == operator
+
+        # 2. Perform manual allocations by operator
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=operator,
+            stock_qtys={stock.pk: 30},
+            arrival_qtys={arrival_item.pk: 40}
+        )
+
+        # Check StockReservation (manual pick) has created_by = operator
+        stock_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.STOCK, is_deleted=False)
+        assert stock_alloc.physical_reservation.created_by == operator
+        
+        # Check ArrivalReservation (manual pick) has created_by = operator
+        arrival_alloc = order_item.allocations.get(source_type=SalesAllocation.SourceType.ARRIVAL, is_deleted=False)
+        assert arrival_alloc.arrival_reservation.created_by == operator
+
+        # 3. Update manual allocations (increase/change quantity) by operator
+        SalesService.save_manual_allocations(
+            order_item=order_item,
+            user=operator,
+            stock_qtys={stock.pk: 40},
+            arrival_qtys={arrival_item.pk: 50}
+        )
+        # Check that the updated_by on the reservations is set to operator
+        stock_alloc.refresh_from_db()
+        arrival_alloc.refresh_from_db()
+        assert stock_alloc.physical_reservation.updated_by == operator
+        assert arrival_alloc.arrival_reservation.updated_by == operator
+
+        # 4. Release allocations by operator (using cancel_order)
+        stock_res = stock_alloc.physical_reservation
+        arrival_res = arrival_alloc.arrival_reservation
+
+        SalesService.cancel_order(order, user=operator)
+        stock_alloc.refresh_from_db()
+        arrival_alloc.refresh_from_db()
+        
+        # Verify they are soft-deleted and deleted_by tracks operator
+        assert stock_alloc.is_deleted is True
+        assert stock_alloc.deleted_by == operator
+        assert arrival_alloc.is_deleted is True
+        assert arrival_alloc.deleted_by == operator
+        
+        stock_res.refresh_from_db()
+        arrival_res.refresh_from_db()
+        assert stock_res.is_deleted is True
+        assert stock_res.deleted_by == operator
+        assert arrival_res.is_deleted is True
+        assert arrival_res.deleted_by == operator

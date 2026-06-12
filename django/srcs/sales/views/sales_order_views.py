@@ -531,7 +531,7 @@ class SalesOrderRefreshAllocationView(LoginRequiredMixin, PermissionRequiredMixi
                 old_status = order.status
                 
                 for item in order.items.all():
-                    SalesService.refresh_allocation(item)
+                    SalesService.refresh_allocation(item, user=request.user)
                 
                 # Check for status changes
                 status_changed = check_and_promote_order_status(order)
@@ -573,7 +573,7 @@ class SalesOrderConfirmView(LoginRequiredMixin, PermissionRequiredMixin, View):
             with transaction.atomic():
                 # 1. Refresh allocations to get latest status
                 for item in order.items.all():
-                    SalesService.refresh_allocation(item)
+                    SalesService.refresh_allocation(item, user=request.user)
 
                 # 2. Check for shortages or arrivals
                 from sales.models import SalesAllocation

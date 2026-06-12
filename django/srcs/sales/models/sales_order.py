@@ -166,13 +166,15 @@ def cleanup_sales_order_item_allocations_and_reservations(sender, instance, **kw
     from procurement.models.reservation import ArrivalReservation
     from procurement.models.shortage import Shortage
 
+    user = instance.order.updated_by or instance.order.created_by
+
     # 1. Release and delete physical stock reservations linked to this item
     physical_reservations = StockReservation.objects.filter(
         sales_item=instance,
         is_deleted=False
     )
     for res in list(physical_reservations):
-        ReservationService.release(res)
+        ReservationService.release(res, user=user)
 
     # 2. Release and delete arrival commitments linked to this item
     arrival_reservations = ArrivalReservation.objects.filter(
@@ -180,7 +182,7 @@ def cleanup_sales_order_item_allocations_and_reservations(sender, instance, **kw
         is_deleted=False
     )
     for res in list(arrival_reservations):
-        ArrivalReservationService.release(res)
+        ArrivalReservationService.release(res, user=user)
 
     # 3. Soft-delete outstanding shortages associated with this item line
     shortages = Shortage.objects.filter(

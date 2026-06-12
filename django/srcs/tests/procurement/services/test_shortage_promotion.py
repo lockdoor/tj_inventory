@@ -155,3 +155,75 @@ def test_partial_shortage_promotion_split(item, customer, supplier, warehouse, t
     # Assert that the order status remains DRAFT due to remaining shortages
     so.refresh_from_db()
     assert so.status == SalesOrder.Status.DRAFT
+
+@pytest.mark.django_db
+def test_shortage_promotion_creator_attribution(item, customer, supplier, warehouse, test_user):
+    """
+    Verify that:
+    1. Promoting a shortage to an arrival reservation preserves the shortage creator.
+    2. Split promoted shortages preserve the shortage creator.
+    3. Promoting an arrival reservation to a stock reservation preserves the arrival reservation creator.
+    """
+    # Create two different operators
+    shortage_creator = User.objects.create_user(username="shortage_creator", password="password")
+    arrival_creator = User.objects.create_user(username="arrival_creator", password="password")
+
+    # Create Sales Order by shortage_creator
+    so = SalesService.create_order(
+        document_no="SO-PROM-USER",
+        partner=customer,
+        user=shortage_creator,
+        order_date=date.today(),
+        items=[{'item': item, 'requested_qty': Decimal('100.00'), 'unit_price': Decimal('10.00')}]
+    )
+
+    # Verify that the shortage has shortage_creator as its creator
+    shortage = Shortage.objects.get(reference_id=str(so.id), is_deleted=False)
+    assert shortage.created_by == shortage_creator
+    assert shortage.status == Shortage.Status.PENDING
+
+    # Promote to PO_CREATED
+    shortage.status = Shortage.Status.PO_CREATED
+    shortage.save()
+
+    # Create an Arrival for 40 units (partial allocation) by arrival_creator
+    arrival = ArrivalService.create(
+        document_no="ARR-PROM-USER",
+        partner=supplier,
+        warehouse=warehouse,
+        expected_date=date.today(),
+        user=arrival_creator,
+        items=[{'item': item, 'expected_qty': Decimal('40.00')}]
+    )
+
+    # Find the created ArrivalReservation
+    arrival_res = ArrivalReservation.objects.get(reference_no=str(so.id), is_deleted=False)
+    # 1. The arrival reservation must inherit the shortage's creator!
+    assert arrival_res.created_by == shortage_creator
+
+    # Find the split promoted shortage (soft-deleted)
+    promoted_shortage = Shortage.objects.get(
+        reference_id=str(so.id),
+        status=Shortage.Status.PROMOTED,
+        is_deleted=True
+    )
+    # 2. The split promoted shortage must inherit the shortage's creator!
+    assert promoted_shortage.created_by == shortage_creator
+
+    # 3. Now, finalize receiving of the arrival to promote arrival reservation to StockReservation
+    from inventory.services.movement_service import MovementService
+    from inventory.models import InventoryMovement
+    
+    # Initiate receiving using ArrivalService to ensure arrival_item links and quantities are correctly setup
+    movement = ArrivalService.initiate_receiving(arrival, user=arrival_creator)
+
+    # Complete movement properly via service
+    MovementService.complete_movement(movement, user=arrival_creator)
+
+    # Find the created StockReservation
+    from inventory.models import StockReservation
+    stock_res = StockReservation.objects.get(reference_no=str(so.id), is_deleted=False)
+
+    # 4. The physical StockReservation must inherit the arrival reservation's creator (shortage_creator)!
+    assert stock_res.created_by == shortage_creator
+

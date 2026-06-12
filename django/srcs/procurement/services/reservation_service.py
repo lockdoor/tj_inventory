@@ -65,12 +65,12 @@ class ArrivalReservationService:
 
     @staticmethod
     @transaction.atomic
-    def update_reservation(reservation, new_quantity):
+    def update_reservation(reservation, new_quantity, user=None):
         """
         Update the quantity of a future commitment.
         """
         if new_quantity <= 0:
-            return ArrivalReservationService.release(reservation)
+            return ArrivalReservationService.release(reservation, user=user)
 
         diff = new_quantity - reservation.quantity
         if diff > 0:
@@ -86,6 +86,8 @@ class ArrivalReservationService:
                 raise ValidationError(f"Insufficient expected quantity to increase reservation to {new_quantity}")
 
         reservation.quantity = new_quantity
+        if user:
+            reservation.updated_by = user
         reservation.save()
         
         # Explicitly sync the arrival item

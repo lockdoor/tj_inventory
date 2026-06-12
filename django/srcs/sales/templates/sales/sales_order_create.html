@@ -623,7 +623,7 @@
                             lot.reservations.forEach(r => {
                                 resDetails += `<div style="font-size: 0.725rem; color: #fbbf24; margin-top: 0.15rem; display: flex; align-items: center; gap: 0.25rem;">
                                     <i data-lucide="lock" style="width: 10px; height: 10px;"></i>
-                                    <span>${r.quantity} held for ${r.reference_no} (${r.reference_type})</span>
+                                    <span>${r.quantity} held for ${r.reference_no} (${r.reference_type}) by ${r.created_by}</span>
                                 </div>`;
                             });
                         } else {

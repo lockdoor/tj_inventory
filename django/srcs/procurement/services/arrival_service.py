@@ -376,7 +376,7 @@ class ArrivalService:
                         sales_item=arr_res.sales_item,
                         origin_arrival_item=arrival_item,
                         status=StockReservation.ReservationStatus.RESERVED,
-                        created_by=user or arr_res.created_by or movement.created_by
+                        created_by=arr_res.created_by
                     )
 
                     # 2. Update matching SalesAllocation(s) to transition from Arrival to Stock type
@@ -542,7 +542,7 @@ class ArrivalService:
                         reference_no=str(alloc.order_item.order.id),
                         reference_type=ArrivalReservation.ReferenceType.SALES_ORDER,
                         sales_item=alloc.order_item,
-                        created_by=user
+                        created_by=shortage.created_by
                     )
 
                     # Update arrival item reserved_qty
@@ -605,7 +605,7 @@ class ArrivalService:
                             purchase_order=shortage.purchase_order,
                             status=Shortage.Status.PROMOTED,
                             promoted_arrival_reservation=arrival_lock,
-                            created_by=user or shortage.created_by,
+                            created_by=shortage.created_by,
                             is_deleted=True,
                             note=f"Split promotion of {alloc_take} from shortage #{shortage.pk} to arrival reservation #{arrival_lock.pk}"
                         )

@@ -139,6 +139,6 @@ class ArrivalReservationReleaseView(LoginRequiredMixin, PermissionRequiredMixin,
             raise PermissionDenied("Only the creator of the reservation or an executive can release this lock.")
 
         reference_no = reservation.reference_no
-        ArrivalReservationService.release(reservation)
+        ArrivalReservationService.release(reservation, user=request.user)
         messages.success(request, f"Arrival Reservation {reference_no} has been successfully released.")
         return redirect('procurement:arrival-reservation-list')

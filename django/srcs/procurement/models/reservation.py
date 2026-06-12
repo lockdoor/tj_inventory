@@ -146,4 +146,4 @@ class ArrivalReservation(AuditableMixin):
         Delegates to ArrivalReservationService to release the arrival commitment.
         """
         from procurement.services.reservation_service import ArrivalReservationService
-        return ArrivalReservationService.release(self)
+        return ArrivalReservationService.release(self, user=user)
