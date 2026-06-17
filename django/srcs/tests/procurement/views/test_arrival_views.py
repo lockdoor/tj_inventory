@@ -155,3 +155,18 @@ class TestArrivalCreateView:
         form = response.context['form']
         assert not form.is_valid()
         assert 'purchase_order' in form.errors
+
+
+@pytest.mark.django_db
+class TestArrivalDetailView:
+    def test_arrival_detail_view_shows_fulfillment_balance(self, client, test_user, sample_arrival):
+        client.force_login(test_user)
+        url = reverse('procurement:arrival-detail', kwargs={'pk': sample_arrival.pk})
+        response = client.get(url)
+        assert response.status_code == 200
+        assert b"Arrival Fulfillment Balance" in response.content
+        assert b"Expected" in response.content
+        assert b"Reserved" in response.content
+        assert b"Promoted" in response.content
+        assert b"Available" in response.content
+        assert sample_arrival.document_no.encode('utf-8') in response.content

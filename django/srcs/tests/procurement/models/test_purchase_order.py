@@ -286,3 +286,64 @@ class TestPurchaseOrderModel:
             created_by=user
         )
         assert po.is_sufficient
+
+    def test_purchase_order_item_arrival_balance_properties(self, user, partner, item):
+        """Verify that arrival balance properties on PurchaseOrderItem correctly calculate metrics."""
+        warehouse = Warehouse.objects.create(name="WH-PO-BALANCE", code="WH-BAL", created_by=user)
+        po = PurchaseOrder.objects.create(document_no="PO-BALANCE-01", partner=partner, created_by=user)
+        po_line = PurchaseOrderItem.objects.create(purchase_order=po, item=item, order_qty=100)
+
+        # Initially, balance properties should return 0
+        assert po_line.arrival_expected_pieces == 0
+        assert po_line.arrival_reserved_pieces == 0
+        assert po_line.arrival_available_pieces == 0
+        assert po_line.active_arrival_items.count() == 0
+
+        # Create active scheduled arrival
+        arrival1 = Arrival.objects.create(
+            document_no="ARR-BAL-1",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 1),
+            status=Arrival.Status.SCHEDULED,
+            created_by=user
+        )
+        arr_item = ArrivalItem.objects.create(
+            arrival=arrival1,
+            item=item,
+            po_item=po_line,
+            expected_qty=40,
+            reserved_qty=15,
+            created_by=user
+        )
+
+        assert po_line.active_arrival_items.count() == 1
+        assert po_line.arrival_expected_pieces == 40
+        assert po_line.arrival_reserved_pieces == 15
+        assert po_line.arrival_available_pieces == 25
+
+        # Create a cancelled arrival (should not be counted)
+        arrival_cancelled = Arrival.objects.create(
+            document_no="ARR-BAL-CANCELLED",
+            purchase_order=po,
+            partner=partner,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 2),
+            status=Arrival.Status.CANCELLED,
+            created_by=user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival_cancelled,
+            item=item,
+            po_item=po_line,
+            expected_qty=100,
+            reserved_qty=50,
+            created_by=user
+        )
+
+        # Count and values should remain unchanged
+        assert po_line.active_arrival_items.count() == 1
+        assert po_line.arrival_expected_pieces == 40
+        assert po_line.arrival_reserved_pieces == 15
+        assert po_line.arrival_available_pieces == 25

@@ -165,9 +165,17 @@ class ArrivalItem(AuditableMixin):
         return self.received_qty
 
     @property
+    def promoted_qty(self):
+        """Total quantity of reservations that have been promoted (in base pieces)."""
+        return self.reservations.filter(
+            status='promoted',
+            is_deleted=False
+        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+
+    @property
     def available_qty(self):
-        """Expected quantity remaining after reservations (in base pieces)."""
-        return max(0, self.expected_pieces - self.reserved_qty)
+        """Expected quantity remaining after active and promoted reservations (in base pieces)."""
+        return max(0, self.expected_pieces - self.reserved_qty - self.promoted_qty)
 
     class Meta:
         verbose_name = "Arrival Item"

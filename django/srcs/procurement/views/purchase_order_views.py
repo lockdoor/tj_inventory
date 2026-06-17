@@ -217,8 +217,10 @@ class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detai
         from ..forms import PurchaseOrderAttachmentForm
         context['attachment_form'] = PurchaseOrderAttachmentForm()
         
-        # Related Arrivals
-        context['arrivals'] = self.object.arrivals.filter(is_deleted=False).select_related('warehouse', 'partner')
+        # Related Arrivals (ordered chronologically by expected arrival date)
+        context['arrivals'] = self.object.arrivals.filter(
+            is_deleted=False
+        ).select_related('warehouse', 'partner').order_by('expected_date', 'created_at')
         
         return context
 

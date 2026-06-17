@@ -114,8 +114,10 @@
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start;">
-        <!-- Main Column: Item Cards -->
-        <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: transparent; box-shadow: none;">
+        <!-- Main Column: Left -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            <!-- Order Items Card -->
+            <div class="glass-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); background: transparent; box-shadow: none;">
             <div style="padding: 1.5rem 2rem; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; border-radius: 16px 16px 0 0; background-color: rgba(15, 23, 42, 0.3); backdrop-filter: blur(10px);">
                 <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-main);">Order Items</h3>
                 <span style="font-size: 0.85rem; color: var(--text-muted);">{{ items|length }} Items</span>
@@ -212,6 +214,7 @@
                             </div>
                         </div>
 
+
                         <!-- Unit Cost Info -->
                         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-dim); border-top: 1px solid rgba(255,255,255,0.03); padding-top: 0.75rem;">
                             <span>Unit Cost:</span>
@@ -232,7 +235,12 @@
             </div>
         </div>
 
-        <!-- Sidebar Column: Document Info -->
+        {% if arrivals %}
+            {% include "procurement/partials/arrival_fulfillment_balance.html" with arrivals_list=arrivals %}
+        {% endif %}
+    </div>
+
+    <!-- Sidebar Column: Document Info -->
         <div style="display: flex; flex-direction: column; gap: 1.5rem;">
             <!-- Document Details Card -->
             <div class="glass-card" style="padding: 1.5rem; border: 1px solid rgba(255,255,255,0.05);">

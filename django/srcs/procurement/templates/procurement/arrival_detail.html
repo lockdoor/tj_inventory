@@ -191,6 +191,10 @@
             </div>
         </div>
         {% endif %}
+
+        {% if arrival.status != 'cancelled' %}
+            {% include "procurement/partials/arrival_fulfillment_balance.html" with arrival=arrival %}
+        {% endif %}
     </div>
 
     <!-- Sidebar: Info & Actions -->

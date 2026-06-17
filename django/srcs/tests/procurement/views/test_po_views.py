@@ -304,3 +304,101 @@ class TestPurchaseOrderPermissions:
         po.refresh_from_db()
         assert po.status == PurchaseOrder.Status.DRAFT
 
+    def test_purchase_order_detail_view_shows_arrival_balance(self, client, authorized_user, supplier, item):
+        from inventory.models import Warehouse
+        from procurement.models.purchase_order import PurchaseOrderItem
+        from procurement.models.arrival import Arrival, ArrivalItem
+        from datetime import date
+
+        # Create PO and PO item
+        po = PurchaseOrder.objects.create(
+            document_no="PO-DET-BAL-1",
+            partner=supplier,
+            status=PurchaseOrder.Status.SUBMITTED,
+            created_by=authorized_user
+        )
+        po_item = PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            item=item,
+            order_qty=100
+        )
+
+        client.login(username="authorized", password="password")
+        url = reverse('procurement:purchase-order-detail', kwargs={'pk': po.pk})
+
+        # 1. Without active arrivals, should not show the block
+        response = client.get(url)
+        assert response.status_code == 200
+        assert b"Arrival Fulfillment Balance" not in response.content
+
+        # 2. Add active scheduled arrivals (add multiple to verify sorting by expected_date)
+        warehouse = Warehouse.objects.create(
+            name="Test WH",
+            code="TWH",
+            created_by=authorized_user
+        )
+        # arrival 2 expected date is 25 Jun 2026
+        arrival2 = Arrival.objects.create(
+            document_no="ARR-DET-BAL-2",
+            purchase_order=po,
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 25),
+            status=Arrival.Status.SCHEDULED,
+            created_by=authorized_user
+        )
+        ArrivalItem.objects.create(
+            arrival=arrival2,
+            item=item,
+            po_item=po_item,
+            expected_qty=80,
+            reserved_qty=30,
+            created_by=authorized_user
+        )
+        # arrival 1 expected date is 20 Jun 2026 (earlier)
+        arrival1 = Arrival.objects.create(
+            document_no="ARR-DET-BAL-1",
+            purchase_order=po,
+            partner=supplier,
+            warehouse=warehouse,
+            expected_date=date(2026, 6, 20),
+            status=Arrival.Status.SCHEDULED,
+            created_by=authorized_user
+        )
+        arr_item1 = ArrivalItem.objects.create(
+            arrival=arrival1,
+            item=item,
+            po_item=po_item,
+            expected_qty=60,
+            reserved_qty=20,
+            created_by=authorized_user
+        )
+
+        from procurement.models.reservation import ArrivalReservation
+        ArrivalReservation.objects.create(
+            arrival_item=arr_item1,
+            quantity=15,
+            reference_no="SO-PROMOTED",
+            status=ArrivalReservation.ReservationStatus.PROMOTED,
+            created_by=authorized_user
+        )
+
+        # 3. Request detail page again - should now render the balance section with arrivals in order
+        response = client.get(url)
+        assert response.status_code == 200
+        assert b"Arrival Fulfillment Balance" in response.content
+        assert b"ARR-DET-BAL-1" in response.content
+        assert b"ARR-DET-BAL-2" in response.content
+        assert b"Expected" in response.content
+        assert b"Reserved" in response.content
+        assert b"Promoted" in response.content
+        assert b"Available" in response.content
+        
+        # Verify chronological order by expected date in HTML
+        content_str = response.content.decode('utf-8')
+        pos1 = content_str.find("ARR-DET-BAL-1")
+        pos2 = content_str.find("ARR-DET-BAL-2")
+        assert pos1 != -1
+        assert pos2 != -1
+        assert pos1 < pos2, "Arrivals should be listed in chronological order"
+

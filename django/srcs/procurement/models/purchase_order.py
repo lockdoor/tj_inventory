@@ -141,3 +141,28 @@ class PurchaseOrderItem(models.Model):
     def shortages(self):
         """Get shortages linked to this purchase order for this specific item."""
         return self.purchase_order.shortages.filter(item=self.item, is_deleted=False)
+
+    @property
+    def active_arrival_items(self):
+        """Get active non-cancelled and non-deleted arrival items linked to this PO line."""
+        return self.arrival_items.filter(
+            is_deleted=False,
+            arrival__is_deleted=False
+        ).exclude(
+            arrival__status='cancelled'
+        ).order_by('arrival__expected_date', 'arrival__created_at')
+
+    @property
+    def arrival_expected_pieces(self):
+        """Total expected pieces across active linked arrival items."""
+        return sum(item.expected_pieces for item in self.active_arrival_items)
+
+    @property
+    def arrival_reserved_pieces(self):
+        """Total reserved pieces across active linked arrival items."""
+        return sum(item.reserved_qty for item in self.active_arrival_items)
+
+    @property
+    def arrival_available_pieces(self):
+        """Total available pieces across active linked arrival items."""
+        return sum(item.available_qty for item in self.active_arrival_items)
