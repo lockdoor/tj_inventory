@@ -154,9 +154,5 @@ class ItemService:
         """
         Restore a soft-deleted item.
         """
-        item.is_deleted = False
-        item.deleted_at = None
-        item.deleted_by = None
-        item.updated_by = user
-        item.save()
+        item.restore(user=user)
         return item

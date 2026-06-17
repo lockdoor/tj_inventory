@@ -8,7 +8,8 @@ from .purchase_order_views import (
     PurchaseOrderCloseView,
     PurchaseOrderDeleteView,
     PurchaseOrderItemsAPIView,
-    PurchaseOrderCreateFromShortageView
+    PurchaseOrderCreateFromShortageView,
+    PendingShortagesAPIView
 )
 from .attachment_views import (
     PurchaseOrderAttachmentUploadView,

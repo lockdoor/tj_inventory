@@ -159,7 +159,7 @@ class PurchaseOrderService:
         for item_data in items_data:
             item_instance = item_data.get('instance')
             if item_data.get('is_deleted', False):
-                if item_instance:
+                if item_instance and item_instance.pk:
                     item_instance.delete()
                 continue
             

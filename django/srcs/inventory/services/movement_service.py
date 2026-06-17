@@ -182,9 +182,7 @@ class MovementService:
         """Restore a soft-deleted movement."""
         if not movement.is_deleted:
             return movement
-        movement.restore()
-        movement.updated_by = user
-        movement.save()
+        movement.restore(user=user)
         return movement
 
     @staticmethod

@@ -84,11 +84,11 @@ class Arrival(AuditableMixin):
             item.delete(user=user, *args, **kwargs)
         super().delete(user=user, *args, **kwargs)
 
-    def restore(self):
+    def restore(self, user=None, *args, **kwargs):
         # Cascade restore to child items
         for item in self.items.filter(is_deleted=True):
-            item.restore()
-        super().restore()
+            item.restore(user=user, *args, **kwargs)
+        super().restore(user=user, *args, **kwargs)
 
 
 

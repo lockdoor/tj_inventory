@@ -95,9 +95,5 @@ class PartnerService:
         """
         Restore a soft-deleted partner.
         """
-        partner.is_deleted = False
-        partner.deleted_at = None
-        partner.deleted_by = None
-        partner.updated_by = user
-        partner.save()
+        partner.restore(user=user)
         return partner

@@ -144,10 +144,10 @@ class Shortage(AuditableMixin):
         self.status = self.Status.CANCELLED
         super().delete(user=user, *args, **kwargs)
 
-    def restore(self, *args, **kwargs):
+    def restore(self, user=None, *args, **kwargs):
         if self.status == self.Status.CANCELLED:
             self.status = self.Status.PENDING
-        super().restore(*args, **kwargs)
+        super().restore(user=user, *args, **kwargs)
 
     def save(self, *args, **kwargs):
         modified_fields = set()

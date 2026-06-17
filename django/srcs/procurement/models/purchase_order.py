@@ -136,3 +136,8 @@ class PurchaseOrderItem(models.Model):
         if self.packaging:
             return self.arrival_qty * self.packaging.quantity
         return self.arrival_qty
+
+    @property
+    def shortages(self):
+        """Get shortages linked to this purchase order for this specific item."""
+        return self.purchase_order.shortages.filter(item=self.item, is_deleted=False)

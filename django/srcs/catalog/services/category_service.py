@@ -155,9 +155,5 @@ class CategoryService:
                 f"Please restore the parent first."
             )
         
-        category.is_deleted = False
-        category.deleted_at = None
-        category.deleted_by = None
-        category.updated_by = user
-        category.save()
+        category.restore(user=user)
         return category

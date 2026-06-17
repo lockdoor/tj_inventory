@@ -48,5 +48,6 @@ urlpatterns = [
     path('shortages/<int:pk>/', views.ShortageDetailView.as_view(), name='shortage-detail'),
     path('shortages/<int:pk>/cancel/', views.ShortageCancelView.as_view(), name='shortage-cancel'),
     path('shortages/<int:pk>/update/', views.ShortageUpdateView.as_view(), name='shortage-update'),
+    path('shortages/pending-api/', views.PendingShortagesAPIView.as_view(), name='shortages-pending-api'),
 ]
 

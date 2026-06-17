@@ -50,6 +50,29 @@ class PurchaseOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, Creat
                     # Collect header data
                     header_data = form.cleaned_data
                     
+                    # Shortage IDs validation
+                    shortage_ids_str = self.request.POST.get('linked_shortage_ids', '')
+                    shortage_ids = [int(x) for x in shortage_ids_str.split(',') if x.strip().isdigit()]
+                    
+                    expected_date = header_data.get('expected_date')
+                    if expected_date and shortage_ids:
+                        from procurement.models import Shortage
+                        from datetime import datetime, date
+                        val_date = expected_date
+                        if isinstance(val_date, str):
+                            val_date = datetime.strptime(val_date, '%Y-%m-%d').date()
+                        elif isinstance(val_date, datetime):
+                            val_date = val_date.date()
+                        
+                        shortages_to_check = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False)
+                        for shortage in shortages_to_check:
+                            if shortage.expected_date and val_date < shortage.expected_date:
+                                raise ValidationError(
+                                    f"Purchase Order expected date ({val_date.strftime('%Y-%m-%d')}) "
+                                    f"cannot be earlier than shortage expected date of "
+                                    f"{shortage.expected_date.strftime('%Y-%m-%d')} for {shortage.item.sku}."
+                                )
+                    
                     # Collect items data
                     items_data = []
                     for item_form in items:
@@ -65,6 +88,14 @@ class PurchaseOrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, Creat
                         note=header_data.get('note', ''),
                         items=items_data
                     )
+                    
+                    # Link selected shortages
+                    if shortage_ids:
+                        from procurement.models import Shortage
+                        from procurement.services.shortage_service import ShortageService
+                        shortages = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False, status=Shortage.Status.PENDING)
+                        for shortage in shortages:
+                            ShortageService.link_to_po(shortage, self.object, user=self.request.user)
                     
                     messages.success(self.request, f"Purchase Order {self.object.document_no} created successfully.")
                     return redirect(self.success_url)
@@ -94,6 +125,11 @@ class PurchaseOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Updat
         else:
             context['items'] = PurchaseOrderItemFormSet(instance=self.object)
         context['is_update'] = True
+        
+        # Add linked shortages data
+        linked_shortages = self.object.shortages.filter(is_deleted=False)
+        context['linked_shortages'] = linked_shortages
+        context['linked_shortage_ids_str'] = ','.join(str(s.id) for s in linked_shortages)
         return context
 
     def form_valid(self, form):
@@ -101,8 +137,33 @@ class PurchaseOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Updat
         if items.is_valid():
             try:
                 with transaction.atomic():
-                    # Update PO using service
+                    # Collect header data
                     header_data = form.cleaned_data
+                    
+                    # Shortage IDs validation
+                    shortage_ids_str = self.request.POST.get('linked_shortage_ids', '')
+                    shortage_ids = [int(x) for x in shortage_ids_str.split(',') if x.strip().isdigit()]
+                    
+                    expected_date = header_data.get('expected_date')
+                    if expected_date and shortage_ids:
+                        from procurement.models import Shortage
+                        from datetime import datetime, date
+                        val_date = expected_date
+                        if isinstance(val_date, str):
+                            val_date = datetime.strptime(val_date, '%Y-%m-%d').date()
+                        elif isinstance(val_date, datetime):
+                            val_date = val_date.date()
+                        
+                        shortages_to_check = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False)
+                        for shortage in shortages_to_check:
+                            if shortage.expected_date and val_date < shortage.expected_date:
+                                raise ValidationError(
+                                    f"Purchase Order expected date ({val_date.strftime('%Y-%m-%d')}) "
+                                    f"cannot be earlier than shortage expected date of "
+                                    f"{shortage.expected_date.strftime('%Y-%m-%d')} for {shortage.item.sku}."
+                                )
+                    
+                    # Update PO using service
                     PurchaseOrderService.update(self.object, user=self.request.user, **header_data)
                     
                     # Collect items data for sync
@@ -115,6 +176,23 @@ class PurchaseOrderUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Updat
                             items_data.append(data)
                     
                     PurchaseOrderService.sync_items(self.object, items_data)
+                    
+                    # Unlink shortages that are no longer in the list
+                    current_shortages = self.object.shortages.filter(is_deleted=False)
+                    for shortage in current_shortages:
+                        if shortage.id not in shortage_ids:
+                            shortage.purchase_order = None
+                            shortage.status = Shortage.Status.PENDING
+                            shortage.updated_by = self.request.user
+                            shortage.save()
+                    
+                    # Link newly added shortages
+                    if shortage_ids:
+                        from procurement.models import Shortage
+                        from procurement.services.shortage_service import ShortageService
+                        new_shortages = Shortage.objects.filter(id__in=shortage_ids, is_deleted=False).exclude(purchase_order=self.object)
+                        for shortage in new_shortages:
+                            ShortageService.link_to_po(shortage, self.object, user=self.request.user)
                     
                 messages.success(self.request, f"Purchase Order {self.object.document_no} updated successfully.")
                 return redirect(self.success_url)
@@ -232,6 +310,29 @@ class PurchaseOrderItemsAPIView(LoginRequiredMixin, View):
             'partner_id': po.partner.id if po.partner else None
         }
         return JsonResponse(data)
+
+
+class PendingShortagesAPIView(LoginRequiredMixin, View):
+    def get(self, request):
+        shortages = Shortage.objects.filter(
+            status=Shortage.Status.PENDING,
+            is_deleted=False
+        ).select_related('item').order_by('-created_at')
+        
+        data_shortages = []
+        for shortage in shortages:
+            data_shortages.append({
+                'id': shortage.id,
+                'item_id': shortage.item.id,
+                'item_sku': shortage.item.sku,
+                'item_name': shortage.item.name,
+                'item_unit': shortage.item.unit or 'pcs',
+                'request_qty': float(shortage.request_qty),
+                'reference_display': shortage.reference_display_name,
+                'expected_date': shortage.expected_date.strftime('%Y-%m-%d') if shortage.expected_date else None,
+                'note': shortage.note
+            })
+        return JsonResponse({'shortages': data_shortages})
 
 
 from procurement.models import Shortage

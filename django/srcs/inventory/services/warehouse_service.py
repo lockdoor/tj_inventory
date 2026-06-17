@@ -101,9 +101,5 @@ class WarehouseService:
         """
         Restore a soft-deleted warehouse.
         """
-        warehouse.is_deleted = False
-        warehouse.deleted_at = None
-        warehouse.deleted_by = None
-        warehouse.updated_by = user
-        warehouse.save()
+        warehouse.restore(user=user)
         return warehouse

@@ -90,12 +90,14 @@ class AuditableMixin(models.Model):
         """Perform an actual physical deletion"""
         super().delete(*args, **kwargs)
     
-    def restore(self):
+    def restore(self, user=None, *args, **kwargs):
         """Restore a soft-deleted record"""
         self.is_deleted = False
         self.deleted_at = None
         self.deleted_by = None
-        self.save()
+        if user:
+            self.updated_by = user
+        self.save(*args, **kwargs)
     
     def save(self, *args, **kwargs):
         """Save with optimistic locking check"""

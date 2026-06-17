@@ -182,7 +182,7 @@ class ArrivalReservation(AuditableMixin):
         self.status = self.ReservationStatus.CANCELLED
         super().delete(user=user, *args, **kwargs)
 
-    def restore(self, *args, **kwargs):
+    def restore(self, user=None, *args, **kwargs):
         if self.status == self.ReservationStatus.CANCELLED:
             self.status = self.ReservationStatus.RESERVED
-        super().restore(*args, **kwargs)
+        super().restore(user=user, *args, **kwargs)
