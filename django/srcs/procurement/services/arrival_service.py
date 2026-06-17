@@ -595,7 +595,7 @@ class ArrivalService:
 
                     # Update the shortage record
                     if alloc_take < shortage.request_qty:
-                        # Split shortage: create a soft-deleted, promoted record for the allocated portion
+                        # Split shortage: create a promoted record for the allocated portion
                         Shortage.objects.create(
                             item=shortage.item,
                             request_qty=alloc_take,
@@ -606,17 +606,16 @@ class ArrivalService:
                             status=Shortage.Status.PROMOTED,
                             promoted_arrival_reservation=arrival_lock,
                             created_by=shortage.created_by,
-                            is_deleted=True,
+                            is_deleted=False,
                             note=f"Split promotion of {alloc_take} from shortage #{shortage.pk} to arrival reservation #{arrival_lock.pk}"
                         )
                         shortage.request_qty -= alloc_take
                         shortage.save(update_fields=['request_qty', 'updated_at'])
                     else:
-                        # Full promotion: transition status and link, then soft-delete
+                        # Full promotion: transition status and link
                         shortage.status = Shortage.Status.PROMOTED
                         shortage.promoted_arrival_reservation = arrival_lock
                         shortage.save(update_fields=['status', 'promoted_arrival_reservation', 'updated_at'])
-                        shortage.delete(user=user)
 
                     available_qty -= alloc_take
 

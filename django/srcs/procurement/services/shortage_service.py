@@ -84,8 +84,7 @@ class ShortageService:
     @staticmethod
     def soft_delete(shortage, *, user):
         """Soft-delete the shortage record."""
-        shortage.is_deleted = True
-        shortage.updated_by = user
-        shortage.save()
+        shortage.delete(user=user)
         return shortage
+
 

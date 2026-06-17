@@ -120,8 +120,8 @@ class TestShortageListViews:
         assert response.status_code == 200
         context = response.context
         
-        # Verify active non-deleted count (4 active shortages)
-        assert len(context['shortages']) == 4
+        # Verify active non-deleted count (3 active shortages)
+        assert len(context['shortages']) == 3
         
         # Verify dynamic KPI context calculations
         assert context['pending_count'] == 2
@@ -216,7 +216,7 @@ class TestShortageListViews:
 
         # 4. Filter: All
         response = client.get(url, {'status': 'all'})
-        assert len(response.context['shortages']) == 3
+        assert len(response.context['shortages']) == 2
 
     def test_stock_controller_dashboard_integration(self, client, stock_controller_user):
         """
@@ -247,14 +247,14 @@ class TestShortageListViews:
         # Create arrival reservation
         res = ArrivalReservation.objects.create(arrival_item=arr_item, quantity=Decimal("10.00"), reference_no="SO-PROMOTED", created_by=test_user)
         
-        # Create a promoted shortage linked to this reservation (soft-deleted but status=PROMOTED)
+        # Create a promoted shortage linked to this reservation (active and status=PROMOTED)
         shortage = Shortage.objects.create(
             item=item_a,
             request_qty=Decimal("10.00"),
             status=Shortage.Status.PROMOTED,
             promoted_arrival_reservation=res,
             created_by=test_user,
-            is_deleted=True
+            is_deleted=False
         )
 
         client.force_login(test_user)

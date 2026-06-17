@@ -82,7 +82,8 @@ def test_auto_allocation_on_arrival_creation(item, customer, supplier, warehouse
     # 10 units should go to SO-002 (partially satisfy, leaving 10 shortage)
     
     # SO-001 assertions:
-    assert not Shortage.objects.filter(reference_id=str(so1.id), is_deleted=False).exists()
+    so1_shortage = Shortage.objects.get(reference_id=str(so1.id), is_deleted=False)
+    assert so1_shortage.status == Shortage.Status.PROMOTED
     so1.refresh_from_db()
     assert so1.status == SalesOrder.Status.PREORDER
 
@@ -94,7 +95,7 @@ def test_auto_allocation_on_arrival_creation(item, customer, supplier, warehouse
     assert so1_allocs[0].quantity == Decimal('30.00')
 
     # SO-002 assertions:
-    so2_shortages = Shortage.objects.filter(reference_id=str(so2.id), is_deleted=False)
+    so2_shortages = Shortage.objects.filter(reference_id=str(so2.id), is_deleted=False, status=Shortage.Status.PO_CREATED)
     assert so2_shortages.count() == 1
     assert so2_shortages[0].request_qty == Decimal('10.00')
     so2.refresh_from_db()
@@ -153,8 +154,11 @@ def test_auto_allocation_partial_split(item, customer, supplier, warehouse, test
     assert allocs[1].source_type == SalesAllocation.SourceType.SHORTAGE
     assert allocs[1].quantity == Decimal('30.00')
 
-    shortage = Shortage.objects.get(reference_id=str(so.id), is_deleted=False)
+    shortage = Shortage.objects.get(reference_id=str(so.id), is_deleted=False, status=Shortage.Status.PO_CREATED)
     assert shortage.request_qty == Decimal('30.00')
+
+    promoted_shortage = Shortage.objects.get(reference_id=str(so.id), is_deleted=False, status=Shortage.Status.PROMOTED)
+    assert promoted_shortage.request_qty == Decimal('20.00')
 
 
 @pytest.mark.django_db

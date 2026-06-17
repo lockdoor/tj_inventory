@@ -21,18 +21,19 @@ class ShortageListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Shortage.objects.filter(
-            Q(is_deleted=False) | Q(status=Shortage.Status.PROMOTED)
-        ).select_related(
+        status = self.request.GET.get('status')
+        if status == Shortage.Status.CANCELLED:
+            queryset = Shortage.objects.filter(is_deleted=True)
+        else:
+            queryset = Shortage.objects.filter(is_deleted=False)
+            if status and status in dict(Shortage.Status.choices):
+                queryset = queryset.filter(status=status)
+
+        queryset = queryset.select_related(
             'item',
             'purchase_order',
             'created_by'
         ).order_by('-created_at')
-
-        # Status filter
-        status = self.request.GET.get('status')
-        if status and status in dict(Shortage.Status.choices):
-            queryset = queryset.filter(status=status)
 
         # Search query
         q = self.request.GET.get('q')
@@ -83,9 +84,7 @@ class ShortageDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
     raise_exception = True
 
     def get_queryset(self):
-        return Shortage.objects.filter(
-            Q(is_deleted=False) | Q(status=Shortage.Status.PROMOTED)
-        ).select_related(
+        return Shortage.objects.all().select_related(
             'item',
             'purchase_order',
             'created_by',

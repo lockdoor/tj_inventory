@@ -132,3 +132,90 @@ class TestShortageModel:
             shortage2.save()
         
         assert "Record has been modified by another user" in str(excinfo.value)
+
+    def test_shortage_soft_delete_changes_status_to_cancelled(self, user, item):
+        """Verify that soft-deleting a shortage automatically transitions status to CANCELLED."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            status=Shortage.Status.PENDING,
+            created_by=user
+        )
+        assert shortage.is_deleted is False
+        assert shortage.status == Shortage.Status.PENDING
+
+        shortage.delete(user=user)
+        assert shortage.is_deleted is True
+        assert shortage.status == Shortage.Status.CANCELLED
+        assert shortage.deleted_by == user
+
+    def test_shortage_save_with_cancelled_status_soft_deletes(self, user, item):
+        """Verify that explicitly saving a shortage with CANCELLED status soft-deletes it."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            status=Shortage.Status.PENDING,
+            created_by=user
+        )
+        shortage.status = Shortage.Status.CANCELLED
+        shortage.updated_by = user
+        shortage.save()
+
+        assert shortage.is_deleted is True
+        assert shortage.status == Shortage.Status.CANCELLED
+        assert shortage.deleted_by == user
+
+    def test_shortage_save_with_is_deleted_true_forces_cancelled_status(self, user, item):
+        """Verify that explicitly saving a shortage with is_deleted=True forces status to CANCELLED."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            status=Shortage.Status.PENDING,
+            created_by=user
+        )
+        shortage.is_deleted = True
+        shortage.updated_by = user
+        shortage.save()
+
+        assert shortage.is_deleted is True
+        assert shortage.status == Shortage.Status.CANCELLED
+        assert shortage.deleted_by == user
+
+    def test_shortage_restore_resets_status_to_pending(self, user, item):
+        """Verify that restoring a soft-deleted shortage sets status to PENDING and is_deleted to False."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            status=Shortage.Status.PENDING,
+            created_by=user
+        )
+        shortage.delete(user=user)
+        assert shortage.is_deleted is True
+        assert shortage.status == Shortage.Status.CANCELLED
+
+        shortage.restore()
+        assert shortage.is_deleted is False
+        assert shortage.status == Shortage.Status.PENDING
+        assert shortage.deleted_by is None
+        assert shortage.deleted_at is None
+
+    def test_shortage_restore_preserves_promoted_status(self, user, item):
+        """Verify that restoring a soft-deleted shortage that was in PROMOTED status preserves PROMOTED status."""
+        shortage = Shortage.objects.create(
+            item=item,
+            request_qty=10,
+            status=Shortage.Status.PROMOTED,
+            created_by=user
+        )
+        Shortage.objects.filter(pk=shortage.pk).update(is_deleted=True)
+        shortage.refresh_from_db()
+        assert shortage.is_deleted is True
+        assert shortage.status == Shortage.Status.PROMOTED
+
+        shortage.restore()
+        assert shortage.is_deleted is False
+        assert shortage.status == Shortage.Status.PROMOTED
+        assert shortage.deleted_by is None
+        assert shortage.deleted_at is None
+
+

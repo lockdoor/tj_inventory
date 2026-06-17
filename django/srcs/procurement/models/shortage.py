@@ -139,3 +139,45 @@ class Shortage(AuditableMixin):
         """
         if self.status == 'pending':
             self.delete(user=user)
+
+    def delete(self, user=None, *args, **kwargs):
+        self.status = self.Status.CANCELLED
+        super().delete(user=user, *args, **kwargs)
+
+    def restore(self, *args, **kwargs):
+        if self.status == self.Status.CANCELLED:
+            self.status = self.Status.PENDING
+        super().restore(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        modified_fields = set()
+        if self.is_deleted:
+            if self.status != self.Status.CANCELLED:
+                self.status = self.Status.CANCELLED
+                modified_fields.add('status')
+            from django.utils import timezone
+            if not self.deleted_at:
+                self.deleted_at = timezone.now()
+                modified_fields.add('deleted_at')
+            if not self.deleted_by and getattr(self, 'updated_by', None):
+                self.deleted_by = self.updated_by
+                modified_fields.add('deleted_by')
+        elif self.status == self.Status.CANCELLED:
+            if not self.is_deleted:
+                self.is_deleted = True
+                modified_fields.add('is_deleted')
+            from django.utils import timezone
+            if not self.deleted_at:
+                self.deleted_at = timezone.now()
+                modified_fields.add('deleted_at')
+            if not self.deleted_by and getattr(self, 'updated_by', None):
+                self.deleted_by = self.updated_by
+                modified_fields.add('deleted_by')
+
+        if modified_fields and 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+            update_fields = set(kwargs['update_fields'])
+            update_fields.update(modified_fields)
+            kwargs['update_fields'] = update_fields
+
+        super().save(*args, **kwargs)
+

@@ -66,9 +66,9 @@ def test_full_shortage_promotion(item, customer, supplier, warehouse, test_user)
         items=[{'item': item, 'expected_qty': Decimal('30.00')}]
     )
 
-    # Refresh shortage from DB (including soft-deleted records)
+    # Refresh shortage from DB
     shortage.refresh_from_db()
-    assert shortage.is_deleted is True
+    assert shortage.is_deleted is False
     assert shortage.status == Shortage.Status.PROMOTED
     
     # Assert promoted_arrival_reservation is populated and matches the created ArrivalReservation
@@ -126,11 +126,11 @@ def test_partial_shortage_promotion_split(item, customer, supplier, warehouse, t
     assert shortage.status == Shortage.Status.PO_CREATED
     assert shortage.request_qty == Decimal('30.00')
 
-    # Assert there is a promoted shortage with request_qty = 20 and is_deleted = True
+    # Assert there is a promoted shortage with request_qty = 20 and is_deleted = False
     promoted_shortages = Shortage.objects.filter(
         reference_id=str(so.id),
         status=Shortage.Status.PROMOTED,
-        is_deleted=True
+        is_deleted=False
     )
     assert promoted_shortages.count() == 1
     promoted_shortage = promoted_shortages.first()
@@ -201,11 +201,11 @@ def test_shortage_promotion_creator_attribution(item, customer, supplier, wareho
     # 1. The arrival reservation must inherit the shortage's creator!
     assert arrival_res.created_by == shortage_creator
 
-    # Find the split promoted shortage (soft-deleted)
+    # Find the split promoted shortage (not soft-deleted)
     promoted_shortage = Shortage.objects.get(
         reference_id=str(so.id),
         status=Shortage.Status.PROMOTED,
-        is_deleted=True
+        is_deleted=False
     )
     # 2. The split promoted shortage must inherit the shortage's creator!
     assert promoted_shortage.created_by == shortage_creator
