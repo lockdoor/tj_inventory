@@ -102,8 +102,6 @@ class ArrivalReservationService:
         Remove a future commitment.
         """
         arrival_item = reservation.arrival_item
-        reservation.status = ArrivalReservation.ReservationStatus.CANCELLED
-        reservation.save()
         reservation.delete(user=user)
         
         # Explicitly sync the arrival item

@@ -134,3 +134,96 @@ def test_delete_by_reference_future(arrival_setup, test_user):
     assert arrival_setup.reserved_qty == Decimal("0.00")
     assert arr_item2.reserved_qty == Decimal("0.00")
     assert ArrivalReservation.objects.filter(is_deleted=False).count() == 0
+
+@pytest.mark.django_db
+def test_reservation_soft_delete_changes_status_to_cancelled(arrival_setup, test_user):
+    """Verify that soft-deleting a reservation automatically transitions status to CANCELLED."""
+    res = ArrivalReservation.objects.create(
+        arrival_item=arrival_setup,
+        quantity=Decimal("10.00"),
+        reference_no="SO-101",
+        created_by=test_user
+    )
+    assert res.is_deleted is False
+    assert res.status == ArrivalReservation.ReservationStatus.RESERVED
+
+    res.delete(user=test_user)
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.CANCELLED
+    assert res.deleted_by == test_user
+
+@pytest.mark.django_db
+def test_reservation_save_with_cancelled_status_soft_deletes(arrival_setup, test_user):
+    """Verify that explicitly saving a reservation with CANCELLED status soft-deletes it."""
+    res = ArrivalReservation.objects.create(
+        arrival_item=arrival_setup,
+        quantity=Decimal("10.00"),
+        reference_no="SO-101",
+        created_by=test_user
+    )
+    res.status = ArrivalReservation.ReservationStatus.CANCELLED
+    res.updated_by = test_user
+    res.save()
+
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.CANCELLED
+    assert res.deleted_by == test_user
+
+@pytest.mark.django_db
+def test_reservation_save_with_is_deleted_true_forces_cancelled_status(arrival_setup, test_user):
+    """Verify that explicitly saving a reservation with is_deleted=True forces status to CANCELLED."""
+    res = ArrivalReservation.objects.create(
+        arrival_item=arrival_setup,
+        quantity=Decimal("10.00"),
+        reference_no="SO-101",
+        created_by=test_user
+    )
+    res.is_deleted = True
+    res.updated_by = test_user
+    res.save()
+
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.CANCELLED
+    assert res.deleted_by == test_user
+
+@pytest.mark.django_db
+def test_reservation_restore_resets_status_to_reserved(arrival_setup, test_user):
+    """Verify that restoring a soft-deleted reservation sets status to RESERVED and is_deleted to False."""
+    res = ArrivalReservation.objects.create(
+        arrival_item=arrival_setup,
+        quantity=Decimal("10.00"),
+        reference_no="SO-101",
+        created_by=test_user
+    )
+    res.delete(user=test_user)
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.CANCELLED
+
+    res.restore()
+    assert res.is_deleted is False
+    assert res.status == ArrivalReservation.ReservationStatus.RESERVED
+    assert res.deleted_by is None
+    assert res.deleted_at is None
+
+@pytest.mark.django_db
+def test_reservation_restore_preserves_promoted_status(arrival_setup, test_user):
+    """Verify that restoring a soft-deleted reservation that was in PROMOTED status preserves PROMOTED status."""
+    res = ArrivalReservation.objects.create(
+        arrival_item=arrival_setup,
+        quantity=Decimal("10.00"),
+        reference_no="SO-101",
+        status=ArrivalReservation.ReservationStatus.PROMOTED,
+        created_by=test_user
+    )
+    # Simulate pre-existing database record that has is_deleted=True and status=PROMOTED
+    ArrivalReservation.objects.filter(pk=res.pk).update(is_deleted=True)
+    res.refresh_from_db()
+    assert res.is_deleted is True
+    assert res.status == ArrivalReservation.ReservationStatus.PROMOTED
+
+    res.restore()
+    assert res.is_deleted is False
+    assert res.status == ArrivalReservation.ReservationStatus.PROMOTED
+    assert res.deleted_by is None
+    assert res.deleted_at is None
+

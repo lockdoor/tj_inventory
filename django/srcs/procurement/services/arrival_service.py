@@ -354,6 +354,7 @@ class ArrivalService:
                 from procurement.models import ArrivalReservation
                 arrival_reservations = list(ArrivalReservation.objects.filter(
                     arrival_item=arrival_item,
+                    status=ArrivalReservation.ReservationStatus.RESERVED,
                     is_deleted=False
                 ).order_by('created_at'))
 
@@ -425,7 +426,7 @@ class ArrivalService:
                             note=arr_res.note,
                             status=ArrivalReservation.ReservationStatus.PROMOTED,
                             promoted_stock_reservation=physical_lock,
-                            is_deleted=True,
+                            is_deleted=False,
                             created_by=arr_res.created_by,
                             updated_by=user
                         )
@@ -435,7 +436,6 @@ class ArrivalService:
                         arr_res.status = ArrivalReservation.ReservationStatus.PROMOTED
                         arr_res.promoted_stock_reservation = physical_lock
                         arr_res.save()
-                        arr_res.delete(user=user)
 
                     from procurement.services.reservation_service import ArrivalReservationService
                     ArrivalReservationService._sync_arrival_item_reserved_qty(arrival_item)
@@ -452,6 +452,7 @@ class ArrivalService:
             from procurement.models import ArrivalReservation
             remaining_reservations = ArrivalReservation.objects.filter(
                 arrival_item__arrival=arrival,
+                status=ArrivalReservation.ReservationStatus.RESERVED,
                 is_deleted=False
             )
             for res in list(remaining_reservations):
@@ -704,6 +705,7 @@ class ArrivalService:
         
         remaining_reservations = ArrivalReservation.objects.filter(
             arrival_item__arrival=arrival,
+            status=ArrivalReservation.ReservationStatus.RESERVED,
             is_deleted=False
         )
         for res in list(remaining_reservations):

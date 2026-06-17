@@ -179,6 +179,7 @@ class ArrivalItem(AuditableMixin):
             from procurement.models.reservation import ArrivalReservation
             total_reserved = ArrivalReservation.objects.filter(
                 arrival_item=self,
+                status=ArrivalReservation.ReservationStatus.RESERVED,
                 is_deleted=False
             ).aggregate(total=models.Sum('quantity'))['total'] or 0
 
@@ -201,7 +202,11 @@ class ArrivalItem(AuditableMixin):
         from procurement.services.arrival_service import ArrivalService
         
         # Revert active reservations back to shortages
-        reservations = ArrivalReservation.objects.filter(arrival_item=self, is_deleted=False)
+        reservations = ArrivalReservation.objects.filter(
+            arrival_item=self,
+            status=ArrivalReservation.ReservationStatus.RESERVED,
+            is_deleted=False
+        )
         for res in list(reservations):
             ArrivalService.revert_reservation_to_shortage(res, user=user)
             
