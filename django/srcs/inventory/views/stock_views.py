@@ -18,6 +18,6 @@ class StockBalanceListView(LoginRequiredMixin, PermissionRequiredMixin, Template
         
         # Add express companies for the balance comparison feature
         from inventory.services.express_service import ExpressService
-        context['express_companies'] = ExpressService.get_companies() if ExpressService.is_alive() else []
+        context['express_companies'] = ExpressService.get_companies()
         
         return context

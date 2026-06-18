@@ -32,18 +32,8 @@ class ExpressService:
 
     @staticmethod
     def get_companies():
-        """Get list of companies from Express Bridge."""
-        try:
-            response = requests.get(ExpressService.get_express_location(), timeout=5)
-            if (response.status_code != 200):
-                raise Exception(f"Express Bridge returned error {response.status_code}: {response.text}")
-            response_dict = response.json()
-            companies = response_dict.get('companies', [])
-            if not companies:
-                raise Exception(f"Express Bridge returned empty companies list")
-            return companies            
-        except Exception as e:
-            return []
+        """Get companies form setting.COMPANY_WAREHOUSE_CODES.keys()"""
+        return getattr(settings, 'COMPANY_WAREHOUSE_CODES', {}).keys()
 
     @staticmethod
     def get_express_balances(company_id):
