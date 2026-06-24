@@ -3,11 +3,21 @@ services:
     build: ./django
     container_name: django
     restart: always
-    env_file:
-      - ./secrets/django.env
-      - ./secrets/db.env
+    # env_file:
+    #   - ./secrets/django.env
+    #   - ./secrets/db.env
     environment:
       - DATABASE_TYPE=postgres
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - DEBUG=${DEBUG}
+      - EXPRESS_LOCATION=${EXPRESS_LOCATION}
+      - COMPANY_WAREHOUSE_CODES=${COMPANY_WAREHOUSE_CODES}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
       - ./django/srcs:/app
       - ./django/migrate:/migrate
@@ -24,8 +34,13 @@ services:
     container_name: postgres
     restart: always
     shm_size: 128m
-    env_file:
-      - ./secrets/db.env
+    # env_file:
+    #   - ./secrets/db.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     # ports:
