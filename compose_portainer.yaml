@@ -20,7 +20,7 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
       - ./django/srcs:/app
-      - ./django/migrate:/migrate
+      # - ./django/migrate:/migrate
       - ./django/srcs/media:/app/media
     ports:
       - "8000:8000"
