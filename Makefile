@@ -32,14 +32,12 @@ venv:
 
 # docker zone
 up:
-	docker compose up -d
+	docker compose --env-file .env -f compose_prd.yaml up --build -d
 
 down:
-	docker compose down
+	docker compose --env-file .env -f compose_prd.yaml down
 
-rebuild:
-	$(MAKE) down
-	docker compose up --build -d
+rebuild: down up
 
 rebuild_fresh:
 	docker compose down -v
@@ -54,6 +52,13 @@ dk_setup:
 dk_migrate_fresh:
 	docker exec -it django python manage.py migrate
 	docker exec -it django python manage.py setup_system
+
+# docker dev zone
+up_dev:
+	docker compose --env-file .env -f compose_dev.yaml up --build -d
+
+down_dev:
+	docker compose  -f compose_dev.yaml down -v
 
 # Database migration (for NAS migration)
 backup_db:

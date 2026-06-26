@@ -1,0 +1,84 @@
+name: tj_inventory_dev
+
+
+services:
+  db-init:
+    image: alpine:latest
+    container_name: tj_inventory_db-init_dev
+    volumes:
+      - postgres_data:/prod_data:ro
+      - postgres_data_dev:/dev_data:rw
+    command: >
+      sh -c "
+        echo '🔄 เริ่มต้นโคลนข้อมูลฐานข้อมูลจาก Production (Named Volume) ไปยัง Development (Sandbox)...'
+        rm -rf /dev_data/*
+        cp -a /prod_data/. /dev_data/
+        echo '✅ เสร็จสิ้น! ข้อมูลฝั่ง Sandbox ปัจจุบันพร้อมใช้งานแล้ว'
+      "
+
+  django:
+    build: ./django
+    container_name: django_dev
+    restart: always
+    environment:
+      - DATABASE_TYPE=postgres
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - DEBUG=${DEBUG}
+      - EXPRESS_LOCATION=${EXPRESS_LOCATION}
+      - COMPANY_WAREHOUSE_CODES=${COMPANY_WAREHOUSE_CODES}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+    volumes:
+      - ./django/srcs:/app
+    ports:
+      - "${DJANGO_HOST_DEV_PORT}:${DJANGO_PORT}"
+    networks:
+      - tj_inventory_dev
+    depends_on:
+      postgres:
+        condition: service_started
+
+  postgres:
+    image: postgres:15.17-alpine3.22
+    container_name: postgres_dev
+    restart: always
+    shm_size: 128m
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - tj_inventory_dev
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer_dev
+    restart: always
+    ports:
+      - "${ADMINER_HOST_DEV_PORT}:8080"
+    networks:
+      - tj_inventory_dev
+    depends_on:
+      postgres:
+        condition: service_started
+
+volumes:
+  postgres_data:
+    name: tj_inventory_postgres_data
+    external: true
+  postgres_data_dev:
+    
+
+networks:
+  tj_inventory_dev:
+    driver: bridge

@@ -1,11 +1,11 @@
+name: tj_inventory
+
+
 services:
   django:
     build: ./django
     container_name: django
     restart: always
-    # env_file:
-    #   - ./secrets/django.env
-    #   - ./secrets/db.env
     environment:
       - DATABASE_TYPE=postgres
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
@@ -19,23 +19,20 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
-      # - ./django/srcs:/app
-      # - ./django/migrate:/migrate
       - "${DJANGO_MEDIA}:/app/media:ro"
     ports:
-      - "8000:8000"
+      - "${DJANGO_HOST_PRD_PORT}:${DJANGO_PORT}"
     networks:
       - tj_inventory
     depends_on:
-      - db
+      postgres:
+        condition: service_started
 
-  db:
+  postgres:
     image: postgres:15.17-alpine3.22
     container_name: postgres
     restart: always
     shm_size: 128m
-    # env_file:
-    #   - ./secrets/db.env
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -43,8 +40,6 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # ports:
-    #   - "5432:5432"
     networks:
       - tj_inventory
 
@@ -53,16 +48,19 @@ services:
     container_name: adminer
     restart: always
     ports:
-      - "8080:8080"
+      - "${ADMINER_HOST_PRD_PORT}:8080"
     networks:
       - tj_inventory
     depends_on:
-      - db
+      postgres:
+        condition: service_started
+
 
 volumes:
   postgres_data:
     name: tj_inventory_postgres_data
     external: true
+
 
 networks:
   tj_inventory:
