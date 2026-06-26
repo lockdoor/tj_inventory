@@ -1,0 +1,17 @@
+name: Deploy to NAS via Portainer Webhook
+
+# เงื่อนไขสั่งให้ระบบเริ่มทำงาน
+on:
+  push:
+    branches:
+      - main # 👈 ทำงานอัตโนมัติเฉพาะเมื่อมีการ Push หรือ Merge PR เข้าสู่กิ่ง main เท่านั้น
+
+jobs:
+  trigger-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Webhook Trigger to Portainer on NAS
+        run: |
+          # ใช้คำสั่ง curl เพื่อทำการยิง POST Request ไปแจ้งเตือน Portainer บน NAS ทะลุผ่านอุโมงค์ Cloudflare
+          # โดยการดึงค่าลิงก์ลับที่บันทึกไว้ใน Secrets ออกมาใช้งานอย่างปลอดภัย
+          curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
