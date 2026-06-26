@@ -21,7 +21,7 @@ services:
     # volumes:
       # - ./django/srcs:/app
       # - ./django/migrate:/migrate
-      # - ./django/srcs/media:/app/media
+      - "${DJANGO_MEDIA}:/app/media:ro"
     ports:
       - "8000:8000"
     networks:
