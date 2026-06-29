@@ -22,10 +22,14 @@ def test_dashboard_access_for_logged_in_user(client, test_user):
     response = client.get(url)
     assert response.status_code == 200
     content = response.content.decode()
-    assert "Catalog Management" in content
-    assert "Partner Database" in content
+    assert "Catalog &amp; Partners" in content or "Catalog & Partners" in content
+    assert "Inventory Engine" in content
+    assert "Procurement Operations" in content
+    assert "Sales &amp; Demand" in content or "Sales & Demand" in content
     assert reverse('catalog:catalog-overview') in content
-    assert reverse('partners:partner-list') in content
+    assert reverse('inventory:overview') in content
+    assert reverse('procurement:overview') in content
+    assert reverse('sales:overview') in content
 
 @pytest.mark.django_db
 def test_dashboard_sales_rep_access(client, test_user):

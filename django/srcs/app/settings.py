@@ -97,7 +97,8 @@ WSGI_APPLICATION = 'app.wsgi.application'
 
 # Switch to SQLite by default unless DATABASE_TYPE is explicitly set to 'postgres'
 # This prevents local terminal runs from trying to connect to a 'postgres' host
-if os.environ.get('DATABASE_TYPE') == 'postgres' and os.environ.get('POSTGRES_DB'):
+is_in_docker = os.path.exists('/.dockerenv')
+if os.environ.get('DATABASE_TYPE') == 'postgres' and os.environ.get('POSTGRES_DB') and is_in_docker:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',

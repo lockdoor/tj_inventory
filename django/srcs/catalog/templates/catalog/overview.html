@@ -79,6 +79,36 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Partners Card -->
+        <div class="glass-card module-card" style="padding: 2rem; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column;">
+            <div style="position: absolute; top: -10%; right: -5%; opacity: 0.05; color: var(--primary-light);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); display: flex; align-items: center; justify-content: center; color: var(--primary-light);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">Partners</h3>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <div style="font-size: 3rem; font-weight: 800; color: var(--primary-light); line-height: 1;">{{ partner_count }}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Active Partners</div>
+            </div>
+            
+            <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; flex-grow: 1;">
+                Track your global suppliers and customer network. Manage addresses, contacts, tax IDs, and billing preferences.
+            </p>
+            
+            <div style="display: flex; gap: 1rem;">
+                <a href="{% url 'partners:partner-list' %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">View Partners</a>
+                {% if perms.partners.add_partner %}
+                    <a href="{% url 'partners:partner-create' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">+ Add Partner</a>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 

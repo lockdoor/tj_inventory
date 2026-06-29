@@ -48,29 +48,29 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Executive Dashboard"
         context['modules'] = [
             {
-                'title': 'Catalog Management',
-                'description': 'Manage product categories, items, and audit history.',
+                'title': 'Catalog & Partners',
+                'description': 'Manage categories, item specifications, packaging containers, and global partners (suppliers/customers).',
                 'url': 'catalog:catalog-overview',
-                'icon_name': 'box', # Using Lucide icon names for easier template handling if needed
-                'badge': 'Product Master'
-            },
-            {
-                'title': 'Partner Database',
-                'description': 'Track your global suppliers and customer network.',
-                'url': 'partners:partner-list',
-                'icon_name': 'users',
-                'badge': 'External Entities'
+                'icon_name': 'box',
+                'badge': 'Catalog'
             },
             {
                 'title': 'Inventory Engine',
-                'description': 'Manage warehouses, stock balances, and movements.',
+                'description': 'Monitor warehouses, stock balances, movements, and physical stock allocations.',
                 'url': 'inventory:overview',
                 'icon_name': 'database',
                 'badge': 'Core Engine'
             },
             {
-                'title': 'Sales Orders',
-                'description': 'Manage sales orders, customer demands, and stock allocations.',
+                'title': 'Procurement Operations',
+                'description': 'Manage purchase orders, incoming arrivals, shortages, and arrival pre-allocations.',
+                'url': 'procurement:overview',
+                'icon_name': 'shopping-cart',
+                'badge': 'Procurement'
+            },
+            {
+                'title': 'Sales & Demand',
+                'description': 'Track sales orders, customer demands, and stock reservation allocations.',
                 'url': 'sales:overview',
                 'icon_name': 'shopping-bag',
                 'badge': 'Sells'

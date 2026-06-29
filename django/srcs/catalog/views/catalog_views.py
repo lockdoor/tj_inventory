@@ -17,4 +17,7 @@ class CatalogOverviewView(LoginRequiredMixin, PermissionRequiredMixin, TemplateV
         context['category_count'] = CategoryService.get_active_queryset().count()
         context['item_count'] = ItemService.get_active_queryset().count()
         
+        from partners.models import Partner
+        context['partner_count'] = Partner.objects.filter(is_deleted=False).count()
+        
         return context
