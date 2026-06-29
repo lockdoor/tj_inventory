@@ -8,7 +8,23 @@ but only one can be marked as the main/primary image.
 import os
 import uuid
 from django.db import models
+from django.core.exceptions import ValidationError
 from common.mixins import AuditableMixin, StatusMixin
+
+
+def validate_item_file(file):
+    """
+    Validate item file size and type.
+    Must be an image, and size < 10 MB.
+    """
+    limit = 10 * 1024 * 1024
+    if file.size > limit:
+        raise ValidationError("File size must not exceed 10 MB.")
+    
+    ext = os.path.splitext(file.name)[1].lower()
+    allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+    if ext not in allowed_extensions:
+        raise ValidationError("Only image files (JPG, JPEG, PNG, WEBP, GIF) are allowed.")
 
 
 def item_image_upload_path(instance, filename):
@@ -35,6 +51,7 @@ class ItemImage(AuditableMixin, StatusMixin):
     )
     image = models.ImageField(
         upload_to=item_image_upload_path,
+        validators=[validate_item_file],
         help_text="Image file for the item"
     )
     is_main = models.BooleanField(

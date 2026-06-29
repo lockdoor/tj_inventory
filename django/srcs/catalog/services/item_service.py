@@ -59,10 +59,10 @@ class ItemService:
         item.save()
 
         if image:
-            processed_image = ItemService._process_item_image(image)
+            ItemService.validate_file(image)
             ItemImage.objects.create(
                 item=item,
-                image=processed_image,
+                image=image,
                 is_main=True,
                 created_by=user,
                 status=ItemImage.Status.ACTIVE
@@ -71,42 +71,19 @@ class ItemService:
         return item
 
     @staticmethod
-    def _process_item_image(image_file):
+    def validate_file(file):
         """
-        Process uploaded item image:
-        1. Center crop to 1:1 square ratio
-        2. Resize to 400x400 if larger than 400px
-        3. Keep original size but still square if smaller than 400px
+        Validate file size and type.
+        Must be an image, and size < 10 MB.
         """
-        img = Image.open(image_file)
+        limit = 10 * 1024 * 1024
+        if file.size > limit:
+            raise ValidationError("File size must not exceed 10 MB.")
         
-        # Convert to RGB (handles RGBA -> RGB)
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-
-        width, height = img.size
-        size = min(width, height)
-
-        # Center crop to square
-        left = (width - size) // 2
-        top = (height - size) // 2
-        right = (width + size) // 2
-        bottom = (height + size) // 2
-        img = img.crop((left, top, right, bottom))
-
-        # Scaling: max 400px
-        if size > 400:
-            img = img.resize((400, 400), Image.LANCZOS)
-        
-        # Save to buffer
-        buffer = BytesIO()
-        img.save(buffer, format='JPEG', quality=90)
-        
-        # Return as Django ContentFile
-        # The filename will be SKU-UUID.jpg (handled by item_image_upload_path)
-        # But we pass the original basename with .jpg extension to pilot the extension
-        base_name = os.path.splitext(image_file.name)[0]
-        return ContentFile(buffer.getvalue(), name=f"{base_name}.jpg")
+        ext = os.path.splitext(file.name)[1].lower()
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+        if ext not in allowed_extensions:
+            raise ValidationError("Only image files (JPG, JPEG, PNG, WEBP, GIF) are allowed.")
 
     @staticmethod
     def update(item, *, user, **fields):
@@ -125,8 +102,8 @@ class ItemService:
         item.save()
 
         if image:
-            # If a new image is provided, process it and set as the new main image
-            processed_image = ItemService._process_item_image(image)
+            # If a new image is provided, validate it and set as the new main image
+            ItemService.validate_file(image)
             
             # Deactivate previous main images
             item.images.filter(is_main=True).update(is_main=False)
@@ -134,7 +111,7 @@ class ItemService:
             # Create new main image record
             ItemImage.objects.create(
                 item=item,
-                image=processed_image,
+                image=image,
                 is_main=True,
                 created_by=user,
                 status=ItemImage.Status.ACTIVE

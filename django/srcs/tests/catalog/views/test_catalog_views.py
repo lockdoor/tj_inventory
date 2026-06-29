@@ -26,20 +26,14 @@ class TestCatalogOverviewView:
         CategoryService.create(name='Cat 1', code='C1', user=user)
         ItemService.create(sku='SKU1', name='Item 1', unit='Pcs', user=user)
         
-        from partners.models import Partner
-        Partner.objects.create(name='Partner 1', code='P1', created_by=user)
-        
         response = client.get(url)
         
         assert response.status_code == 200
         assert 'category_count' in response.context
         assert 'item_count' in response.context
-        assert 'partner_count' in response.context
         assert response.context['category_count'] == 1
         assert response.context['item_count'] == 1
-        assert response.context['partner_count'] == 1
         assert b'Catalog Overview' in response.content
-        assert b'Partners' in response.content
 
     def test_missing_permission_denied(self, client):
         # Create user without view_category permission

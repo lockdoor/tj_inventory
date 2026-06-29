@@ -161,7 +161,7 @@ class TestItemCreateView:
         
         # Verify processing (check size if pillow is available to read)
         saved_img = Image.open(main_img.image.path)
-        assert saved_img.size == (400, 400)  # Should be cropped and resized
+        assert saved_img.size == (800, 600)  # Should remain original size (800, 600)
 
 @pytest.mark.django_db
 class TestItemUpdateView:

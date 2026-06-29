@@ -48,11 +48,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Executive Dashboard"
         context['modules'] = [
             {
-                'title': 'Catalog & Partners',
-                'description': 'Manage categories, item specifications, packaging containers, and global partners (suppliers/customers).',
+                'title': 'Catalog Management',
+                'description': 'Manage product categories, items, and audit history.',
                 'url': 'catalog:catalog-overview',
                 'icon_name': 'box',
-                'badge': 'Catalog'
+                'badge': 'Product Master'
+            },
+            {
+                'title': 'Partner Database',
+                'description': 'Track your global suppliers and customer network.',
+                'url': 'partners:partner-list',
+                'icon_name': 'users',
+                'badge': 'External Entities'
             },
             {
                 'title': 'Inventory Engine',
@@ -189,6 +196,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'url': 'sales:overview',
                 'icon_name': 'shopping-bag',
                 'badge': 'Sells'
+            },
+            {
+                'title': 'Stock Balances',
+                'description': 'Real-time visibility of available quantity per LOT and Location.',
+                'url': 'inventory:stock-balance-list',
+                'icon_name': 'package',
+                'icon_class': 'stock-icon',
+                'badge': 'Inventory'
             },
             {
                 'title': 'Product Catalog',
