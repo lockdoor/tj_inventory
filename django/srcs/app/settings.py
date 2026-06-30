@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'dashboard',
     'procurement',
     'sales',
+    'petty_cash',
 ]
 
 MIDDLEWARE = [
