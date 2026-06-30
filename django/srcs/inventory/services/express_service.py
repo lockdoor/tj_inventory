@@ -32,8 +32,9 @@ class ExpressService:
 
     @staticmethod
     def get_companies():
-        """Get companies form setting.COMPANY_WAREHOUSE_CODES.keys()"""
-        return getattr(settings, 'COMPANY_WAREHOUSE_CODES', {}).keys()
+        """Get companies from database."""
+        from common.models import Company
+        return list(Company.objects.values_list('express_database_name', flat=True))
 
     @staticmethod
     def get_express_balances(company_id):
@@ -60,11 +61,13 @@ class ExpressService:
         """
         Combines Django balances and Express balances (from Bridge).
         """
-        company_warehouse_codes = getattr(settings, 'COMPANY_WAREHOUSE_CODES', {})
-        if company_id not in company_warehouse_codes:
+        from common.models import Company
+        company = Company.objects.filter(express_database_name=company_id).first()
+        if not company:
             raise Exception(f"Company '{company_id}' not found")
 
-        target_wh_code = company_warehouse_codes.get(company_id)
+        warehouse = company.warehouses.first()
+        target_wh_code = warehouse.code if warehouse else None
 
         # 1. Fetch Internal Balances (aggregated by SKU)
         internal_data = Stock.objects.select_related('warehouse', 'item')

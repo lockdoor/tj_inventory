@@ -171,4 +171,3 @@ LOGIN_URL = 'common:login'
 # External Integrations
 # Locations of Express ERP data directory (contains .DBF files)
 EXPRESS_LOCATION = os.environ.get('EXPRESS_LOCATION', None)
-COMPANY_WAREHOUSE_CODES = json.loads(os.environ.get('COMPANY_WAREHOUSE_CODES', '{}'))
