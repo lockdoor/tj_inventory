@@ -37,6 +37,29 @@ class TestCompanyModel:
         assert warehouse.company == company
         assert company.warehouses.first() == warehouse
 
+    def test_soft_delete_prevented_by_active_warehouses(self, user):
+        from django.core.exceptions import ValidationError
+        from common.services.company_service import CompanyService
+        company = Company.objects.create(
+            code="TJ69",
+            name="Thai Jintan 69",
+            express_database_name="TJ69",
+            created_by=user
+        )
+        warehouse = Warehouse.objects.create(
+            code="TG001",
+            name="Bangkok Warehouse",
+            company=company,
+            created_by=user
+        )
+        with pytest.raises(ValidationError, match="Cannot delete company because it is referenced by active warehouses."):
+            CompanyService.soft_delete(company, user=user)
+
+        # But if the warehouse is soft-deleted, we should be able to delete the company!
+        warehouse.delete(user=user)
+        CompanyService.soft_delete(company, user=user)
+        assert company.is_deleted is True
+
 
 @pytest.mark.django_db
 class TestExpressServiceMultiCompany:

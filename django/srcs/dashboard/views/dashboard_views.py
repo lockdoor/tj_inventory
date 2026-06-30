@@ -48,6 +48,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Executive Dashboard"
         context['modules'] = [
             {
+                'title': 'Company Directory',
+                'description': 'Manage internal company details, contact information, and registration metadata.',
+                'url': 'common:company-list',
+                'icon_name': 'briefcase',
+                'badge': 'Internal Entities'
+            },
+            {
                 'title': 'Catalog Management',
                 'description': 'Manage product categories, items, and audit history.',
                 'url': 'catalog:catalog-overview',
