@@ -7,3 +7,12 @@ from common.views.company_views import (
     CompanyTrashListView,
     CompanyRestoreView,
 )
+from common.views.individual_views import (
+    IndividualListView,
+    IndividualDetailView,
+    IndividualCreateView,
+    IndividualUpdateView,
+    IndividualDeleteView,
+    IndividualTrashListView,
+    IndividualRestoreView,
+)

@@ -10,6 +10,6 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Individual)
 class IndividualAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'created_at')
-    search_fields = ('first_name', 'last_name', 'email')
+    list_display = ('first_name_th', 'last_name_th', 'nickname', 'email', 'created_at')
+    search_fields = ('first_name_th', 'last_name_th', 'nickname', 'first_name_en', 'last_name_en', 'email')
     raw_id_fields = ('user',)

@@ -18,8 +18,11 @@ erDiagram
     Individual {
         int id PK
         int user_id FK "Optional link to auth User (nullable)"
-        string first_name
-        string last_name
+        string first_name_th "First Name in Thai"
+        string last_name_th "Last Name in Thai"
+        string first_name_en "First Name in English (optional)"
+        string last_name_en "Last Name in English (optional)"
+        string nickname "Nickname (optional, Thai or English)"
         string email
         json phones "JSON array of phone numbers (SQLite & Postgres compatible)"
         datetime created_at

@@ -16,4 +16,13 @@ urlpatterns = [
     path('companies/<str:code>/update/', views.CompanyUpdateView.as_view(), name='company-update'),
     path('companies/<str:code>/delete/', views.CompanyDeleteView.as_view(), name='company-delete'),
     path('companies/<str:code>/restore/', views.CompanyRestoreView.as_view(), name='company-restore'),
+
+    # Individual CRUD
+    path('individuals/', views.IndividualListView.as_view(), name='individual-list'),
+    path('individuals/create/', views.IndividualCreateView.as_view(), name='individual-create'),
+    path('individuals/trash/', views.IndividualTrashListView.as_view(), name='individual-trash'),
+    path('individuals/<int:pk>/', views.IndividualDetailView.as_view(), name='individual-detail'),
+    path('individuals/<int:pk>/update/', views.IndividualUpdateView.as_view(), name='individual-update'),
+    path('individuals/<int:pk>/delete/', views.IndividualDeleteView.as_view(), name='individual-delete'),
+    path('individuals/<int:pk>/restore/', views.IndividualRestoreView.as_view(), name='individual-restore'),
 ]

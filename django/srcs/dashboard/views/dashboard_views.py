@@ -55,6 +55,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'badge': 'Internal Entities'
             },
             {
+                'title': 'Individual Registry',
+                'description': 'Manage system users, contact details, and employee/customer profiles.',
+                'url': 'common:individual-list',
+                'icon_name': 'user',
+                'badge': 'Internal Entities'
+            },
+            {
                 'title': 'Catalog Management',
                 'description': 'Manage product categories, items, and audit history.',
                 'url': 'catalog:catalog-overview',
