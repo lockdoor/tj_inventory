@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Petty Cash Dashboard - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<span style="color: var(--text-main); font-weight: 500;">Petty Cash</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div style="margin-bottom: 2.5rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Petty Cash Dashboard</h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">Manage cash boxes, custodian limits, accounting GL categories, and payment vouchers.</p>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+        
+        <!-- Categories Card (Fully Managed) -->
+        <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%; transition: var(--transition);">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.75rem; border-radius: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="4" y1="9" x2="20" y2="9"></line>
+                            <line x1="4" y1="15" x2="20" y2="15"></line>
+                            <line x1="10" y1="3" x2="8" y2="21"></line>
+                            <line x1="16" y1="3" x2="14" y2="21"></line>
+                        </svg>
+                    </div>
+                    <span style="font-size: 0.8rem; background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 700;">Active</span>
+                </div>
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem;">Expense Categories</h3>
+                <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                    Map expense categories to GL accounting codes (ผังบัญชี) for each company.
+                </p>
+                <div style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                    <strong>{{ category_count }}</strong> registered categories
+                </div>
+            </div>
+            <a href="{% url 'petty_cash:category-list' %}" class="btn btn-primary" style="text-align: center; display: block; font-weight: 700; width: 100%;">
+                Manage Categories
+            </a>
+        </div>
+
+        <!-- Cash Accounts Card (Coming Soon) -->
+        <div class="glass-card" style="opacity: 0.75; display: flex; flex-direction: column; justify-content: space-between; height: 100%; position: relative;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted); padding: 0.75rem; border-radius: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                    </div>
+                    <span style="font-size: 0.8rem; background: rgba(255, 255, 255, 0.08); color: var(--text-muted); padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 700;">Coming Soon</span>
+                </div>
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem;">Cash Accounts</h3>
+                <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                    Configure petty cash boxes, maximum balances, limits, and custodians.
+                </p>
+                <div style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                    <strong>{{ account_count }}</strong> accounts registered
+                </div>
+            </div>
+            <button class="btn btn-outline" style="border-color: rgba(255,255,255,0.05); color: var(--text-muted); width: 100%; cursor: not-allowed;" disabled>
+                Manage Accounts
+            </button>
+        </div>
+
+        <!-- Payments Card (Coming Soon) -->
+        <div class="glass-card" style="opacity: 0.75; display: flex; flex-direction: column; justify-content: space-between; height: 100%; position: relative;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); color: var(--text-muted); padding: 0.75rem; border-radius: 8px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                            <line x1="12" y1="4" x2="12" y2="20"></line>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </div>
+                    <span style="font-size: 0.8rem; background: rgba(255, 255, 255, 0.08); color: var(--text-muted); padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 700;">Coming Soon</span>
+                </div>
+                <h3 style="font-size: 1.35rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.5rem;">Vouchers & Payments</h3>
+                <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                    Record disbursements, track replenishments, print payment vouchers.
+                </p>
+                <div style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                    <strong>{{ payment_count }}</strong> vouchers recorded
+                </div>
+            </div>
+            <button class="btn btn-outline" style="border-color: rgba(255,255,255,0.05); color: var(--text-muted); width: 100%; cursor: not-allowed;" disabled>
+                Manage Vouchers
+            </button>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
