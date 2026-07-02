@@ -30,6 +30,11 @@ class PettyCashAccount(AuditableMixin):
         related_name='custodian_accounts',
         help_text="Custodian user responsible for the cash box"
     )
+    note = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="Optional remarks for this account"
+    )
 
     class Meta:
         ordering = ['code']

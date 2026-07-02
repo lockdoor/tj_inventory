@@ -49,6 +49,11 @@ class PettyCashPayment(AuditableMixin):
         default='', 
         help_text="Custom payee name if not a registered individual"
     )
+    note = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="Optional remarks for this payment"
+    )
 
     class Meta:
         ordering = ['-payment_date', '-id']
@@ -87,6 +92,11 @@ class PettyCashPaymentItem(models.Model):
         on_delete=models.PROTECT, 
         related_name='payment_items',
         help_text="Bilingual category with accounting code mapping"
+    )
+    note = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="Optional remarks for this item"
     )
 
     class Meta:

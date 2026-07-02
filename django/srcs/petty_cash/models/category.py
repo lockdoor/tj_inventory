@@ -15,6 +15,11 @@ class PettyCashCategory(AuditableMixin):
         related_name='expense_categories',
         help_text="Owning company legal entity"
     )
+    note = models.TextField(
+        blank=True, 
+        default='', 
+        help_text="Optional remarks for this category"
+    )
 
     class Meta:
         ordering = ['code']
