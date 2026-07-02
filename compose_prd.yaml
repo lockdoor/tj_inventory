@@ -19,7 +19,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
-      - "${DJANGO_MEDIA}:/app/media:ro"
+      - "${DJANGO_MEDIA}:/app/media"
     ports:
       - "${DJANGO_HOST_PRD_PORT}:${DJANGO_PORT}"
     networks:
