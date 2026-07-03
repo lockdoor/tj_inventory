@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if object %}Edit Account: {{ object.code }}{% else %}Create Cash Account{% endif %} - TJ Inventory
+{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'petty_cash:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'petty_cash:account-list' %}" style="color: var(--text-muted); text-decoration: none;">Accounts</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">
+    {% if object %}Edit Account{% else %}Create Account{% endif %}
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Back to List -->
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{% url 'petty_cash:account-list' %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Accounts
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 2.5rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
+            {% if object %}Edit Account{% else %}Create Cash Account{% endif %}
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">
+            {% if object %}Modify properties for {{ object.code }}.{% else %}Add a new petty cash box to the system.{% endif %}
+        </p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="glass-card" style="padding: 2.5rem; border-color: rgba(255,255,255,0.08);">
+        <form method="post" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; padding: 1rem; border-radius: 6px; font-weight: 600;">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Inputs Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <label for="{{ form.code.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Account Code *</label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.code.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.name.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Account Name *</label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.name.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.company.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Company *</label>
+                    {{ form.company }}
+                    {% if form.company.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.company.errors.0 }}</span>
+                    {% endif %}
+                    {% if object %}
+                    <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Company cannot be modified after creation.</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.custodian.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Custodian *</label>
+                    {{ form.custodian }}
+                    {% if form.custodian.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.custodian.errors.0 }}</span>
+                    {% endif %}
+                    {% if object %}
+                    <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Custodian cannot be modified after creation.</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.balance.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Initial Balance *</label>
+                    {{ form.balance }}
+                    {% if form.balance.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.balance.errors.0 }}</span>
+                    {% endif %}
+                    {% if object %}
+                    <span style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Balance is updated automatically via vouchers.</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.max_limit.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Max Balance Limit *</label>
+                    {{ form.max_limit }}
+                    {% if form.max_limit.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.max_limit.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.currency.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Currency *</label>
+                    {{ form.currency }}
+                    {% if form.currency.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.currency.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.status.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Status *</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.status.errors.0 }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <label for="{{ form.note.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Note</label>
+                {{ form.note }}
+                {% if form.note.errors %}
+                <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.note.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem; justify-content: flex-end; margin-top: 1rem;">
+                <a href="{% url 'petty_cash:account-list' %}" class="btn btn-outline" style="border-color: rgba(255,255,255,0.1); padding: 0.6rem 1.5rem; font-weight: 600;">Cancel</a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.6rem 2rem; font-weight: 700;">
+                    {% if object %}Save Changes{% else %}Create Account{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@ from petty_cash.models import PettyCashAccount
 
 class PettyCashAccountService:
     @staticmethod
-    def create_account(*, code, name, max_limit, company, custodian, created_by, note=''):
+    def create_account(*, code, name, max_limit, company, custodian, created_by, balance=0, currency='THB', status='active', note=''):
         """
         Create a new PettyCashAccount.
         """
@@ -12,6 +12,9 @@ class PettyCashAccountService:
             code=code,
             name=name,
             max_limit=max_limit,
+            balance=balance,
+            currency=currency,
+            status=status,
             company=company,
             custodian=custodian,
             created_by=created_by,

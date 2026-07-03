@@ -9,3 +9,13 @@ from petty_cash.views.category_views import (
     PettyCashCategoryRestoreView,
     PettyCashCategorySyncView
 )
+from petty_cash.views.account_views import (
+    PettyCashAccountListView,
+    PettyCashAccountDetailView,
+    PettyCashAccountCreateView,
+    PettyCashAccountUpdateView,
+    PettyCashAccountDeleteView,
+    PettyCashAccountTrashListView,
+    PettyCashAccountRestoreView
+)
+
