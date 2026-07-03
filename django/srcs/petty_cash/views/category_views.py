@@ -8,6 +8,10 @@ from petty_cash.models import PettyCashCategory
 from petty_cash.forms.category_form import PettyCashCategoryForm
 from petty_cash.services.category_service import PettyCashCategoryService
 
+from django.db.models import Count, Q
+from common.models import Company
+from petty_cash.services.express_service import ExpressService
+
 
 class PettyCashCategoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = PettyCashCategory
@@ -16,7 +20,10 @@ class PettyCashCategoryListView(LoginRequiredMixin, PermissionRequiredMixin, Lis
     permission_required = 'petty_cash.view_pettycashcategory'
 
     def get_queryset(self):
-        qs = PettyCashCategory.objects.filter(is_deleted=False)
+        company_id = self.request.GET.get('company_id')
+        if not company_id:
+            return PettyCashCategory.objects.none()
+        qs = PettyCashCategory.objects.filter(is_deleted=False, company_id=company_id)
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(code__icontains=q) | qs.filter(name__icontains=q)
@@ -24,8 +31,32 @@ class PettyCashCategoryListView(LoginRequiredMixin, PermissionRequiredMixin, Lis
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        company_id = self.request.GET.get('company_id')
+        if company_id:
+            context['selected_company'] = get_object_or_404(Company, pk=company_id, is_deleted=False)
+        else:
+            companies = Company.objects.filter(is_deleted=False).annotate(
+                category_count=Count('expense_categories', filter=Q(expense_categories__is_deleted=False))
+            )
+            context['companies'] = companies
         context['q'] = self.request.GET.get('q', '')
         return context
+
+
+class PettyCashCategorySyncView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'petty_cash.add_pettycashcategory'
+
+    def post(self, request, company_id, *args, **kwargs):
+        company = get_object_or_404(Company, pk=company_id, is_deleted=False)
+        if not company.express_database_name:
+            messages.error(request, f"Company '{company.code}' does not have an Express database name configured.")
+            return redirect('petty_cash:category-list')
+        try:
+            ExpressService.update_category_from_express(company, request.user)
+            messages.success(request, f"Successfully synced chart of accounts for '{company.code}' from Express!")
+        except Exception as e:
+            messages.error(request, f"Failed to sync from Express: {e}")
+        return redirect(f"{reverse_lazy('petty_cash:category-list')}?company_id={company.pk}")
 
 
 class PettyCashCategoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):

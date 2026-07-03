@@ -4,6 +4,39 @@ from petty_cash.models import PettyCashCategory
 
 class PettyCashCategoryService:
     @staticmethod
+    def bulk_create_or_update_categories(*, categories_data, company, created_by):
+        """
+        Bulk create or update PettyCashCategory records for a specific company.
+        categories_data: list of dicts: [{'code': '...', 'name': '...', 'note': '...'}]
+        """
+        if not categories_data:
+            return []
+
+        objs = []
+        for item in categories_data:
+            code = item['code'].strip().upper()
+            name = item['name'].strip()
+            note = item.get('note', '')
+            obj = PettyCashCategory(
+                code=code,
+                name=name,
+                company=company,
+                created_by=created_by,
+                note=note,
+                is_deleted=False,
+                deleted_at=None,
+                deleted_by=None
+            )
+            objs.append(obj)
+
+        return PettyCashCategory.objects.bulk_create(
+            objs,
+            update_conflicts=True,
+            unique_fields=['company', 'code'],
+            update_fields=['name', 'note', 'is_deleted', 'deleted_at', 'deleted_by']
+        )
+
+    @staticmethod
     def create_category(*, code, name, company, created_by, note=''):
         """
         Create a new PettyCashCategory.

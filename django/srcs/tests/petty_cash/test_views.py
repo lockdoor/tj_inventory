@@ -56,21 +56,26 @@ class TestPettyCashViews:
         response = client.get(reverse('petty_cash:overview'))
         assert response.status_code == 200
         assert 'category_count' in response.context
-
     def test_category_list_view_and_search(self, client, user_with_perms, category):
         client.force_login(user_with_perms)
         
-        # 1. View listing
+        # 1. View listing without company_id (shows company cards)
         response = client.get(reverse('petty_cash:category-list'))
+        assert response.status_code == 200
+        assert len(response.context['companies']) == 1
+        assert len(response.context['categories']) == 0
+
+        # 2. View listing with company_id
+        response = client.get(reverse('petty_cash:category-list'), {'company_id': category.company.pk})
         assert response.status_code == 200
         assert len(response.context['categories']) == 1
 
-        # 2. Search match
-        response = client.get(reverse('petty_cash:category-list'), {'q': 'Travel'})
+        # 3. Search match
+        response = client.get(reverse('petty_cash:category-list'), {'company_id': category.company.pk, 'q': 'Travel'})
         assert len(response.context['categories']) == 1
 
-        # 3. Search mismatch
-        response = client.get(reverse('petty_cash:category-list'), {'q': 'NonExistent'})
+        # 4. Search mismatch
+        response = client.get(reverse('petty_cash:category-list'), {'company_id': category.company.pk, 'q': 'NonExistent'})
         assert len(response.context['categories']) == 0
 
     def test_category_detail_view(self, client, user_with_perms, category):

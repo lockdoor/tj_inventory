@@ -27,6 +27,29 @@ class PettyCashCategory(AuditableMixin):
         verbose_name_plural = "Petty Cash Categories"
         unique_together = ('company', 'code')
 
+    @property
+    def level(self):
+        """
+        Calculate hierarchical indent level based on GL code format.
+        Level 1: XXX000-00 (ends in 000-00)
+        Level 2: XXXX00-00 (ends in 00-00)
+        Level 3: XXXXX0-00 (ends in 0-00)
+        Level 4: XXXXXX-00 (ends in -00)
+        Level 5: XXXXXX-XX (any other suffix)
+        """
+        if not self.code or len(self.code) < 7:
+            return 1
+        code_clean = self.code.replace('-', '')
+        if code_clean.endswith('00000'):
+            return 1
+        if code_clean.endswith('0000'):
+            return 2
+        if code_clean.endswith('000'):
+            return 3
+        if code_clean.endswith('00'):
+            return 4
+        return 5
+
     def __str__(self):
         return f"{self.code} - {self.name}"
 

@@ -6,5 +6,6 @@ from petty_cash.views.category_views import (
     PettyCashCategoryUpdateView,
     PettyCashCategoryDeleteView,
     PettyCashCategoryTrashListView,
-    PettyCashCategoryRestoreView
+    PettyCashCategoryRestoreView,
+    PettyCashCategorySyncView
 )

@@ -1,8 +1,7 @@
 import requests
-import json
-from django.conf import settings
-from inventory.services.stock_service import StockService
-from inventory.models import Stock, Warehouse
+from inventory.models import Stock
+from common.services.express_service import ExpressHelperService
+
 
 class ExpressService:
     """
@@ -12,29 +11,22 @@ class ExpressService:
     @staticmethod
     def get_express_location():
         """Get Express ERP location."""
-        return getattr(settings, 'EXPRESS_LOCATION', None)
+        return ExpressHelperService.get_express_location()
     
     @staticmethod
     def is_configured():
         """Check if any Express bridge endpoints are configured."""
-        return bool(getattr(settings, 'EXPRESS_LOCATION', None))
+        return ExpressHelperService.is_configured()
 
     @staticmethod
     def is_alive():
         """Check if Express bridge is alive."""
-        try:
-            response = requests.get(ExpressService.get_express_location(), timeout=5)
-            if (response.status_code != 200):
-                raise Exception(f"Express Bridge returned error {response.status_code}: {response.text}")
-            return True
-        except Exception as e:
-            return False
+        return ExpressHelperService.is_alive()
 
     @staticmethod
     def get_companies():
         """Get companies from database."""
-        from common.models import Company
-        return list(Company.objects.values_list('express_database_name', flat=True))
+        return ExpressHelperService.get_companies()
 
     @staticmethod
     def get_express_balances(company_id):
