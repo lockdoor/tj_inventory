@@ -54,6 +54,18 @@ class PettyCashPayment(AuditableMixin):
         default='', 
         help_text="Optional remarks for this payment"
     )
+    is_posted = models.BooleanField(
+        default=False,
+        help_text="Designates whether this voucher has been posted/recorded in Express ERP."
+    )
+    posted_at = models.DateTimeField(null=True, blank=True)
+    posted_by = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='posted_payments'
+    )
 
     class Meta:
         ordering = ['-payment_date', '-id']
@@ -89,7 +101,9 @@ class PettyCashPaymentItem(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Item line amount")
     category = models.ForeignKey(
         'petty_cash.PettyCashCategory', 
-        on_delete=models.PROTECT, 
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='payment_items',
         help_text="Bilingual category with accounting code mapping"
     )
@@ -104,4 +118,5 @@ class PettyCashPaymentItem(models.Model):
         verbose_name_plural = "Petty Cash Payment Items"
 
     def __str__(self):
-        return f"{self.payment.payment_no} Line Item: {self.category.name} - {self.amount}"
+        category_name = self.category.name if self.category else "Unallocated"
+        return f"{self.payment.payment_no} Line Item: {category_name} - {self.amount}"

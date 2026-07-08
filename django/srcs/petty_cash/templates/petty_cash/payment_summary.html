@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}End of Month Summary: {{ account.code }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'petty_cash:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'petty_cash:account-list' %}" style="color: var(--text-muted); text-decoration: none;">Accounts</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'petty_cash:payment-list' account.code %}" style="color: var(--text-muted); text-decoration: none;">Vouchers ({{ account.code }})</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">EOM Summary</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Back to Vouchers -->
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{% url 'petty_cash:payment-list' account.code %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Vouchers list
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div style="margin-bottom: 2.5rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">End-of-Month Summary</h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">
+            Review and post aggregated monthly expenses from cash box <strong style="color: var(--primary-light);">{{ account.name }} ({{ account.code }})</strong> to Express ERP.
+        </p>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem; border-color: rgba(255,255,255,0.08);">
+        <form method="get" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <div>
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Year</label>
+                <select name="year" class="form-input" style="min-width: 140px;">
+                    {% for y in years %}
+                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Month</label>
+                <select name="month" class="form-input" style="min-width: 160px;">
+                    {% for m_val, m_name in months %}
+                    <option value="{{ m_val }}" {% if m_val == selected_month %}selected{% endif %}>{{ m_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-outline" style="padding: 0.6rem 1.5rem;">Filter</button>
+        </form>
+    </div>
+
+    <!-- Summary Metrics Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="glass-card" style="padding: 1.5rem;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Total Vouchers</div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--text-main);">{{ payments.count }}</div>
+        </div>
+        <div class="glass-card" style="padding: 1.5rem;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Unposted Vouchers</div>
+            <div style="font-size: 2rem; font-weight: 800; color: #fbbf24;">{{ unposted_payments.count }}</div>
+        </div>
+        <div class="glass-card" style="padding: 1.5rem;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Posted Vouchers</div>
+            <div style="font-size: 2rem; font-weight: 800; color: var(--primary-light);">{{ posted_payments.count }}</div>
+        </div>
+        <div class="glass-card" style="padding: 1.5rem; {% if unallocated_count > 0 %}border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.02);{% endif %}">
+            <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Unallocated Items</div>
+            <div style="font-size: 2rem; font-weight: 800; color: {% if unallocated_count > 0 %}#f87171{% else %}var(--text-main){% endif %};">
+                {{ unallocated_count }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Warnings for Accountant 2 -->
+    {% if unallocated_count > 0 %}
+    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 1.25rem; color: #f87171; display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 2rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 0.1rem;">
+            <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <div>
+            <h4 style="margin: 0 0 0.25rem 0; font-weight: 700; font-size: 1.05rem;">Unallocated Line Items Found</h4>
+            <p style="margin: 0; font-size: 0.95rem; line-height: 1.5; color: rgba(255,255,255,0.7);">
+                There are <strong>{{ unallocated_count }}</strong> items without an assigned category in this month. You must edit these vouchers and allocate them to categories before you can mark them as posted to Express.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main split layout -->
+    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; align-items: start; margin-bottom: 3rem;">
+        
+        <!-- Category Code Aggregation Summary Table -->
+        <div class="glass-card" style="padding: 1.75rem; border-color: rgba(255,255,255,0.08);">
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem;">Category Aggregations</h3>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th style="padding: 0.75rem 0.5rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; width: 150px;">Category Code</th>
+                            <th style="padding: 0.75rem 0.5rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Category Name</th>
+                            <th style="padding: 0.75rem 0.5rem; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; text-align: right; width: 140px;">Total Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in category_sums %}
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
+                            <td style="padding: 0.75rem 0.5rem; font-family: monospace; font-weight: 700; color: var(--primary-light);">
+                                {{ row.category__code|default:"UNALLOCATED" }}
+                            </td>
+                            <td style="padding: 0.75rem 0.5rem; color: var(--text-main);">
+                                {{ row.category__name|default:"Pending category allocation" }}
+                            </td>
+                            <td style="padding: 0.75rem 0.5rem; text-align: right; font-weight: 700; font-family: monospace; color: var(--primary-light); font-size: 1.05rem;">
+                                {{ row.total }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                                No transaction items found for this period.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ERP Posting Control Card -->
+        <div class="glass-card" style="padding: 1.75rem; border-color: rgba(255,255,255,0.08);">
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 1rem;">Express ERP Posting</h3>
+            <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                Summarize these values into your Express GL entries. Once saved in Express, click below to lock all vouchers for this month.
+            </p>
+
+            {% if unposted_payments.exists %}
+                <form method="post" action="{% url 'petty_cash:payment-summary' account.code %}?year={{ selected_year }}&month={{ selected_month }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="year" value="{{ selected_year }}">
+                    <input type="hidden" name="month" value="{{ selected_month }}">
+                    
+                    {% if unallocated_count > 0 %}
+                    <button type="button" class="btn btn-primary" style="width: 100%; cursor: not-allowed; opacity: 0.5; font-weight: 700; padding: 0.75rem;" disabled>
+                        Post Lock Blocked
+                    </button>
+                    <div style="font-size: 0.8rem; color: #f87171; text-align: center; margin-top: 0.5rem; font-weight: 600;">
+                        Allocate categories to enable EOM posting.
+                    </div>
+                    {% else %}
+                    <button type="submit" class="btn btn-primary" style="width: 100%; font-weight: 700; padding: 0.75rem;" onclick="return confirm('Are you sure you want to mark all unposted vouchers in {{ selected_month }}/{{ selected_year }} as Posted? This will permanently lock them from future updates.');">
+                        Lock & Mark as Posted
+                    </button>
+                    {% endif %}
+                </form>
+            {% else %}
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: var(--primary-light); font-weight: 700;">
+                    All vouchers for this month have been posted and locked.
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Monthly Vouchers List -->
+    <div style="margin-bottom: 4rem;">
+        <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); margin-bottom: 1.25rem;">Included Vouchers</h3>
+        
+        <div class="glass-card" style="padding: 0; overflow: hidden; border-color: rgba(255,255,255,0.1);">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--glass-border);">
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 140px;">Voucher No.</th>
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 120px;">Date</th>
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">Payee</th>
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 130px;">Amount</th>
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: center; width: 120px;">Status</th>
+                        <th style="padding: 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr class="table-row" style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 1.1rem 1.25rem; font-family: monospace; font-weight: 700; color: var(--primary-light);">{{ p.payment_no }}</td>
+                        <td style="padding: 1.1rem 1.25rem; color: var(--text-dim);">{{ p.payment_date|date:"Y-m-d" }}</td>
+                        <td style="padding: 1.1rem 1.25rem; color: var(--text-main); font-weight: 500;">
+                            {{ p.payee_name|default:p.payee }}
+                        </td>
+                        <td style="padding: 1.1rem 1.25rem; text-align: right; font-weight: 700; font-family: monospace;">{{ p.total_amount }}</td>
+                        <td style="padding: 1.1rem 1.25rem; text-align: center;">
+                            {% if p.is_posted %}
+                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.2);">Posted</span>
+                            {% else %}
+                            <span style="font-size: 0.75rem; background: rgba(251, 191, 36, 0.1); color: #fbbf24; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.2);">Unposted</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1.1rem 1.25rem; text-align: right;">
+                            <a href="{% url 'petty_cash:payment-detail' p.pk %}" class="btn btn-outline" style="padding: 0.3rem 0.5rem; font-size: 0.8rem; border-color: rgba(255,255,255,0.05);">
+                                Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                            No vouchers recorded for this month.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

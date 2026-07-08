@@ -20,8 +20,8 @@ class PettyCashPaymentService:
 
         # Validate all categories belong to the same company
         for item in items_data:
-            category = item['category']
-            if category.company != locked_account.company:
+            category = item.get('category')
+            if category and category.company != locked_account.company:
                 raise ValidationError(
                     f"Category '{category.code}' belongs to company '{category.company.code}', "
                     f"which does not match the account's company '{locked_account.company.code}'."
@@ -71,7 +71,7 @@ class PettyCashPaymentService:
                 payment=payment,
                 description=item.get('description', ''),
                 amount=item['amount'],
-                category=item['category'],
+                category=item.get('category'),
                 note=item.get('note', '')
             )
             line_item.full_clean()
@@ -87,6 +87,8 @@ class PettyCashPaymentService:
         """
         if payment.is_deleted:
             raise ValidationError("This payment is already cancelled.")
+        if payment.is_posted:
+            raise ValidationError("Cannot cancel a voucher that has already been posted to Express.")
 
         # Lock account
         locked_account = PettyCashAccount.objects.select_for_update().get(pk=payment.account.pk)
@@ -120,6 +122,8 @@ class PettyCashPaymentService:
         """
         if payment.is_deleted:
             raise ValidationError("Cannot update a cancelled payment.")
+        if payment.is_posted:
+            raise ValidationError("Cannot update a voucher that has already been posted to Express.")
 
         # Lock account
         locked_account = PettyCashAccount.objects.select_for_update().get(pk=payment.account.pk)
@@ -137,8 +141,8 @@ class PettyCashPaymentService:
 
             # Validate all categories belong to the same company
             for item in items_data:
-                category = item['category']
-                if category.company != locked_account.company:
+                category = item.get('category')
+                if category and category.company != locked_account.company:
                     raise ValidationError(
                         f"Category '{category.code}' belongs to company '{category.company.code}', "
                         f"which does not match the account's company '{locked_account.company.code}'."
@@ -177,7 +181,7 @@ class PettyCashPaymentService:
                     payment=payment,
                     description=item.get('description', ''),
                     amount=item['amount'],
-                    category=item['category'],
+                    category=item.get('category'),
                     note=item.get('note', '')
                 )
                 line_item.full_clean()
@@ -187,3 +191,26 @@ class PettyCashPaymentService:
         payment.full_clean()
         payment.save()
         return payment
+
+    @staticmethod
+    @transaction.atomic
+    def mark_payments_as_posted(payments, *, user):
+        """
+        Mark a list of PettyCashPayment records as posted to Express ERP.
+        Ensure all items have categories assigned.
+        """
+        for payment in payments:
+            if payment.is_deleted:
+                raise ValidationError(f"Voucher {payment.payment_no} is cancelled and cannot be posted.")
+            if payment.is_posted:
+                continue
+            
+            # Verify all items have a category
+            for item in payment.items.all():
+                if not item.category:
+                    raise ValidationError(f"Voucher {payment.payment_no} has unallocated line items (missing category).")
+            
+            payment.is_posted = True
+            payment.posted_at = timezone.now()
+            payment.posted_by = user
+            payment.save()

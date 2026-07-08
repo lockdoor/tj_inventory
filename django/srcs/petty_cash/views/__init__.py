@@ -18,4 +18,14 @@ from petty_cash.views.account_views import (
     PettyCashAccountTrashListView,
     PettyCashAccountRestoreView
 )
+from petty_cash.views.payment_views import (
+    PettyCashPaymentListView,
+    PettyCashPaymentDetailView,
+    PettyCashPaymentCreateView,
+    PettyCashPaymentUpdateView,
+    PettyCashPaymentCancelView,
+    PettyCashPaymentTrashListView,
+    PettyCashPaymentSummaryView
+)
+
 

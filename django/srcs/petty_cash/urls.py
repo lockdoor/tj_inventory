@@ -15,7 +15,14 @@ from petty_cash.views import (
     PettyCashAccountUpdateView,
     PettyCashAccountDeleteView,
     PettyCashAccountTrashListView,
-    PettyCashAccountRestoreView
+    PettyCashAccountRestoreView,
+    PettyCashPaymentListView,
+    PettyCashPaymentDetailView,
+    PettyCashPaymentCreateView,
+    PettyCashPaymentUpdateView,
+    PettyCashPaymentCancelView,
+    PettyCashPaymentTrashListView,
+    PettyCashPaymentSummaryView
 )
 
 app_name = 'petty_cash'
@@ -41,4 +48,13 @@ urlpatterns = [
     path('accounts/<int:pk>/update/', PettyCashAccountUpdateView.as_view(), name='account-update'),
     path('accounts/<int:pk>/delete/', PettyCashAccountDeleteView.as_view(), name='account-delete'),
     path('accounts/<int:pk>/restore/', PettyCashAccountRestoreView.as_view(), name='account-restore'),
+
+    # Payments
+    path('payments/account/<str:account_code>/', PettyCashPaymentListView.as_view(), name='payment-list'),
+    path('payments/account/<str:account_code>/create/', PettyCashPaymentCreateView.as_view(), name='payment-create'),
+    path('payments/account/<str:account_code>/trash/', PettyCashPaymentTrashListView.as_view(), name='payment-trash'),
+    path('payments/account/<str:account_code>/summary/', PettyCashPaymentSummaryView.as_view(), name='payment-summary'),
+    path('payments/<int:pk>/', PettyCashPaymentDetailView.as_view(), name='payment-detail'),
+    path('payments/<int:pk>/update/', PettyCashPaymentUpdateView.as_view(), name='payment-update'),
+    path('payments/<int:pk>/cancel/', PettyCashPaymentCancelView.as_view(), name='payment-cancel'),
 ]
