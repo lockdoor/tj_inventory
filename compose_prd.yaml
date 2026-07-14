@@ -3,7 +3,6 @@ name: tj_inventory
 
 services:
   django:
-    # build: ./django
     image: tj_inventory_dev-django:latest
     container_name: django
     restart: always

@@ -24,7 +24,7 @@ services:
       - tj_inventory_dev
 
   django:
-    build: ./django
+    image: tj_inventory_dev-django:latest
     container_name: django_dev
     restart: always
     environment:
