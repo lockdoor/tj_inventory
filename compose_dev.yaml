@@ -39,7 +39,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
-      - ~/win-work/tj_inventory/django/srcs:/app # Uncomment for local hot-reload dev, comment out/remove for Portainer
+      - /home/jintanexp/win-work/tj_inventory/django/srcs:/app # Uncomment for local hot-reload dev, comment out/remove for Portainer
     ports:
       - "${DJANGO_HOST_DEV_PORT}:${DJANGO_PORT}"
     networks:
