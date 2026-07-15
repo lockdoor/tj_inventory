@@ -1,8 +1,7 @@
 import requests
-import json
-from django.conf import settings
-from inventory.services.stock_service import StockService
-from inventory.models import Stock, Warehouse
+from inventory.models import Stock
+from common.services.express_service import ExpressHelperService
+
 
 class ExpressService:
     """
@@ -12,28 +11,22 @@ class ExpressService:
     @staticmethod
     def get_express_location():
         """Get Express ERP location."""
-        return getattr(settings, 'EXPRESS_LOCATION', None)
+        return ExpressHelperService.get_express_location()
     
     @staticmethod
     def is_configured():
         """Check if any Express bridge endpoints are configured."""
-        return bool(getattr(settings, 'EXPRESS_LOCATION', None))
+        return ExpressHelperService.is_configured()
 
     @staticmethod
     def is_alive():
         """Check if Express bridge is alive."""
-        try:
-            response = requests.get(ExpressService.get_express_location(), timeout=5)
-            if (response.status_code != 200):
-                raise Exception(f"Express Bridge returned error {response.status_code}: {response.text}")
-            return True
-        except Exception as e:
-            return False
+        return ExpressHelperService.is_alive()
 
     @staticmethod
     def get_companies():
-        """Get companies form setting.COMPANY_WAREHOUSE_CODES.keys()"""
-        return getattr(settings, 'COMPANY_WAREHOUSE_CODES', {}).keys()
+        """Get companies from database."""
+        return ExpressHelperService.get_companies()
 
     @staticmethod
     def get_express_balances(company_id):
@@ -60,11 +53,13 @@ class ExpressService:
         """
         Combines Django balances and Express balances (from Bridge).
         """
-        company_warehouse_codes = getattr(settings, 'COMPANY_WAREHOUSE_CODES', {})
-        if company_id not in company_warehouse_codes:
+        from common.models import Company
+        company = Company.objects.filter(express_database_name=company_id).first()
+        if not company:
             raise Exception(f"Company '{company_id}' not found")
 
-        target_wh_code = company_warehouse_codes.get(company_id)
+        warehouse = company.warehouses.first()
+        target_wh_code = warehouse.code if warehouse else None
 
         # 1. Fetch Internal Balances (aggregated by SKU)
         internal_data = Stock.objects.select_related('warehouse', 'item')

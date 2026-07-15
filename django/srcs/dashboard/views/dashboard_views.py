@@ -48,10 +48,24 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Executive Dashboard"
         context['modules'] = [
             {
+                'title': 'Company Directory',
+                'description': 'Manage internal company details, contact information, and registration metadata.',
+                'url': 'common:company-list',
+                'icon_name': 'briefcase',
+                'badge': 'Internal Entities'
+            },
+            {
+                'title': 'Individual Registry',
+                'description': 'Manage system users, contact details, and employee/customer profiles.',
+                'url': 'common:individual-list',
+                'icon_name': 'user',
+                'badge': 'Internal Entities'
+            },
+            {
                 'title': 'Catalog Management',
                 'description': 'Manage product categories, items, and audit history.',
                 'url': 'catalog:catalog-overview',
-                'icon_name': 'box', # Using Lucide icon names for easier template handling if needed
+                'icon_name': 'box',
                 'badge': 'Product Master'
             },
             {
@@ -63,17 +77,31 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             },
             {
                 'title': 'Inventory Engine',
-                'description': 'Manage warehouses, stock balances, and movements.',
+                'description': 'Monitor warehouses, stock balances, movements, and physical stock allocations.',
                 'url': 'inventory:overview',
                 'icon_name': 'database',
                 'badge': 'Core Engine'
             },
             {
-                'title': 'Sales Orders',
-                'description': 'Manage sales orders, customer demands, and stock allocations.',
+                'title': 'Procurement Operations',
+                'description': 'Manage purchase orders, incoming arrivals, shortages, and arrival pre-allocations.',
+                'url': 'procurement:overview',
+                'icon_name': 'shopping-cart',
+                'badge': 'Procurement'
+            },
+            {
+                'title': 'Sales & Demand',
+                'description': 'Track sales orders, customer demands, and stock reservation allocations.',
                 'url': 'sales:overview',
                 'icon_name': 'shopping-bag',
                 'badge': 'Sells'
+            },
+            {
+                'title': 'Petty Cash Operations',
+                'description': 'Track physical cash boxes, custodian limits, accounting GL categories, and payment vouchers.',
+                'url': 'petty_cash:overview',
+                'icon_name': 'credit-card',
+                'badge': 'Accounting'
             },
         ]
         return context
@@ -189,6 +217,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'url': 'sales:overview',
                 'icon_name': 'shopping-bag',
                 'badge': 'Sells'
+            },
+            {
+                'title': 'Stock Balances',
+                'description': 'Real-time visibility of available quantity per LOT and Location.',
+                'url': 'inventory:stock-balance-list',
+                'icon_name': 'package',
+                'icon_class': 'stock-icon',
+                'badge': 'Inventory'
             },
             {
                 'title': 'Product Catalog',

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Trash Bin - Individuals{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'common:individual-list' %}" style="color: var(--primary-light); text-decoration: none;">Individuals</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Trash</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Area -->
+    <div style="margin-bottom: 2.5rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Archived Individuals</h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">Restore soft-deleted individuals or review archive details.</p>
+    </div>
+
+    <!-- Table Card -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border-color: rgba(239, 68, 68, 0.15);">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(239, 68, 68, 0.03); border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                        Name
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 220px;">
+                        Email Address
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 220px;">
+                        Deleted At
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 100px; text-align: right;">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for individual in individuals %}
+                <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
+                    <td style="padding: 1.25rem;">
+                        <div style="color: var(--text-dim); font-weight: 700; font-size: 1.1rem;">
+                            {{ individual.first_name_th }} {{ individual.last_name_th }}
+                            {% if individual.nickname %}({{ individual.nickname }}){% endif %}
+                        </div>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <span style="color: var(--text-dim); font-size: 0.9rem;">
+                            {{ individual.email|default:"---" }}
+                        </span>
+                    </td>
+                    <td style="padding: 1.25rem;">
+                        <span style="color: var(--text-muted); font-size: 0.9rem;">
+                            {{ individual.deleted_at|default:"---" }}
+                        </span>
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <form action="{% url 'common:individual-restore' individual.pk %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn restore" title="Restore Individual">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 5rem 1rem; text-align: center;">
+                        <div style="color: var(--text-muted); font-size: 1.25rem; font-weight: 500; margin-bottom: 0.5rem;">Trash bin is empty.</div>
+                        <a href="{% url 'common:individual-list' %}" class="btn btn-outline" style="text-decoration: none;">Back to Registry</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table-row:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        border: 1px solid var(--glass-border);
+        transition: var(--transition);
+        cursor: pointer;
+    }
+    .action-btn.restore:hover {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--primary-light);
+        border-color: var(--primary-light);
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Individual Form{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'common:individual-list' %}" style="color: var(--primary-light); text-decoration: none;">Individuals</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{% if object %}Edit{% else %}New{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Form Card -->
+    <div class="glass-card" style="padding: 2.5rem; position: relative;">
+        <!-- Header -->
+        <div style="margin-bottom: 2.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.5rem;">
+            <h1 class="text-gradient" style="font-size: 2.5rem; font-weight: 800; letter-spacing: -0.02em;">{{ title }}</h1>
+            <p style="color: var(--text-dim); margin-top: 0.5rem; font-size: 1.1rem;">Manage physical identity profiles and login associations.</p>
+        </div>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-error" style="margin-bottom: 1.5rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: 8px; color: var(--error);">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Section: Identity (Thai Name) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label for="{{ form.first_name_th.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        First Name (Thai) <span style="color: var(--error);">*</span>
+                    </label>
+                    <input type="text" name="first_name_th" id="{{ form.first_name_th.id_for_label }}"
+                        class="form-control {% if form.first_name_th.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                        placeholder="ชื่อจริง (ภาษาไทย)" value="{{ form.first_name_th.value|default:'' }}">
+                    {% if form.first_name_th.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.first_name_th.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.last_name_th.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        Last Name (Thai) <span style="color: var(--error);">*</span>
+                    </label>
+                    <input type="text" name="last_name_th" id="{{ form.last_name_th.id_for_label }}"
+                        class="form-control {% if form.last_name_th.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                        placeholder="นามสกุล (ภาษาไทย)" value="{{ form.last_name_th.value|default:'' }}">
+                    {% if form.last_name_th.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.last_name_th.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Section: Identity (English Name) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label for="{{ form.first_name_en.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        First Name (English)
+                    </label>
+                    <input type="text" name="first_name_en" id="{{ form.first_name_en.id_for_label }}"
+                        class="form-control {% if form.first_name_en.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                        placeholder="First Name (English)" value="{{ form.first_name_en.value|default:'' }}">
+                    {% if form.first_name_en.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.first_name_en.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.last_name_en.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        Last Name (English)
+                    </label>
+                    <input type="text" name="last_name_en" id="{{ form.last_name_en.id_for_label }}"
+                        class="form-control {% if form.last_name_en.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                        placeholder="Last Name (English)" value="{{ form.last_name_en.value|default:'' }}">
+                    {% if form.last_name_en.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.last_name_en.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Section: Nickname -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.nickname.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    Nickname
+                </label>
+                <input type="text" name="nickname" id="{{ form.nickname.id_for_label }}"
+                    class="form-control {% if form.nickname.errors %}is-invalid{% endif %}"
+                    style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                    placeholder="e.g. Som / กิ๊ฟ" value="{{ form.nickname.value|default:'' }}">
+                {% if form.nickname.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.nickname.errors.0 }}</div>{% endif %}
+            </div>
+
+            <!-- Email & User Link -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label for="{{ form.email.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        Email Address
+                    </label>
+                    <input type="email" name="email" id="{{ form.email.id_for_label }}"
+                        class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                        placeholder="e.g. name@company.com" value="{{ form.email.value|default:'' }}">
+                    {% if form.email.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.email.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.user.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        System User Link
+                    </label>
+                    <select name="user" id="{{ form.user.id_for_label }}"
+                        class="form-control {% if form.user.errors %}is-invalid{% endif %}"
+                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition); height: 48px;">
+                        {% for value, text in form.fields.user.choices %}
+                        <option value="{{ value }}" {% if form.user.value == value %}selected{% endif %}>{{ text }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if form.user.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.user.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Phones field -->
+            <div class="form-group" style="margin-bottom: 2.5rem;">
+                <label for="{{ form.phones.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    Phone Numbers
+                </label>
+                <input type="text" name="phones" id="{{ form.phones.id_for_label }}"
+                    class="form-control {% if form.phones.errors %}is-invalid{% endif %}"
+                    style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                    placeholder="e.g. +66898765432, +6621234567" value="{{ form.phones.value|default:'' }}">
+                <span style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+                    Separate multiple phone numbers with a comma.
+                </span>
+                {% if form.phones.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.phones.errors.0 }}</div>{% endif %}
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                <a href="{% if object %}{% url 'common:individual-detail' object.pk %}{% else %}{% url 'common:individual-list' %}{% endif %}" class="btn btn-outline"
+                    style="padding: 0.75rem 1.5rem; text-decoration: none;">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem; font-weight: 700;">
+                    {{ action_label }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-control:focus {
+        border-color: var(--primary-light) !important;
+        background: rgba(255,255,255,0.06) !important;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+    }
+    .form-control.is-invalid {
+        border-color: var(--error) !important;
+    }
+</style>
+{% endblock %}

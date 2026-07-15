@@ -15,6 +15,14 @@ class Warehouse(AuditableMixin, StatusMixin):
         db_index=True,
         help_text="Unique warehouse code (e.g. WH-001)"
     )
+    company = models.ForeignKey(
+        'common.Company',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='warehouses',
+        help_text="The company this warehouse belongs to"
+    )
     note = models.TextField(
         blank=True, 
         default='', 

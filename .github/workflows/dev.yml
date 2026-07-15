@@ -1,17 +1,54 @@
-name: Deploy to NAS (Dev) via Portainer Webhook
+name: Build, Push, and Deploy to NAS (Dev)
 
-# เงื่อนไขสั่งให้ระบบเริ่มทำงาน
 on:
   push:
     branches:
-      - dev # 👈 ทำงานอัตโนมัติเฉพาะเมื่อมีการ Push หรือ Merge PR เข้าสู่กิ่ง dev เท่านั้น
+      - dev
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-django
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./django
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   trigger-deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Send Webhook Trigger to Portainer on NAS (dev)
         run: |
-          # ใช้คำสั่ง curl เพื่อทำการยิง POST Request ไปแจ้งเตือน Portainer บน NAS ทะลุผ่านอุโมงค์ Cloudflare
-          # โดยการดึงค่าลิงก์ลับที่บันทึกไว้ใน Secrets ออกมาใช้งานอย่างปลอดภัย
           curl -X POST "${{ secrets.PORTAINER_DEV_WEB_HOOK }}"

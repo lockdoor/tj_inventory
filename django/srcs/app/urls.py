@@ -21,13 +21,14 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('common.urls')),
+    path('', include('common.urls')),
     path('', include('dashboard.urls')),
     path('catalog/', include('catalog.urls')),
     path('partners/', include('partners.urls')),
     path('inventory/', include('inventory.urls')),
     path('procurement/', include('procurement.urls')),
     path('sales/', include('sales.urls')),
+    path('petty-cash/', include('petty_cash.urls')),
 ]
 
 if settings.DEBUG:

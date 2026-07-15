@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}{{ individual.full_name }} - Individual Details{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'common:individual-list' %}" style="color: var(--primary-light); text-decoration: none;">Individuals</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ individual.full_name }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container-xl">
+    <!-- Header Area -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                <span style="font-family: monospace; color: var(--primary-light); font-weight: 700; font-size: 1rem; background: rgba(16, 185, 129, 0.05); padding: 0.3rem 0.8rem; border-radius: 6px;">
+                    ID #{{ individual.pk }}
+                </span>
+            </div>
+            <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; letter-spacing: -0.02em;">
+                {{ individual.first_name_th }} {{ individual.last_name_th }}
+                {% if individual.nickname %}({{ individual.nickname }}){% endif %}
+            </h1>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            {% if perms.common.change_individual %}
+            <a href="{% url 'common:individual-update' individual.pk %}" class="btn btn-primary"
+                style="padding: 0.6rem 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit Details
+            </a>
+            {% endif %}
+            <a href="{% url 'common:individual-list' %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">
+                Back to Registry
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Detail Grid -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+        
+        <!-- Left Side: Basic Info & Phones -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            
+            <!-- Info Card -->
+            <div class="glass-card" style="padding: 2rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
+                    Contact Information
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Thai Name</div>
+                        <div style="color: var(--text-main); font-weight: 700; font-size: 1.1rem; margin-top: 0.25rem;">
+                            {{ individual.first_name_th }} {{ individual.last_name_th }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">English Name</div>
+                        <div style="color: var(--text-main); font-weight: 600; font-size: 1.1rem; margin-top: 0.25rem;">
+                            {{ individual.first_name_en|default:"---" }} {{ individual.last_name_en|default:"" }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Nickname</div>
+                        <div style="color: var(--text-main); font-weight: 600; font-size: 1.1rem; margin-top: 0.25rem;">
+                            {{ individual.nickname|default:"---" }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Email Address</div>
+                        <div style="color: var(--text-main); font-size: 1rem; margin-top: 0.25rem;">
+                            {{ individual.email|default:"---" }}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">System Login Account</div>
+                        <div style="color: var(--text-main); font-size: 1rem; margin-top: 0.25rem;">
+                            {% if individual.user %}
+                            <span style="font-family: monospace; color: var(--primary-light); font-weight: 700; font-size: 0.9rem; background: rgba(16, 185, 129, 0.05); padding: 0.2rem 0.6rem; border-radius: 4px;">
+                                {{ individual.user.username }}
+                            </span>
+                            {% else %}
+                            <span style="color: var(--text-muted); opacity: 0.5;">None linked</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Registered Phone Numbers</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        {% for phone in individual.phones %}
+                        <div style="background: rgba(255,255,255,0.02); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--glass-border); font-family: monospace; color: var(--text-main); font-size: 0.95rem;">
+                            {{ phone }}
+                        </div>
+                        {% empty %}
+                        <div style="color: var(--text-muted); font-size: 0.9rem;">No phone numbers registered.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Audit details -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            
+            <!-- Audit Details -->
+            <div class="glass-card" style="padding: 2rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
+                    Audit Logs
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 1.25rem; font-size: 0.875rem;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Created At</div>
+                        <div style="color: var(--text-main); font-weight: 500; margin-top: 0.2rem;">{{ individual.created_at }}</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Created By</div>
+                        <div style="color: var(--text-main); font-weight: 500; margin-top: 0.2rem;">{{ individual.created_by.username|default:"System" }}</div>
+                    </div>
+                    {% if individual.updated_by %}
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Last Updated At</div>
+                        <div style="color: var(--text-main); font-weight: 500; margin-top: 0.2rem;">{{ individual.updated_at }}</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Last Updated By</div>
+                        <div style="color: var(--text-main); font-weight: 500; margin-top: 0.2rem;">{{ individual.updated_by.username }}</div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Record Version</div>
+                        <div style="color: var(--text-main); font-weight: 500; margin-top: 0.2rem;">v{{ individual.version }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

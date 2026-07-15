@@ -9,8 +9,20 @@ class ItemForm(forms.ModelForm):
     image = forms.ImageField(
         required=False, 
         widget=forms.FileInput(attrs={'class': 'form-input-file'}),
-        help_text="Optional item photo (min 400x400 recommended)"
+        help_text="Optional item photo (max 10MB)"
     )
+
+    def clean_image(self):
+        image = self.cleaned_data.get('image')
+        if image:
+            from django.core.exceptions import ValidationError
+            import os
+            if image.size > 10 * 1024 * 1024:
+                raise ValidationError("File size must not exceed 10 MB.")
+            ext = os.path.splitext(image.name)[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.gif']:
+                raise ValidationError("Only image files (JPG, JPEG, PNG, WEBP, GIF) are allowed.")
+        return image
 
     class Meta:
         model = Item

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Individual - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'common:individual-list' %}" style="color: var(--primary-light); text-decoration: none;">Individuals</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<a href="{% url 'common:individual-detail' individual.pk %}" style="color: var(--primary-light); text-decoration: none;">{{ individual.full_name }}</a>
+<span style="color: var(--text-muted); opacity: 0.5;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Delete</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <!-- Confirm Delete Card -->
+    <div class="glass-card" style="padding: 2.5rem; text-align: center; border-color: rgba(239, 68, 68, 0.2);">
+        <!-- Warning Icon -->
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(239, 68, 68, 0.1); display: flex; align-items: center; justify-content: center; color: var(--error); margin: 0 auto 1.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </div>
+
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.75rem;">Move to Trash?</h1>
+        <p style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem;">
+            Are you sure you want to move the individual record <strong style="color: var(--text-main);">{{ individual.full_name }}</strong> to the trash bin?
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <a href="{% url 'common:individual-detail' individual.pk %}" class="btn btn-outline" style="flex: 1; padding: 0.75rem 1.5rem; text-decoration: none; text-align: center;">
+                    Cancel
+                </a>
+                <button type="submit" class="btn" style="flex: 1; padding: 0.75rem 1.5rem; background: var(--error); color: white; border: none; font-weight: 700; border-radius: 8px; cursor: pointer; transition: var(--transition);">
+                    Move to Trash
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

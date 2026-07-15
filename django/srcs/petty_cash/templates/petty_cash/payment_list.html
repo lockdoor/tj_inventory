@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Vouchers: {{ account.code }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'petty_cash:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'petty_cash:account-list' %}" style="color: var(--text-muted); text-decoration: none;">Accounts</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Vouchers ({{ account.code }})</span>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Back to Accounts -->
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{% url 'petty_cash:account-list' %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Accounts
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2.5rem;">
+        <div>
+            <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Payment Vouchers</h1>
+            <p style="color: var(--text-dim); font-size: 1.1rem;">
+                Vouchers for cash box <strong style="color: var(--primary-light);">{{ account.name }}</strong>. Current Balance: <strong>{{ account.balance }} {{ account.currency }}</strong>.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+            {% if perms.petty_cash.add_pettycashpayment %}
+            <a href="{% url 'petty_cash:payment-create' account.code %}" class="btn btn-primary"
+                style="padding: 0.6rem 1.25rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Voucher
+            </a>
+            {% endif %}
+            <a href="{% url 'petty_cash:payment-summary' account.code %}" class="btn btn-outline"
+                style="padding: 0.6rem 1.25rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; border-color: rgba(255,255,255,0.1);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.8;">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                EOM Summary
+            </a>
+            {% if perms.petty_cash.delete_pettycashpayment %}
+            <a href="{% url 'petty_cash:payment-trash' account.code %}" class="btn btn-outline"
+                style="padding: 0.6rem 1rem; border-color: rgba(255,255,255,0.1);" title="Trash Bin">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="opacity: 0.7;">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="glass-card" style="padding: 1.25rem; margin-bottom: 1.5rem; border-color: rgba(255,255,255,0.08);">
+        <form method="get" action="{% url 'petty_cash:payment-list' account.code %}" style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="flex-grow: 1; position: relative;">
+                <input type="text" name="q" value="{{ q }}" placeholder="Search by voucher number, payee name, or remarks..." class="form-input" style="width: 100%; padding-left: 2.75rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+            <button type="submit" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">Search</button>
+            {% if q %}
+            <a href="{% url 'petty_cash:payment-list' account.code %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; border-color: rgba(255,255,255,0.05);">Reset</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Payments Table -->
+    <div class="glass-card" style="padding: 0; overflow: hidden; border-color: rgba(255,255,255,0.1);">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--glass-border);">
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 150px;">
+                        Voucher No.
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 120px;">
+                        Date
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 140px;">
+                        Type
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                        Payee
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                        Note
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 140px;">
+                        Total Amount
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 100px; text-align: center;">
+                        Status
+                    </th>
+                    <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 120px; text-align: right;">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
+                    <td style="padding: 1.25rem; font-family: monospace; font-weight: 700; color: var(--primary-light);">
+                        {{ payment.payment_no }}
+                    </td>
+                    <td style="padding: 1.25rem; color: var(--text-dim);">
+                        {{ payment.payment_date|date:"Y-m-d" }}
+                    </td>
+                    <td style="padding: 1.25rem; text-transform: capitalize;">
+                        {% if payment.payment_type == 'disbursement' %}
+                        <span style="color: #f87171; font-weight: 600;">Disbursement</span>
+                        {% elif payment.payment_type == 'replenishment' %}
+                        <span style="color: var(--primary-light); font-weight: 600;">Replenishment</span>
+                        {% else %}
+                        <span style="color: #fbbf24; font-weight: 600;">Adjustment</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; color: var(--text-main); font-weight: 500;">
+                        {{ payment.payee_name|default:payment.payee }}
+                    </td>
+                    <td style="padding: 1.25rem; color: var(--text-dim); font-size: 0.95rem;">
+                        {{ payment.note|truncatechars:50 }}
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right; font-weight: 700; color: var(--text-main); font-family: monospace; font-size: 1.05rem;">
+                        {% if payment.payment_type == 'disbursement' %}-{% else %}+{% endif %}{{ payment.total_amount }}
+                    </td>
+                    <td style="padding: 1.25rem; text-align: center;">
+                        {% if payment.is_posted %}
+                        <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.1); color: var(--primary-light); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.2);">Posted</span>
+                        {% else %}
+                        <span style="font-size: 0.75rem; background: rgba(251, 191, 36, 0.1); color: #fbbf24; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.2);">Unposted</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right;">
+                        <a href="{% url 'petty_cash:payment-detail' payment.pk %}" class="btn btn-outline" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; border-color: rgba(255,255,255,0.05);">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                        No vouchers recorded for this account.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
