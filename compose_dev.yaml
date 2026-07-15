@@ -6,7 +6,7 @@ services:
     image: alpine:latest
     container_name: tj_inventory_db-init_dev
     volumes:
-      - ./db-init/db_sync.sh:/db_sync.sh:ro
+      - ${PROJECT_ROOT}/db-init/db_sync.sh:/db_sync.sh:ro
     environment:
       - REFRESH_DB_DEV=${REFRESH_DB_DEV:-false}
       - PROD_SSH_HOST=${PROD_SSH_HOST}
@@ -24,7 +24,7 @@ services:
       - tj_inventory_dev
 
   django:
-    image: tj_inventory_dev-django:latest
+    image: tj_inventory-django:latest
     container_name: django_dev
     restart: always
     environment:
@@ -39,7 +39,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
     volumes:
-      - /home/jintanexp/win-work/tj_inventory/django/srcs:/app # Uncomment for local hot-reload dev, comment out/remove for Portainer
+      - ${PROJECT_ROOT}/django/srcs:/app
     ports:
       - "${DJANGO_HOST_DEV_PORT}:${DJANGO_PORT}"
     networks:
