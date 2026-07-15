@@ -38,7 +38,7 @@ down:
 	docker compose --env-file .env -f compose_prd.yaml down
 
 build:
-	docker build -t tj_inventory_django:latest ./django
+	docker build -t tj_inventory-django:latest ./django
 
 rebuild: down up
 

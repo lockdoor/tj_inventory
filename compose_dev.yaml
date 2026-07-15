@@ -24,7 +24,7 @@ services:
       - tj_inventory_dev
 
   django:
-    image: tj_inventory-django:latest
+    image: ghcr.io/lockdoor/tj_inventory-django:latest
     container_name: django_dev
     restart: always
     environment:

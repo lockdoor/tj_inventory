@@ -3,7 +3,7 @@ name: tj_inventory
 
 services:
   django:
-    image: tj_inventory_dev-django:latest
+    image: ghcr.io/lockdoor/tj_inventory-django:prod-latest
     container_name: django
     restart: always
     environment:
