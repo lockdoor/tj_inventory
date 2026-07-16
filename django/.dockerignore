@@ -1,7 +1,24 @@
-db.sqlite3
-__pycache__
-.env
-venv
+# Virtual environments
+venv/
+.venv/
+env/
 
-srcs/media
+# Python cache & compiled files
+**/__pycache__/
+**/*.py[cod]
+**/*.so
+
+# Databases & local files
+*.sqlite3
 srcs/*.sqlite3
+srcs/db.sqlite3
+.env
+
+# Media uploads
+srcs/media/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+*.log

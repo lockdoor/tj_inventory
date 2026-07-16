@@ -1,13 +1,15 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/django/venv/bin/python",
+    "python.defaultInterpreterPath": "/home/jintanexp/win-work/tj_inventory/django/venv/bin/python",
     "python.analysis.extraPaths": [
         "./django/srcs"
     ],
     "python.testing.pytestArgs": [
-        "django/srcs"
+        "-c",
+        "django/srcs/pytest.ini"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
+    "python.testing.cwd": "${workspaceFolder}/django/srcs",
     "files.associations": {
         "**/*.html": "html",
         "**/templates/**/*.html": "django-html",

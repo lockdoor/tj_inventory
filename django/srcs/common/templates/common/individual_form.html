@@ -89,31 +89,16 @@
                 {% if form.nickname.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.nickname.errors.0 }}</div>{% endif %}
             </div>
 
-            <!-- Email & User Link -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
-                <div class="form-group">
-                    <label for="{{ form.email.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
-                        Email Address
-                    </label>
-                    <input type="email" name="email" id="{{ form.email.id_for_label }}"
-                        class="form-control {% if form.email.errors %}is-invalid{% endif %}"
-                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
-                        placeholder="e.g. name@company.com" value="{{ form.email.value|default:'' }}">
-                    {% if form.email.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.email.errors.0 }}</div>{% endif %}
-                </div>
-                <div class="form-group">
-                    <label for="{{ form.user.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
-                        System User Link
-                    </label>
-                    <select name="user" id="{{ form.user.id_for_label }}"
-                        class="form-control {% if form.user.errors %}is-invalid{% endif %}"
-                        style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition); height: 48px;">
-                        {% for value, text in form.fields.user.choices %}
-                        <option value="{{ value }}" {% if form.user.value == value %}selected{% endif %}>{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                    {% if form.user.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.user.errors.0 }}</div>{% endif %}
-                </div>
+            <!-- Email -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="{{ form.email.id_for_label }}" class="form-label" style="display: block; color: var(--text-muted); font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    Email Address
+                </label>
+                <input type="email" name="email" id="{{ form.email.id_for_label }}"
+                    class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                    style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text-main); font-size: 1rem; outline: none; transition: var(--transition);"
+                    placeholder="e.g. name@company.com" value="{{ form.email.value|default:'' }}">
+                {% if form.email.errors %}<div class="field-error" style="color: var(--error); font-size: 0.75rem; margin-top: 0.25rem;">{{ form.email.errors.0 }}</div>{% endif %}
             </div>
 
             <!-- Phones field -->

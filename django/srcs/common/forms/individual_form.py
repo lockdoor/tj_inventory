@@ -22,7 +22,7 @@ class IndividualForm(forms.ModelForm):
         fields = [
             'first_name_th', 'last_name_th', 
             'first_name_en', 'last_name_en', 
-            'nickname', 'user', 'email', 'phones'
+            'nickname', 'email', 'phones'
         ]
         widgets = {
             'first_name_th': forms.TextInput(attrs={
@@ -45,9 +45,6 @@ class IndividualForm(forms.ModelForm):
                 'placeholder': 'ชื่อเล่น (Nickname)',
                 'class': 'form-input'
             }),
-            'user': forms.Select(attrs={
-                'class': 'form-select'
-            }),
             'email': forms.EmailInput(attrs={
                 'placeholder': 'email@example.com',
                 'class': 'form-input'
@@ -60,11 +57,6 @@ class IndividualForm(forms.ModelForm):
         # Populate initial value for phones CharField if instance exists
         if self.instance and self.instance.pk and isinstance(self.instance.phones, list):
             self.initial['phones'] = ', '.join(self.instance.phones)
-            
-        # Limit user choices to those not already linked to other Individuals
-        linked_user_ids = Individual.objects.exclude(id=self.instance.id if self.instance and self.instance.id else None).values_list('user_id', flat=True)
-        self.fields['user'].queryset = User.objects.exclude(id__in=linked_user_ids)
-        self.fields['user'].empty_label = "--- No System User ---"
 
     def clean_phones(self):
         phones_str = self.cleaned_data.get('phones', '')
