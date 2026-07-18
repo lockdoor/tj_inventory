@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Account: {{ object.code }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounting:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'accounting:account-list' %}" style="color: var(--text-muted); text-decoration: none;">Accounts</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">Delete Account</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <!-- Header -->
+    <div style="margin-bottom: 2.5rem; text-align: center;">
+        <div style="background: rgba(239, 68, 68, 0.1); color: #f87171; width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        </div>
+        <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 0.5rem; letter-spacing: -0.02em;">Delete Account?</h1>
+        <p style="color: var(--text-dim); font-size: 1.05rem;">
+            Are you sure you want to delete <strong style="color: var(--primary-light);">{{ object.code }}</strong> ({{ object.name }})?
+        </p>
+    </div>
+
+    <!-- Confirm Card -->
+    <div class="glass-card" style="padding: 2.5rem; text-align: center; border-color: rgba(239,68,68,0.2);">
+        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 2rem;">
+            This will archive (soft-delete) the cash box. It can only be restored if it has no active payment vouchers attached. You can restore it later from the Trash Bin.
+        </p>
+
+        <form method="post" style="display: flex; gap: 1rem; justify-content: center;">
+            {% csrf_token %}
+            <a href="{% url 'accounting:account-detail' object.pk %}" class="btn btn-outline" style="border-color: rgba(255,255,255,0.1); padding: 0.6rem 2rem; font-weight: 600;">
+                Cancel, Keep It
+            </a>
+            <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: white; padding: 0.6rem 2rem; font-weight: 700; border: none; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);">
+                Confirm Delete
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

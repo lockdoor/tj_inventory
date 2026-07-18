@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}{% if form.instance.pk %}Edit Category - {{ form.instance.code }}{% else %}Create Category{% endif %} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounting:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'accounting:category-list' %}" style="color: var(--text-muted); text-decoration: none;">Categories</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{% if form.instance.pk %}Edit {{ form.instance.code }}{% else %}Create{% endif %}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 650px;">
+    <!-- Header -->
+    <div style="margin-bottom: 2.5rem;">
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
+            {% if form.instance.pk %}Edit Expense Category{% else %}Create Expense Category{% endif %}
+        </h1>
+        <p style="color: var(--text-dim); font-size: 1.1rem;">
+            {% if form.instance.pk %}Modify category properties or accounting code mappings.{% else %}Define a new accounting code (ผังบัญชี) and map it to a company.{% endif %}
+        </p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="glass-card" style="border-color: rgba(255,255,255,0.08); padding: 2rem;">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; color: #fca5a5; font-size: 0.95rem; font-weight: 500;">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Code Field -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="id_code" style="color: var(--text-main); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                    GL Account Code (ผังบัญชี)
+                    <span style="color: #ef4444; margin-left: 0.25rem;">*</span>
+                </label>
+                {{ form.code }}
+                {% if form.code.errors %}
+                <div style="color: #fca5a5; font-size: 0.8rem; margin-top: 0.25rem;">
+                    {{ form.code.errors.0 }}
+                </div>
+                {% endif %}
+                <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 0.25rem; opacity: 0.7;">
+                    The GL account reference string (e.g. 5101-01). Must be unique per Company.
+                </small>
+            </div>
+
+            <!-- Name Field -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="id_name" style="color: var(--text-main); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                    Category Name
+                    <span style="color: #ef4444; margin-left: 0.25rem;">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                <div style="color: #fca5a5; font-size: 0.8rem; margin-top: 0.25rem;">
+                    {{ form.name.errors.0 }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Company Field -->
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="id_company" style="color: var(--text-main); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                    Company Legal Entity
+                    <span style="color: #ef4444; margin-left: 0.25rem;">*</span>
+                </label>
+                {% if form.instance.pk %}
+                    <!-- Disable changing company on update -->
+                    <select name="company" id="id_company" class="form-select" disabled>
+                        <option value="{{ form.instance.company.pk }}" selected>{{ form.instance.company.name }}</option>
+                    </select>
+                    <!-- Hidden field to preserve value in form POST -->
+                    <input type="hidden" name="company" value="{{ form.instance.company.pk }}">
+                {% else %}
+                    {{ form.company }}
+                {% endif %}
+                {% if form.company.errors %}
+                <div style="color: #fca5a5; font-size: 0.8rem; margin-top: 0.25rem;">
+                    {{ form.company.errors.0 }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Note Field -->
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="id_note" style="color: var(--text-main); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                    Remarks / Notes
+                </label>
+                {{ form.note }}
+                {% if form.note.errors %}
+                <div style="color: #fca5a5; font-size: 0.8rem; margin-top: 0.25rem;">
+                    {{ form.note.errors.0 }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                <a href="{% if form.instance.pk %}{% url 'accounting:category-detail' form.instance.pk %}{% else %}{% url 'accounting:category-list' %}{% endif %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-weight: 700;">
+                    {% if form.instance.pk %}Save Changes{% else %}Create Category{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -99,7 +99,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             {
                 'title': 'Petty Cash Operations',
                 'description': 'Track physical cash boxes, custodian limits, accounting GL categories, and payment vouchers.',
-                'url': 'petty_cash:overview',
+                'url': 'accounting:overview',
                 'icon_name': 'credit-card',
                 'badge': 'Accounting'
             },

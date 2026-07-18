@@ -9,8 +9,8 @@ This document defines the schema for the central `Company` model located in the 
 ```mermaid
 erDiagram
     Company ||--o{ Warehouse : "owns (inventory)"
-    Company ||--o{ PettyCashAccount : "owns (petty_cash)"
-    Company ||--o{ PettyCashCategory : "defines_coa (petty_cash)"
+    Company ||--o{ PettyCashAccount : "owns (accounting)"
+    Company ||--o{ PettyCashCategory : "defines_coa (accounting)"
 
     Company {
         int id PK
@@ -18,15 +18,8 @@ erDiagram
         string code UK "Unique company code (e.g. TJ, TJG)"
         string express_database_name "Express database name (e.g. TJ69, JINTAN68)"
         string tax_id "Tax ID / VAT number"
-        string address "Registered address"
-        string phone
-        string email
-        string note "Internal remarks"
         string status "active | inactive"
-        datetime created_at
-        int created_by_id FK
-        datetime updated_at
-        int updated_by_id FK
+        datetime deleted_at "Soft delete marker"
     }
 
     Warehouse {
@@ -62,5 +55,5 @@ Represents an internal legal entity (subsidiary or company brand) within the mul
 
 ### 2. Relationships (Shared contexts)
 * **Warehouses** (`inventory` app): Each physical warehouse belongs to a specific legal entity.
-* **Petty Cash Box** (`petty_cash` app): A company owns cash funds and accounts managed by custodians.
-* **Chart of Accounts** (`petty_cash` app): Companies declare their own general ledger categories and accounting codes.
+* **Petty Cash Box** (`accounting` app): A company owns cash funds and accounts managed by custodians.
+* **Chart of Accounts** (`accounting` app): Companies declare their own general ledger categories and accounting codes.

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Category Details - {{ category.code }} - TJ Inventory{% endblock %}
+
+{% block breadcrumbs %}
+<a href="{% url 'accounting:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<a href="{% url 'accounting:category-list' %}" style="color: var(--text-muted); text-decoration: none;">Categories</a>
+<span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
+<span style="color: var(--text-main); font-weight: 500;">{{ category.code }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px;">
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem;">
+        <div>
+            <span style="font-family: monospace; color: var(--primary-light); font-weight: 700; font-size: 0.9rem; background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.6rem; border-radius: 4px; display: inline-block; margin-bottom: 0.75rem;">
+                GL Code: {{ category.code }}
+            </span>
+            <h1 class="text-gradient" style="font-size: 2.75rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">
+                {{ category.name }}
+            </h1>
+            <p style="color: var(--text-dim); font-size: 1rem;">Registered under {{ category.company.name }}.</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            {% if perms.petty_cash.change_pettycashcategory %}
+            <a href="{% url 'accounting:category-update' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">
+                Edit Category
+            </a>
+            {% endif %}
+            {% if perms.petty_cash.delete_pettycashcategory %}
+            <a href="{% url 'accounting:category-delete' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">
+                Delete
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Detail Card -->
+    <div class="glass-card" style="margin-bottom: 1.5rem; border-color: rgba(255,255,255,0.08); padding: 2rem;">
+        <h3 style="font-size: 1.1rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+            General Information
+        </h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Accounting Code (GL Code)</label>
+                <div style="font-size: 1.2rem; font-family: monospace; font-weight: 700; color: var(--text-main); margin-top: 0.25rem;">
+                    {{ category.code }}
+                </div>
+            </div>
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Category Name</label>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-top: 0.25rem;">
+                    {{ category.name }}
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+            <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Legal Entity (Company)</label>
+            <div style="font-size: 1.1rem; color: var(--text-main); margin-top: 0.25rem; font-weight: 500;">
+                {{ category.company.name }} ({{ category.company.code }})
+            </div>
+        </div>
+
+        {% if category.note %}
+        <div>
+            <label style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; font-weight: 600;">Remarks / Notes</label>
+            <div style="color: var(--text-main); font-size: 1rem; margin-top: 0.5rem; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); line-height: 1.6; white-space: pre-wrap;">
+                {{ category.note }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Auditing Card -->
+    <div class="glass-card" style="border-color: rgba(255,255,255,0.05); padding: 1.5rem 2rem;">
+        <h3 style="font-size: 1rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.25rem;">
+            Audit History
+        </h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">Created By</label>
+                <div style="font-size: 0.95rem; color: var(--text-main); margin-top: 0.25rem; font-weight: 600;">
+                    {{ category.created_by.username }}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem;">
+                    {{ category.created_at|date:"Y-m-d H:i:s" }}
+                </div>
+            </div>
+            {% if category.updated_by %}
+            <div>
+                <label style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">Last Updated By</label>
+                <div style="font-size: 0.95rem; color: var(--text-main); margin-top: 0.25rem; font-weight: 600;">
+                    {{ category.updated_by.username }}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem;">
+                    {{ category.updated_at|date:"Y-m-d H:i:s" }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div style="margin-top: 2rem;">
+        <a href="{% url 'accounting:category-list' %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; transition: var(--transition);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Categories
+        </a>
+    </div>
+</div>
+{% endblock %}
