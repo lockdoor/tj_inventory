@@ -16,6 +16,7 @@ class PettyCashPaymentListView(LoginRequiredMixin, PermissionRequiredMixin, List
     template_name = 'accounting/payment_list.html'
     context_object_name = 'payments'
     permission_required = 'accounting.view_pettycashpayment'
+    paginate_by = 20
 
     def get_account(self):
         return get_object_or_404(PettyCashAccount, code=self.kwargs['account_code'], is_deleted=False)
@@ -25,8 +26,8 @@ class PettyCashPaymentListView(LoginRequiredMixin, PermissionRequiredMixin, List
         qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
         q = self.request.GET.get('q', '').strip()
         if q:
-            qs = qs.filter(voucher_no__icontains=q) | qs.filter(payee_name__icontains=q) | qs.filter(note__icontains=q)
-        return qs.select_related('account', 'created_by')
+            qs = qs.filter(payment_no__icontains=q) | qs.filter(payee_name__icontains=q) | qs.filter(note__icontains=q)
+        return qs.select_related('account', 'created_by').prefetch_related('items')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -82,6 +83,7 @@ class PettyCashPaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cr
                     'category': item_form.cleaned_data.get('category'),
                     'description': item_form.cleaned_data.get('description', ''),
                     'amount': item_form.cleaned_data['amount'],
+                    'tax': item_form.cleaned_data.get('tax'),
                     'note': item_form.cleaned_data.get('note', '')
                 })
 
@@ -144,9 +146,10 @@ class PettyCashPaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Up
                 if not item_form.cleaned_data.get('amount'):
                     continue
                 items_data.append({
-                    'category': item_form.cleaned_data.get('category'),
+                    'category': item_form.cleaned_data.get('category') or (item_form.instance.category if item_form.instance and item_form.instance.pk else None),
                     'description': item_form.cleaned_data.get('description', ''),
                     'amount': item_form.cleaned_data['amount'],
+                    'tax': item_form.cleaned_data.get('tax'),
                     'note': item_form.cleaned_data.get('note', '')
                 })
 

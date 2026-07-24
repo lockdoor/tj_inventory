@@ -335,3 +335,32 @@ class TestPettyCashServices:
                 updated_by=admin_user,
                 items_data=expensive_items
             )
+
+    def test_payment_creation_and_update_with_tax(self, account, category, admin_user):
+        account.balance = Decimal("1000.00")
+        account.save()
+
+        # 1. Create disbursement with tax
+        items = [{'description': 'Expense with tax', 'amount': Decimal("200.00"), 'tax': Decimal("14.00"), 'category': category}]
+        payment = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=items,
+            created_by=admin_user
+        )
+        account.refresh_from_db()
+        # 1000.00 - 200.00 = 800.00
+        assert payment.total_amount == Decimal("200.00")
+        assert account.balance == Decimal("800.00")
+
+        # 2. Update disbursement with tax (changing tax and amount)
+        new_items = [{'description': 'Expense with tax', 'amount': Decimal("300.00"), 'tax': Decimal("21.00"), 'category': category}]
+        PettyCashPaymentService.update_payment(
+            payment,
+            updated_by=admin_user,
+            items_data=new_items
+        )
+        account.refresh_from_db()
+        # 1000.00 - 300.00 = 700.00
+        assert payment.total_amount == Decimal("300.00")
+        assert account.balance == Decimal("700.00")

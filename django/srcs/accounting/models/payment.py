@@ -26,7 +26,7 @@ class PettyCashPayment(AuditableMixin):
         max_digits=12, 
         decimal_places=2, 
         default=0, 
-        help_text="Sum of all payment line amounts"
+        help_text="Sum of all payment line amounts and tax"
     )
     payment_date = models.DateField(default=timezone.now, help_text="Date when transaction occurred")
     account = models.ForeignKey(
@@ -99,6 +99,13 @@ class PettyCashPaymentItem(models.Model):
     )
     description = models.TextField(blank=True, default='', help_text="Line item details")
     amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Item line amount")
+    tax = models.DecimalField(
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True, 
+        help_text="TAX amount associated with this item"
+    )
     category = models.ForeignKey(
         'accounting.PettyCashCategory', 
         on_delete=models.SET_NULL,

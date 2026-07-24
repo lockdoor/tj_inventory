@@ -1,0 +1,57 @@
+<div class="glass-card" style="padding: 0; overflow: hidden; border-color: rgba(255,255,255,0.1);">
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--glass-border);">
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 130px;">
+                    Date / Status
+                </th>
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; width: 220px;">
+                    Payee
+                </th>
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em;">
+                    Description
+                </th>
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 110px;">
+                    Tax
+                </th>
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 130px;">
+                    Amount
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
+                <td style="padding: 1.25rem; color: var(--text-dim); vertical-align: top;">
+                    <div style="font-weight: 500; margin-bottom: 0.35rem; color: var(--text-main);">{{ payment.payment_date|date:"Y-m-d" }}</div>
+                    {% if payment.is_posted %}
+                    <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.15); display: inline-block;">Posted</span>
+                    {% else %}
+                    <span style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block;">Unposted</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 1.25rem; color: var(--text-main); font-weight: 500; vertical-align: top;">
+                    {{ payment.payee_name|default:payment.payee }}
+                </td>
+                <td style="padding: 1.25rem; font-size: 0.95rem; vertical-align: top;">
+                    <a href="{% url 'accounting:payment-detail' payment.pk %}" style="color: var(--primary-light); text-decoration: none; font-weight: 500; transition: var(--transition);" onmouseover="this.style.color='var(--primary-hover)'" onmouseout="this.style.color='var(--primary-light)'">
+                        {{ payment.items.first.description|default:"View Details" }}
+                    </a>
+                </td>
+                <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
+                    {% if payment.items.first.tax %}{{ payment.items.first.tax }}{% else %}-{% endif %}
+                </td>
+                <td style="padding: 1.25rem; text-align: right; font-weight: 700; font-family: monospace; font-size: 1.05rem; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
+                    {% if payment.payment_type == 'disbursement' %}-{% else %}+{% endif %}{{ payment.total_amount }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                    No vouchers recorded for this account.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

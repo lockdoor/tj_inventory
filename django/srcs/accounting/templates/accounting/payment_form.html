@@ -71,8 +71,15 @@
                         {% endif %}
                     </div>
                     <div>
-                        <label for="{{ form.payee.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Payee (System User)</label>
-                        {{ form.payee }}
+                        <label for="payee-search" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Payee (System User)</label>
+                        <div style="position: relative;" id="payee-autocomplete-wrapper">
+                            <input type="text" id="payee-search" class="form-input" placeholder="Type to search system user..." autocomplete="off">
+                            <div id="payee-suggestions" class="glass-card" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 100; max-height: 220px; overflow-y: auto; margin-top: 0.25rem; padding: 0.5rem; background: rgba(20, 20, 25, 0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                            </div>
+                            <div style="display: none;">
+                                {{ form.payee }}
+                            </div>
+                        </div>
                         {% if form.payee.errors %}
                         <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.payee.errors.0 }}</span>
                         {% endif %}
@@ -131,7 +138,7 @@
                                 <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.description.errors.0 }}</span>
                                 {% endif %}
                             </div>
-                            <div style="width: 250px;">
+                            <div style="width: 180px;">
                                 <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Amount *</label>
                                 <div style="position: relative;">
                                     {{ item_form.amount }}
@@ -141,26 +148,21 @@
                                 <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.amount.errors.0 }}</span>
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <!-- Line 2: Category Code mapping (Accountant 2) -->
-                        <div style="display: flex; gap: 1.5rem; align-items: flex-end; width: 100%;">
-                            <div style="width: 250px;">
-                                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Category Code</label>
-                                <input type="text" class="form-input category-search-input" placeholder="Type code (e.g. 5101)..." oninput="filterCategory(this)">
-                            </div>
-                            <div style="flex-grow: 1;">
-                                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Account Category (Result)</label>
-                                {{ item_form.category }}
-                                {% if item_form.category.errors %}
-                                <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.category.errors.0 }}</span>
+                            <div style="width: 180px;">
+                                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Tax</label>
+                                <div style="position: relative;">
+                                    {{ item_form.tax }}
+                                    <span style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">{{ account.currency }}</span>
+                                </div>
+                                {% if item_form.tax.errors %}
+                                <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.tax.errors.0 }}</span>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Line 3: Line Note (TextField) -->
+                        <!-- Line 2: Line Note (TextField) -->
                         <div style="width: 100%;">
-                            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note (TextField)</label>
+                            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note</label>
                             {{ item_form.note }}
                             {% if item_form.note.errors %}
                             <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.note.errors.0 }}</span>
@@ -195,30 +197,25 @@
                 <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Description *</label>
                 {{ formset.empty_form.description }}
             </div>
-            <div style="width: 250px;">
+            <div style="width: 180px;">
                 <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Amount *</label>
                 <div style="position: relative;">
                     {{ formset.empty_form.amount }}
                     <span style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">{{ account.currency }}</span>
                 </div>
             </div>
-        </div>
-
-        <!-- Line 2: Category Code mapping (Accountant 2) -->
-        <div style="display: flex; gap: 1.5rem; align-items: flex-end; width: 100%;">
-            <div style="width: 250px;">
-                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Category Code</label>
-                <input type="text" class="form-input category-search-input" placeholder="Type code (e.g. 5101)..." oninput="filterCategory(this)">
-            </div>
-            <div style="flex-grow: 1;">
-                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Account Category (Result)</label>
-                {{ formset.empty_form.category }}
+            <div style="width: 180px;">
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Tax</label>
+                <div style="position: relative;">
+                    {{ formset.empty_form.tax }}
+                    <span style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">{{ account.currency }}</span>
+                </div>
             </div>
         </div>
 
-        <!-- Line 3: Line Note (TextField) -->
+        <!-- Line 2: Line Note (TextField) -->
         <div style="width: 100%;">
-            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note (TextField)</label>
+            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note</label>
             {{ formset.empty_form.note }}
         </div>
     </div>
@@ -244,49 +241,100 @@ document.addEventListener("DOMContentLoaded", function() {
         totalFormsInput.value = currentCount + 1;
     });
 
-    // Pre-fill category search inputs from current options
-    document.querySelectorAll('.formset-row').forEach(row => {
-        initCategorySearch(row);
-    });
+    // Payee Autocomplete Search implementation
+    const selectEl = document.getElementById("id_payee");
+    const searchInput = document.getElementById("payee-search");
+    const suggestionsDiv = document.getElementById("payee-suggestions");
+
+    if (selectEl && searchInput && suggestionsDiv) {
+        // Parse all options from select
+        const options = [];
+        for (let option of selectEl.options) {
+            if (option.value) {
+                options.push({
+                    value: option.value,
+                    text: option.text
+                });
+            }
+        }
+
+        // Pre-fill search input if select already has a value (e.g. edit mode)
+        if (selectEl.value) {
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            if (selectedOption) {
+                searchInput.value = selectedOption.text;
+            }
+        }
+
+        function showSuggestions() {
+            const query = searchInput.value.trim().toLowerCase();
+            suggestionsDiv.innerHTML = "";
+
+            const filtered = options.filter(opt => opt.text.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                const noResult = document.createElement("div");
+                noResult.style.padding = "0.5rem 0.75rem";
+                noResult.style.color = "var(--text-muted)";
+                noResult.style.fontSize = "0.9rem";
+                noResult.textContent = "No matching users found";
+                suggestionsDiv.appendChild(noResult);
+            } else {
+                filtered.slice(0, 8).forEach(opt => {
+                    const item = document.createElement("div");
+                    item.style.padding = "0.5rem 0.75rem";
+                    item.style.cursor = "pointer";
+                    item.style.borderRadius = "4px";
+                    item.style.color = "var(--text-main)";
+                    item.style.fontSize = "0.9rem";
+                    item.style.transition = "background 0.2s, color 0.2s";
+                    item.textContent = opt.text;
+
+                    item.addEventListener("mouseenter", () => {
+                        item.style.background = "rgba(255, 255, 255, 0.08)";
+                        item.style.color = "var(--primary-light)";
+                    });
+                    item.addEventListener("mouseleave", () => {
+                        item.style.background = "transparent";
+                        item.style.color = "var(--text-main)";
+                    });
+
+                    item.addEventListener("mousedown", (e) => {
+                        e.preventDefault(); // Prevent searchInput blur from firing too early
+                        selectOption(opt);
+                    });
+
+                    suggestionsDiv.appendChild(item);
+                });
+            }
+            suggestionsDiv.style.display = "block";
+        }
+
+        function selectOption(opt) {
+            searchInput.value = opt.text;
+            selectEl.value = opt.value;
+            suggestionsDiv.style.display = "none";
+            selectEl.dispatchEvent(new Event("change"));
+        }
+
+        searchInput.addEventListener("input", function() {
+            if (searchInput.value.trim() === "") {
+                selectEl.value = "";
+            }
+            showSuggestions();
+        });
+
+        searchInput.addEventListener("focus", function() {
+            showSuggestions();
+        });
+
+        searchInput.addEventListener("blur", function() {
+            setTimeout(() => {
+                suggestionsDiv.style.display = "none";
+            }, 200);
+        });
+    }
 });
-
-function initCategorySearch(row) {
-    const select = row.querySelector('select[name$="-category"]');
-    const searchInput = row.querySelector('.category-search-input');
-    if (select && searchInput && select.value) {
-        const selectedText = select.options[select.selectedIndex].text;
-        const code = selectedText.split(' ')[0]; // e.g. "5101-01"
-        if (code && code !== "Unallocated") {
-            searchInput.value = code;
-        }
-    }
-}
-
-function filterCategory(input) {
-    const query = input.value.trim().toLowerCase();
-    const container = input.closest('.formset-row');
-    const select = container.querySelector('select[name$="-category"]');
-    if (!select) return;
-
-    if (query === "") {
-        select.value = "";
-        return;
-    }
-
-    // Find best match
-    for (let option of select.options) {
-        const text = option.text.toLowerCase();
-        // option.text is e.g. "5101-01 - Travel Expenses"
-        const code = text.split(' ')[0].replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
-        const cleanCode = code.replace(/-/g, '');
-        const cleanQuery = query.replace(/-/g, '');
-        
-        if (code.startsWith(query) || cleanCode.startsWith(cleanQuery)) {
-            select.value = option.value;
-            break;
-        }
-    }
-}
 
 function removeRow(button) {
     const row = button.closest(".formset-row");

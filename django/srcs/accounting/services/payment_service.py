@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -71,6 +72,7 @@ class PettyCashPaymentService:
                 payment=payment,
                 description=item.get('description', ''),
                 amount=item['amount'],
+                tax=item.get('tax'),
                 category=item.get('category'),
                 note=item.get('note', '')
             )
@@ -181,6 +183,7 @@ class PettyCashPaymentService:
                     payment=payment,
                     description=item.get('description', ''),
                     amount=item['amount'],
+                    tax=item.get('tax'),
                     category=item.get('category'),
                     note=item.get('note', '')
                 )

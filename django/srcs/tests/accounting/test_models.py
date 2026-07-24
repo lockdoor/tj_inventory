@@ -134,10 +134,12 @@ class TestPettyCashModels:
             payment=payment,
             description="Fuel for delivery truck",
             amount=Decimal("150.50"),
+            tax=Decimal("10.53"),
             category=petty_cash_category
         )
         assert item.payment == payment
         assert item.amount == Decimal("150.50")
+        assert item.tax == Decimal("10.53")
         assert item.category == petty_cash_category
         assert str(item) == f"{payment.payment_no} Line Item: Travel Expenses - 150.50"
 

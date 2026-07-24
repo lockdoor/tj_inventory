@@ -11,3 +11,4 @@ django/media/item_images/*
 django/media/inventory/attachments/*
 !django/media/inventory/attachments/.gitkeep
 database_backup.sql.gz
+asset_dev

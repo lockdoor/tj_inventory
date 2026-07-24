@@ -94,6 +94,23 @@ class TestPettyCashPaymentViews:
         assert len(response.context['payments']) == 1
         assert response.context['account'] == account
 
+        # Test search matching payment_no
+        response = client.get(url, {'q': payment.payment_no})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 1
+
+        # Test search matching payee_name
+        payment.payee_name = "Unique Payee Name"
+        payment.save()
+        response = client.get(url, {'q': 'Unique Payee'})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 1
+
+        # Test search non-matching query
+        response = client.get(url, {'q': 'NonExistentSearchTerm'})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 0
+
     def test_create_payment_success(self, client, manager_user, account, category):
         client.force_login(manager_user)
         
