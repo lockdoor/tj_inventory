@@ -91,3 +91,16 @@ def test_dashboard_warehouse_admin_access(client, test_user):
     assert response.status_code == 200
     assert 'dashboard/warehouse_dashboard.html' in [t.name for t in response.templates]
     assert response.context['page_title'] == "Warehouse Control Center"
+
+@pytest.mark.django_db
+def test_dashboard_accountant_access(client, test_user):
+    """User in accountant group gets the accountant dashboard."""
+    group = Group.objects.create(name='accountant')
+    test_user.groups.add(group)
+    client.force_login(test_user)
+    
+    url = reverse('dashboard:home')
+    response = client.get(url)
+    assert response.status_code == 200
+    assert 'dashboard/accountant_dashboard.html' in [t.name for t in response.templates]
+    assert response.context['page_title'] == "Accountant Command Center"

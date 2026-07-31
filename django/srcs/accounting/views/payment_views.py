@@ -86,7 +86,9 @@ class PettyCashPaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cr
                     'description': item_form.cleaned_data.get('description', ''),
                     'amount': item_form.cleaned_data['amount'],
                     'tax': item_form.cleaned_data.get('tax'),
-                    'note': item_form.cleaned_data.get('note', '')
+                    'note': item_form.cleaned_data.get('note', ''),
+                    'external_pv_no': item_form.cleaned_data.get('external_pv_no', ''),
+                    'rounding_adjustment': item_form.cleaned_data.get('rounding_adjustment')
                 })
 
             try:
@@ -98,8 +100,7 @@ class PettyCashPaymentCreateView(LoginRequiredMixin, PermissionRequiredMixin, Cr
                     payee_name=form.cleaned_data.get('payee_name', ''),
                     payment_date=form.cleaned_data.get('payment_date'),
                     created_by=self.request.user,
-                    note=form.cleaned_data.get('note', ''),
-                    rounding_adjustment=form.cleaned_data.get('rounding_adjustment')
+                    note=form.cleaned_data.get('note', '')
                 )
                 messages.success(self.request, "Voucher created and balance updated successfully.")
                 return redirect('accounting:payment-list', account_code=account.code)
@@ -154,7 +155,9 @@ class PettyCashPaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Up
                     'description': item_form.cleaned_data.get('description', ''),
                     'amount': item_form.cleaned_data['amount'],
                     'tax': item_form.cleaned_data.get('tax'),
-                    'note': item_form.cleaned_data.get('note', '')
+                    'note': item_form.cleaned_data.get('note', ''),
+                    'external_pv_no': item_form.cleaned_data.get('external_pv_no', ''),
+                    'rounding_adjustment': item_form.cleaned_data.get('rounding_adjustment')
                 })
 
             try:
@@ -165,8 +168,7 @@ class PettyCashPaymentUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Up
                     payee=form.cleaned_data.get('payee'),
                     payee_name=form.cleaned_data.get('payee_name', ''),
                     payment_date=form.cleaned_data.get('payment_date'),
-                    note=form.cleaned_data.get('note', ''),
-                    rounding_adjustment=form.cleaned_data.get('rounding_adjustment')
+                    note=form.cleaned_data.get('note', '')
                 )
                 messages.success(self.request, "Voucher updated successfully.")
                 next_url = self.request.GET.get('next') or self.request.POST.get('next')
@@ -262,6 +264,24 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
             round_id = rounds[0]['id']
         context['selected_round_id'] = round_id
 
+        # Calculate prev/next round navigation
+        prev_round = None
+        next_round = None
+        current_idx = None
+        for i, rnd in enumerate(rounds):
+            if rnd['id'] == round_id:
+                current_idx = i
+                break
+        
+        if current_idx is not None:
+            if current_idx < len(rounds) - 1:
+                prev_round = rounds[current_idx + 1]  # Older
+            if current_idx > 0:
+                next_round = rounds[current_idx - 1]  # Newer
+        
+        context['prev_round'] = prev_round
+        context['next_round'] = next_round
+
         selected_rep = None
         is_active_round = False
 
@@ -286,33 +306,38 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         
         round_items = items.exclude(payment__payment_type='replenishment')
 
-        # Distinguish actual PV payments and normal items
-        actual_pv_payments = payments_qs.exclude(payment_type='replenishment').exclude(external_pv_no='').exclude(external_pv_no__isnull=True).order_by('external_pv_no', 'id')
-        normal_items = round_items.exclude(payment__in=actual_pv_payments)
+        # Distinguish actual PV items and normal items
+        actual_pv_items = round_items.exclude(external_pv_no='').exclude(external_pv_no__isnull=True).order_by('external_pv_no', 'id')
+        normal_items = round_items.filter(Q(external_pv_no='') | Q(external_pv_no__isnull=True))
 
         # In-memory aggregation of normal items with VAT extraction and rounding adjustment deduction
         category_sums_dict = {}
         total_vat = Decimal('0.00')
         total_rounding = Decimal('0.00')
         unallocated_sum = Decimal('0.00')
-        processed_payment_ids = set()
 
-        # Prefetch payment to avoid N+1 queries on item.payment.rounding_adjustment
+        # Prefetch payment to avoid N+1 queries on item.payment
         normal_items = normal_items.select_related('payment')
 
+        vat_items_list = []
         for item in normal_items:
             tax_amount = item.tax or Decimal('0.00')
-            item_rounding = Decimal('0.00')
-            
-            # If this is the first item of the payment, subtract the rounding adjustment
-            if item.payment_id not in processed_payment_ids:
-                if item.payment.rounding_adjustment:
-                    item_rounding = item.payment.rounding_adjustment
-                    total_rounding += item_rounding
-                processed_payment_ids.add(item.payment_id)
+            item_rounding = item.rounding_adjustment or Decimal('0.00')
+            total_rounding += item_rounding
 
             net_amount = item.amount - tax_amount - item_rounding
-            total_vat += tax_amount
+
+            if tax_amount > Decimal('0.00'):
+                vat_code = account.vat_category_code or '1155-00'
+                vat_cat = PettyCashCategory.objects.filter(code=vat_code, company=account.company, is_deleted=False).first()
+                vat_name = vat_cat.name if vat_cat else "ภาษีซื้อ-ยังไม่ถึงกำหนด"
+                payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
+                desc_str = f"VAT: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Input VAT')
+                vat_items_list.append({
+                    'category__code': vat_code,
+                    'category__name': f"{vat_name} ({desc_str})",
+                    'total': tax_amount
+                })
 
             if item.category:
                 code = item.category.code
@@ -326,20 +351,6 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
                 category_sums_dict[code]['total'] += net_amount
             else:
                 unallocated_sum += net_amount
-
-        # Add VAT aggregation under the configured VAT code if VAT exists
-        if total_vat > Decimal('0.00'):
-            vat_code = account.vat_category_code or '1155-00'
-            if vat_code in category_sums_dict:
-                category_sums_dict[vat_code]['total'] += total_vat
-            else:
-                vat_cat = PettyCashCategory.objects.filter(code=vat_code, company=account.company, is_deleted=False).first()
-                vat_name = vat_cat.name if vat_cat else "ภาษีซื้อ-ยังไม่ถึงกำหนด"
-                category_sums_dict[vat_code] = {
-                    'category__code': vat_code,
-                    'category__name': vat_name,
-                    'total': total_vat
-                }
 
         # Add Rounding aggregation under the configured rounding category code if rounding exists
         if total_rounding != Decimal('0.00'):
@@ -358,6 +369,9 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         # Convert to list and sort normal categories by code
         category_sums_list = sorted(category_sums_dict.values(), key=lambda x: x['category__code'])
 
+        # Append individual VAT records
+        category_sums_list.extend(vat_items_list)
+
         # Append unallocated row if it exists
         if unallocated_sum > Decimal('0.00'):
             category_sums_list.append({
@@ -367,23 +381,24 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
             })
 
         # Append individual actual PV records
-        for payment in actual_pv_payments:
+        for item in actual_pv_items:
+            payment = item.payment
             payee = payment.payee_name or (payment.payee.get_full_name() if payment.payee else '') or str(payment.payee or '')
-            first_item_desc = payment.items.first().description if payment.items.exists() else ''
-            desc_str = f"{payee} - {first_item_desc}" if payee and first_item_desc else (payee or first_item_desc or 'External PV')
+            desc_str = f"{payee} - {item.description}" if payee and item.description else (payee or item.description or 'External PV')
             category_sums_list.append({
-                'category__code': f"PV: {payment.external_pv_no}",
+                'category__code': f"PV: {item.external_pv_no}",
                 'category__name': desc_str,
-                'total': payment.total_amount
+                'total': item.amount
             })
 
-        # Compute unallocated count, excluding items belonging to replenishment or actual PV payments
+        # Compute unallocated count, excluding items belonging to replenishment or actual PV items
         unallocated_count = items.filter(category__isnull=True).exclude(payment__payment_type='replenishment').exclude(
-            Q(payment__external_pv_no__isnull=False) & ~Q(payment__external_pv_no='')
+            ~Q(external_pv_no='') & Q(external_pv_no__isnull=False)
         ).count()
 
         context['payments'] = payments_qs
         context['category_sums'] = category_sums_list
+        context['total_spent'] = sum(row['total'] for row in category_sums_list)
         context['unallocated_count'] = unallocated_count
         context['unposted_payments'] = payments_qs.filter(is_posted=False)
         context['posted_payments'] = payments_qs.filter(is_posted=True)
@@ -457,8 +472,8 @@ class PettyCashPaymentAllocateAPIView(LoginRequiredMixin, PermissionRequiredMixi
     permission_required = 'accounting.change_pettycashpayment'
     
     def post(self, request, pk, *args, **kwargs):
-        payment = get_object_or_404(PettyCashPayment, pk=pk)
-        if payment.is_posted:
+        item = get_object_or_404(PettyCashPaymentItem, pk=pk)
+        if item.payment.is_posted:
             return JsonResponse({'error': 'Cannot modify posted vouchers.'}, status=400)
             
         import json
@@ -475,30 +490,15 @@ class PettyCashPaymentAllocateAPIView(LoginRequiredMixin, PermissionRequiredMixi
             
         if category_id:
             category = get_object_or_404(PettyCashCategory, pk=category_id, is_deleted=False)
-            if category.company != payment.account.company:
+            if category.company != item.payment.account.company:
                 return JsonResponse({'error': 'Category company mismatch.'}, status=400)
                 
-            payment.external_pv_no = ''
-            payment.save()
-            
-            item = payment.items.first()
-            if not item:
-                item = PettyCashPaymentItem.objects.create(
-                    payment=payment,
-                    amount=payment.total_amount,
-                    category=category,
-                    description=payment.note or "Voucher Item"
-                )
-            else:
-                item.category = category
-                item.save()
+            item.category = category
+            item.external_pv_no = ''
+            item.save()
         else:
-            # Clear categories on items and set external PV
-            payment.external_pv_no = external_pv_no.strip()
-            payment.save()
-            
-            for item in payment.items.all():
-                item.category = None
-                item.save()
+            item.category = None
+            item.external_pv_no = external_pv_no.strip()
+            item.save()
             
         return JsonResponse({'success': True})

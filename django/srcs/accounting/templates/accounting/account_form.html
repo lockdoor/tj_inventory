@@ -124,6 +124,22 @@
                     <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.status.errors.0 }}</span>
                     {% endif %}
                 </div>
+
+                <div>
+                    <label for="{{ form.vat_category_code.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Undue VAT Category Code *</label>
+                    {{ form.vat_category_code }}
+                    {% if form.vat_category_code.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.vat_category_code.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.rounding_category_code.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Rounding Category Code *</label>
+                    {{ form.rounding_category_code }}
+                    {% if form.rounding_category_code.errors %}
+                    <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.rounding_category_code.errors.0 }}</span>
+                    {% endif %}
+                </div>
             </div>
 
             <div>

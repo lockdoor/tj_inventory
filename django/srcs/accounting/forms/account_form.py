@@ -16,7 +16,7 @@ class PettyCashAccountForm(forms.ModelForm):
 
     class Meta:
         model = PettyCashAccount
-        fields = ['code', 'name', 'max_limit', 'balance', 'currency', 'company', 'custodian', 'status', 'note']
+        fields = ['code', 'name', 'max_limit', 'balance', 'currency', 'company', 'custodian', 'status', 'note', 'vat_category_code', 'rounding_category_code']
         widgets = {
             'code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. PC-HO-01'}),
             'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. Head Office Cash Box'}),
@@ -26,6 +26,8 @@ class PettyCashAccountForm(forms.ModelForm):
             'custodian': forms.Select(attrs={'class': 'form-input'}),
             'status': forms.Select(attrs={'class': 'form-input'}),
             'note': forms.Textarea(attrs={'class': 'form-input', 'rows': 3, 'placeholder': 'Optional details...'}),
+            'vat_category_code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. 1155-00'}),
+            'rounding_category_code': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. 4200-07'}),
         }
 
     def __init__(self, *args, **kwargs):

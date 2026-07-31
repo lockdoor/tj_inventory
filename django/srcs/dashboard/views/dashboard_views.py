@@ -10,11 +10,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_role(self):
         """
         Determines the effective role of the user based on group membership.
-        Priority: Executive > Stock Controller > Warehouse Admin > Sales Rep > Default (Executive)
+        Priority: Executive > Accountant > Stock Controller > Warehouse Admin > Sales Rep > Default (Executive)
         """
         groups = self.request.user.groups.values_list('name', flat=True)
         if 'executive' in groups or self.request.user.is_superuser:
             return 'executive'
+        if 'accountant' in groups:
+            return 'accountant'
         if 'stock_controller' in groups:
             return 'stock_controller'
         if 'warehouse_admin' in groups:
@@ -31,6 +33,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return ['dashboard/stock_controller_dashboard.html']
         if role == 'sales_rep':
             return ['dashboard/sales_dashboard.html']
+        if role == 'accountant':
+            return ['dashboard/accountant_dashboard.html']
         return ['dashboard/executive_dashboard.html']
 
     def get_context_data(self, **kwargs):
@@ -41,6 +45,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return self.get_stock_controller_context(**kwargs)
         if role == 'sales_rep':
             return self.get_sales_context(**kwargs)
+        if role == 'accountant':
+            return self.get_accountant_context(**kwargs)
         return self.get_executive_context(**kwargs)
 
     def get_executive_context(self, **kwargs):
@@ -97,11 +103,53 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'badge': 'Sells'
             },
             {
-                'title': 'Petty Cash Operations',
+                'title': 'Accounting Operations',
                 'description': 'Track physical cash boxes, custodian limits, accounting GL categories, and payment vouchers.',
                 'url': 'accounting:overview',
                 'icon_name': 'credit-card',
                 'badge': 'Accounting'
+            },
+        ]
+        return context
+
+    def get_accountant_context(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Accountant Command Center"
+        context['modules'] = [
+            {
+                'title': 'accounting Operations',
+                'description': 'Track physical cash boxes, custodian limits, accounting GL categories, and payment vouchers.',
+                'url': 'accounting:overview',
+                'icon_name': 'credit-card',
+                'badge': 'Accounting'
+            },
+            {
+                'title': 'Company Directory',
+                'description': 'Manage internal company details, contact information, and registration metadata.',
+                'url': 'common:company-list',
+                'icon_name': 'briefcase',
+                'badge': 'Entities'
+            },
+            {
+                'title': 'Individual Registry',
+                'description': 'Manage system users, contact details, and employee/customer profiles.',
+                'url': 'common:individual-list',
+                'icon_name': 'user',
+                'badge': 'Entities'
+            },
+            {
+                'title': 'Partner Database',
+                'description': 'Track and view your supplier and customer network.',
+                'url': 'partners:partner-list',
+                'icon_name': 'users',
+                'badge': 'Partners'
+            },
+            {
+                'title': 'Product Catalog',
+                'description': 'View item specifications and media (Read-Only).',
+                'url': 'catalog:catalog-overview',
+                'icon_name': 'box',
+                'badge': 'Reference'
             },
         ]
         return context

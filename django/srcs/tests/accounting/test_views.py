@@ -55,7 +55,7 @@ class TestPettyCashViews:
         client.force_login(user_with_perms)
         response = client.get(reverse('accounting:overview'))
         assert response.status_code == 200
-        assert 'category_count' in response.context
+        assert 'modules' in response.context
     def test_category_list_view_and_search(self, client, user_with_perms, category):
         client.force_login(user_with_perms)
         

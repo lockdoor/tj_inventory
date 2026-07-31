@@ -12,7 +12,26 @@ class PettyCashOverviewView(LoginRequiredMixin, PermissionRequiredMixin, Templat
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category_count'] = PettyCashCategory.objects.filter(is_deleted=False).count()
-        context['account_count'] = PettyCashAccount.objects.filter(is_deleted=False).count()
-        context['payment_count'] = PettyCashPayment.objects.filter(is_deleted=False).count()
+        category_count = PettyCashCategory.objects.filter(is_deleted=False).count()
+        account_count = PettyCashAccount.objects.filter(is_deleted=False).count()
+        
+        context['page_title'] = "Accounting Overview"
+        context['modules'] = [
+            {
+                'title': 'Expense Categories',
+                'description': 'Map expense categories to GL accounting codes (ผังบัญชี) for each company.',
+                'url': 'accounting:category-list',
+                'icon_name': 'hash',
+                'icon_class': 'category-icon',
+                'badge': f"{category_count} Categories"
+            },
+            {
+                'title': 'Petty Cash Accounts',
+                'description': 'Configure petty cash boxes, maximum balances, limits, and custodians.',
+                'url': 'accounting:account-list',
+                'icon_name': 'wallet',
+                'icon_class': 'pettycash-icon',
+                'badge': f"{account_count} Accounts"
+            }
+        ]
         return context

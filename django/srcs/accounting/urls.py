@@ -60,5 +60,5 @@ urlpatterns = [
     path('payments/<int:pk>/', PettyCashPaymentDetailView.as_view(), name='payment-detail'),
     path('payments/<int:pk>/update/', PettyCashPaymentUpdateView.as_view(), name='payment-update'),
     path('payments/<int:pk>/cancel/', PettyCashPaymentCancelView.as_view(), name='payment-cancel'),
-    path('payments/<int:pk>/allocate/', PettyCashPaymentAllocateAPIView.as_view(), name='payment-allocate'),
+    path('items/<int:pk>/allocate/', PettyCashPaymentAllocateAPIView.as_view(), name='payment-allocate'),
 ]

@@ -91,13 +91,6 @@
                         <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.payee_name.errors.0 }}</span>
                         {% endif %}
                     </div>
-                    <div id="rounding-adjustment-wrapper" style="display: none;">
-                        <label for="{{ form.rounding_adjustment.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Rounding Adjustment (GL Code: {{ account.rounding_category_code|default:"4200-07" }})</label>
-                        {{ form.rounding_adjustment }}
-                        {% if form.rounding_adjustment.errors %}
-                        <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.rounding_adjustment.errors.0 }}</span>
-                        {% endif %}
-                    </div>
                 </div>
                 <div style="margin-top: 1.25rem;">
                     <label for="{{ form.note.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">General Notes</label>
@@ -167,7 +160,25 @@
                             </div>
                         </div>
 
-                        <!-- Line 2: Line Note (TextField) -->
+                        <!-- Line 2: External PV & Rounding -->
+                        <div style="display: flex; gap: 1.5rem; align-items: flex-end; width: 100%;">
+                            <div style="flex-grow: 1;">
+                                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">External PV No</label>
+                                {{ item_form.external_pv_no }}
+                                {% if item_form.external_pv_no.errors %}
+                                <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.external_pv_no.errors.0 }}</span>
+                                {% endif %}
+                            </div>
+                            <div style="width: 180px;">
+                                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Rounding</label>
+                                {{ item_form.rounding_adjustment }}
+                                {% if item_form.rounding_adjustment.errors %}
+                                <span style="color: #f87171; font-size: 0.8rem; margin-top: 0.25rem; display: block;">{{ item_form.rounding_adjustment.errors.0 }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Line 3: Line Note (TextField) -->
                         <div style="width: 100%;">
                             <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note</label>
                             {{ item_form.note }}
@@ -220,7 +231,19 @@
             </div>
         </div>
 
-        <!-- Line 2: Line Note (TextField) -->
+        <!-- Line 2: External PV & Rounding -->
+        <div style="display: flex; gap: 1.5rem; align-items: flex-end; width: 100%;">
+            <div style="flex-grow: 1;">
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">External PV No</label>
+                {{ formset.empty_form.external_pv_no }}
+            </div>
+            <div style="width: 180px;">
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Rounding</label>
+                {{ formset.empty_form.rounding_adjustment }}
+            </div>
+        </div>
+
+        <!-- Line 3: Line Note (TextField) -->
         <div style="width: 100%;">
             <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.4rem;">Line Note</label>
             {{ formset.empty_form.note }}

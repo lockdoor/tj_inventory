@@ -78,7 +78,9 @@ class TestPettyCashAccountViews:
             'max_limit': '5000.00',
             'currency': 'THB',
             'status': 'active',
-            'note': 'Second box'
+            'note': 'Second box',
+            'vat_category_code': '1155-00',
+            'rounding_category_code': '4200-07'
         }
         response = client.post(url, data)
         assert response.status_code == 302
@@ -100,7 +102,9 @@ class TestPettyCashAccountViews:
             'max_limit': '8000.00',
             'currency': 'THB',
             'status': 'inactive',
-            'note': 'Updated notes'
+            'note': 'Updated notes',
+            'vat_category_code': '1155-00',
+            'rounding_category_code': '4200-07'
         }
         response = client.post(url, data)
         assert response.status_code == 302

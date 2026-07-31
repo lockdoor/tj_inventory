@@ -492,14 +492,14 @@ class TestPettyCashPaymentViews:
             account=account,
             payment_type="disbursement",
             total_amount=Decimal("300.00"),
-            external_pv_no="PV-6902-001",
             created_by=manager_user
         )
         PettyCashPaymentItem.objects.create(
             payment=pay_d,
             category=None,
             amount=Decimal("300.00"),
-            description="Direct Express PV Entry"
+            description="Direct Express PV Entry",
+            external_pv_no="PV-6902-001"
         )
         
         # Create a replenishment to mark the end of the round
@@ -521,13 +521,15 @@ class TestPettyCashPaymentViews:
         # - Code "1155-00" with base + tax: 200 + 70 = 270.00
         # - Code "PV: PV-6902-001" with amount: 300.00
         
-        sums_dict = {row['category__code']: row for row in category_sums}
+        # VAT is now individual rows instead of a single aggregated row.
+        vat_rows = [row for row in category_sums if row['category__code'] == "1155-00"]
+        total_vat_sum = sum(row['total'] for row in vat_rows)
+        assert total_vat_sum == Decimal("270.00")
+        
+        sums_dict = {row['category__code']: row for row in category_sums if row['category__code'] != "1155-00"}
         
         assert "5101-00" in sums_dict
         assert sums_dict["5101-00"]["total"] == Decimal("1430.00")
-        
-        assert "1155-00" in sums_dict
-        assert sums_dict["1155-00"]["total"] == Decimal("270.00")
         
         assert "PV: PV-6902-001" in sums_dict
         assert sums_dict["PV: PV-6902-001"]["total"] == Decimal("300.00")
@@ -584,15 +586,15 @@ class TestPettyCashPaymentViews:
                 'description': 'Taxi fare',
                 'amount': Decimal('1001.00'),
                 'category': cat_expense,
-                'note': ''
+                'note': '',
+                'rounding_adjustment': Decimal('0.25')
             }],
-            rounding_adjustment=Decimal('0.25'),
             created_by=manager_user
         )
         
         # Verify disbursement total amount is exactly 1001.00 (the gross amount)
         assert pay_expense.total_amount == Decimal("1001.00")
-        assert pay_expense.rounding_adjustment == Decimal("0.25")
+        assert pay_expense.items.first().rounding_adjustment == Decimal("0.25")
         
         # Verify account balance decreased by 1001.00
         account.refresh_from_db()
@@ -614,23 +616,37 @@ class TestPettyCashPaymentViews:
                 'description': item.description,
                 'amount': item.amount,
                 'tax': item.tax,
-                'note': item.note
+                'note': item.note,
+                'rounding_adjustment': Decimal("0.25")
             })
             
         updated_pay = PettyCashPaymentService.update_payment(
             pay_expense,
             updated_by=manager_user,
-            items_data=all_items_data,
-            rounding_adjustment=Decimal("0.25")
+            items_data=all_items_data
         )
         assert updated_pay.total_amount == Decimal("1001.00")
         assert updated_pay.items.count() == 1
         
+        # Create negative rounding payment (Amount 500.00 gross + Rounding -0.50)
+        pay_expense_neg = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=[{
+                'description': 'Office supplies',
+                'amount': Decimal('500.00'),
+                'category': cat_expense,
+                'note': '',
+                'rounding_adjustment': Decimal('-0.50')
+            }],
+            created_by=manager_user
+        )
+
         # Create a replenishment to mark the end of the round
         replenishment = PettyCashPayment.objects.create(
             account=account,
             payment_type="replenishment",
-            total_amount=Decimal("1001.00"),
+            total_amount=Decimal("1501.00"),
             created_by=manager_user
         )
         
@@ -642,7 +658,10 @@ class TestPettyCashPaymentViews:
         category_sums = response.context['category_sums']
         sums_dict = {row['category__code']: row for row in category_sums}
         
+        # Rounded adjustments: 0.25 + (-0.50) = -0.25
         assert "4200-09" in sums_dict
-        assert sums_dict["4200-09"]["total"] == Decimal("0.25")
+        assert sums_dict["4200-09"]["total"] == Decimal("-0.25")
+        
+        # Expense: (1001.00 - 0.25) + (500.00 - (-0.50)) = 1000.75 + 500.50 = 1501.25
         assert "5101-00" in sums_dict
-        assert sums_dict["5101-00"]["total"] == Decimal("1000.75")
+        assert sums_dict["5101-00"]["total"] == Decimal("1501.25")

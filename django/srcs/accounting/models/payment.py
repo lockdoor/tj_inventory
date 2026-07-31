@@ -66,20 +66,6 @@ class PettyCashPayment(AuditableMixin):
         blank=True,
         related_name='posted_payments'
     )
-    external_pv_no = models.CharField(
-        max_length=100,
-        blank=True,
-        default='',
-        help_text="External Express PV (Payment Voucher) number if created directly in Express."
-    )
-    rounding_adjustment = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Adjustment to round replenishment amount to integer"
-    )
-
     class Meta:
         ordering = ['-payment_date', '-id']
         verbose_name = "Petty Cash Payment"
@@ -132,11 +118,24 @@ class PettyCashPaymentItem(models.Model):
         default='', 
         help_text="Optional remarks for this item"
     )
+    external_pv_no = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="External Express PV (Payment Voucher) number if created directly in Express."
+    )
+    rounding_adjustment = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Adjustment to round this item to integer"
+    )
 
     class Meta:
         verbose_name = "Petty Cash Payment Item"
         verbose_name_plural = "Petty Cash Payment Items"
 
     def __str__(self):
-        category_name = self.category.name if self.category else "Unallocated"
+        category_name = self.category.name if self.category else (f"PV: {self.external_pv_no}" if self.external_pv_no else "Unallocated")
         return f"{self.payment.payment_no} Line Item: {category_name} - {self.amount}"

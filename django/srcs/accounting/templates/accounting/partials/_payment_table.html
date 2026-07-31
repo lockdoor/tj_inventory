@@ -21,54 +21,65 @@
         </thead>
         <tbody>
             {% for payment in payments %}
-            <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
-                <td style="padding: 1.25rem; color: var(--text-dim); vertical-align: top;">
-                    <div style="font-weight: 500; margin-bottom: 0.35rem; color: var(--text-main);">{{ payment.payment_date|date:"Y-m-d" }}</div>
-                    {% if payment.payment_type == 'replenishment' %}
-                    <span style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block;">Replenishment</span>
-                    {% elif payment.is_posted %}
-                    <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.15); display: inline-block;">Posted</span>
-                    {% else %}
-                    <button type="button" 
-                            onclick="openAllocationModal('{{ payment.pk }}', '{{ payment.payment_no }}', '{{ payment.account.company.pk }}', '{{ payment.external_pv_no|default:"" }}', '{{ payment.items.first.description|escapejs }}')" 
-                            style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block; cursor: pointer; transition: all 0.2s; outline: none; border-style: solid;" 
-                            onmouseover="this.style.background='rgba(251, 191, 36, 0.15)'" 
-                            onmouseout="this.style.background='rgba(251, 191, 36, 0.08)'"
-                            title="Click to allocate category or external PV">
-                        Unposted
-                    </button>
-                    {% endif %}
-                </td>
-                <td style="padding: 1.25rem; color: var(--text-main); font-weight: 500; vertical-align: top;">
-                    <div>{{ payment.payee_name|default:payment.payee }}</div>
-                    {% if payment.items.first.category %}
-                    <div style="font-size: 0.8rem; color: var(--primary-light); font-family: monospace; font-weight: 700; margin-top: 0.25rem;">
-                        {{ payment.items.first.category.code }}
-                    </div>
-                    {% elif payment.external_pv_no %}
-                    <div style="font-size: 0.8rem; color: var(--text-dim); font-family: monospace; margin-top: 0.25rem;">
-                        Ext PV: {{ payment.external_pv_no }}
-                    </div>
-                    {% endif %}
-                </td>
-                <td style="padding: 1.25rem; font-size: 0.95rem; vertical-align: top;">
-                    <a href="{% url 'accounting:payment-detail' payment.pk %}" style="color: var(--primary-light); text-decoration: none; font-weight: 500; transition: var(--transition);" onmouseover="this.style.color='var(--primary-hover)'" onmouseout="this.style.color='var(--primary-light)'">
-                        {{ payment.items.first.description|default:"View Details" }}
-                    </a>
-                    {% if payment.items.first.category %}
-                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem;">
-                        <span style="font-family: monospace; font-weight: 700; color: var(--primary-light);">{{ payment.items.first.category.code }}</span>
-                        <span>- {{ payment.items.first.category.name }}</span>
-                    </div>
-                    {% endif %}
-                </td>
-                <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
-                    {% if payment.items.first.tax %}{{ payment.items.first.tax }}{% else %}-{% endif %}
-                </td>
-                <td style="padding: 1.25rem; text-align: right; font-weight: 700; font-family: monospace; font-size: 1.05rem; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
-                    {% if payment.payment_type == 'disbursement' %}-{% else %}+{% endif %}{{ payment.total_amount }}
-                </td>
-            </tr>
+                {% for item in payment.items.all %}
+                <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
+                    <td style="padding: 1.25rem; color: var(--text-dim); vertical-align: top;">
+                        <div style="font-weight: 500; margin-bottom: 0.35rem; color: var(--text-main);">{{ payment.payment_date|date:"Y-m-d" }}</div>
+                        {% if payment.payment_type == 'replenishment' %}
+                        <span style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block;">Replenishment</span>
+                        {% elif payment.is_posted %}
+                        <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.15); display: inline-block;">Posted</span>
+                        {% elif item.category or item.external_pv_no %}
+                        <button type="button" 
+                                onclick="openAllocationModal('{{ item.pk }}', '{{ payment.payment_no }}', '{{ payment.account.company.pk }}', '{{ item.external_pv_no|default:"" }}', '{{ item.description|escapejs }}', '{{ item.category.pk|default:"" }}', '{{ item.category.code|escapejs }} - {{ item.category.name|escapejs }}')" 
+                                style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block; cursor: pointer; transition: all 0.2s; outline: none; border-style: solid;" 
+                                onmouseover="this.style.background='rgba(251, 191, 36, 0.15)'" 
+                                onmouseout="this.style.background='rgba(251, 191, 36, 0.08)'"
+                                title="Click to edit category or external PV allocation">
+                            Allocated
+                        </button>
+                        {% else %}
+                        <button type="button" 
+                                onclick="openAllocationModal('{{ item.pk }}', '{{ payment.payment_no }}', '{{ payment.account.company.pk }}', '{{ item.external_pv_no|default:"" }}', '{{ item.description|escapejs }}', '', '')" 
+                                style="font-size: 0.65rem; background: rgba(239, 68, 68, 0.08); color: #f87171; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(239, 68, 68, 0.15); display: inline-block; cursor: pointer; transition: all 0.2s; outline: none; border-style: solid;" 
+                                onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" 
+                                onmouseout="this.style.background='rgba(239, 68, 68, 0.08)'"
+                                title="Click to allocate category or external PV">
+                            Unposted
+                        </button>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; color: var(--text-main); font-weight: 500; vertical-align: top;">
+                        <div>{{ payment.payee_name|default:payment.payee }}</div>
+                        {% if item.category %}
+                        <div style="font-size: 0.8rem; color: var(--primary-light); font-family: monospace; font-weight: 700; margin-top: 0.25rem;">
+                            {{ item.category.code }}
+                        </div>
+                        {% elif item.external_pv_no %}
+                        <div style="font-size: 0.8rem; color: var(--text-dim); font-family: monospace; margin-top: 0.25rem;">
+                            Ext PV: {{ item.external_pv_no }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; font-size: 0.95rem; vertical-align: top;">
+                        <a href="{% url 'accounting:payment-detail' payment.pk %}" style="color: var(--primary-light); text-decoration: none; font-weight: 500; transition: var(--transition);" onmouseover="this.style.color='var(--primary-hover)'" onmouseout="this.style.color='var(--primary-light)'">
+                            {{ item.description|default:"View Details" }}
+                        </a>
+                        {% if item.category %}
+                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem;">
+                            <span style="font-family: monospace; font-weight: 700; color: var(--primary-light);">{{ item.category.code }}</span>
+                            <span>- {{ item.category.name }}</span>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
+                        {% if item.tax %}{{ item.tax }}{% else %}-{% endif %}
+                    </td>
+                    <td style="padding: 1.25rem; text-align: right; font-weight: 700; font-family: monospace; font-size: 1.05rem; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
+                        {% if payment.payment_type == 'disbursement' %}-{% else %}+{% endif %}{{ item.amount }}
+                    </td>
+                </tr>
+                {% endfor %}
             {% empty %}
             <tr>
                 <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted);">
@@ -180,14 +191,14 @@
         }
     }
 
-    function openAllocationModal(paymentId, voucherNo, companyId, externalPvNo, description) {
+    function openAllocationModal(paymentId, voucherNo, companyId, externalPvNo, description, categoryId, categoryName) {
         const modal = document.getElementById('allocationModal');
         document.getElementById('modalPaymentId').value = paymentId;
         document.getElementById('modalVoucherNo').textContent = voucherNo || 'New Voucher';
         document.getElementById('modalDescription').textContent = description ? `Description: "${description}"` : '';
         document.getElementById('modalCompanyId').value = companyId;
-        document.getElementById('selectedCategoryId').value = '';
-        document.getElementById('categorySearchInput').value = '';
+        document.getElementById('selectedCategoryId').value = categoryId || '';
+        document.getElementById('categorySearchInput').value = categoryName || '';
         document.getElementById('categorySuggestions').style.display = 'none';
         document.getElementById('externalPvInput').value = externalPvNo || '';
         
@@ -201,7 +212,7 @@
         } else {
             switchMode('coa');
         }
-    }
+      }
 
     function closeAllocationModal() {
         const modal = document.getElementById('allocationModal');
@@ -305,7 +316,7 @@
             csrfToken = csrfInput.value;
         }
         
-        fetch(`/accounting/payments/${paymentId}/allocate/`, {
+        fetch(`/accounting/items/${paymentId}/allocate/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
