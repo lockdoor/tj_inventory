@@ -66,6 +66,19 @@ class PettyCashPayment(AuditableMixin):
         blank=True,
         related_name='posted_payments'
     )
+    external_pv_no = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text="External Express PV (Payment Voucher) number if created directly in Express."
+    )
+    rounding_adjustment = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Adjustment to round replenishment amount to integer"
+    )
 
     class Meta:
         ordering = ['-payment_date', '-id']

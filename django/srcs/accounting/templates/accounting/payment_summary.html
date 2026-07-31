@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}End of Month Summary: {{ account.code }} - TJ Inventory{% endblock %}
+{% block title %}Replenishment Summary: {{ account.code }} - TJ Inventory{% endblock %}
 
 {% block breadcrumbs %}
 <a href="{% url 'accounting:overview' %}" style="color: var(--text-muted); text-decoration: none;">Petty Cash</a>
@@ -9,7 +9,7 @@
 <span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
 <a href="{% url 'accounting:payment-list' account.code %}" style="color: var(--text-muted); text-decoration: none;">Vouchers ({{ account.code }})</a>
 <span style="color: var(--text-muted); margin: 0 0.5rem;">/</span>
-<span style="color: var(--text-main); font-weight: 500;">EOM Summary</span>
+<span style="color: var(--text-main); font-weight: 500;">Replenishment Summary</span>
 {% endblock %}
 
 {% block content %}
@@ -27,9 +27,9 @@
 
     <!-- Header -->
     <div style="margin-bottom: 2.5rem;">
-        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">End-of-Month Summary</h1>
+        <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Replenishment Summary</h1>
         <p style="color: var(--text-dim); font-size: 1.1rem;">
-            Review and post aggregated monthly expenses from cash box <strong style="color: var(--primary-light);">{{ account.name }} ({{ account.code }})</strong> to Express ERP.
+            Review and post aggregated expenses from cash box <strong style="color: var(--primary-light);">{{ account.name }} ({{ account.code }})</strong> for a specific replenishment round.
         </p>
     </div>
 
@@ -37,18 +37,10 @@
     <div class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem; border-color: rgba(255,255,255,0.08);">
         <form method="get" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
             <div>
-                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Year</label>
-                <select name="year" class="form-input" style="min-width: 140px;">
-                    {% for y in years %}
-                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Month</label>
-                <select name="month" class="form-input" style="min-width: 160px;">
-                    {% for m_val, m_name in months %}
-                    <option value="{{ m_val }}" {% if m_val == selected_month %}selected{% endif %}>{{ m_name }}</option>
+                <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Replenishment Round</label>
+                <select name="round_id" class="form-input" style="min-width: 320px;">
+                    {% for rnd in rounds %}
+                    <option value="{{ rnd.id }}" {% if rnd.id == selected_round_id %}selected{% endif %}>{{ rnd.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -89,7 +81,7 @@
         <div>
             <h4 style="margin: 0 0 0.25rem 0; font-weight: 700; font-size: 1.05rem;">Unallocated Line Items Found</h4>
             <p style="margin: 0; font-size: 0.95rem; line-height: 1.5; color: rgba(255,255,255,0.7);">
-                There are <strong>{{ unallocated_count }}</strong> items without an assigned category in this month. You must edit these vouchers and allocate them to categories before you can mark them as posted to Express.
+                There are <strong>{{ unallocated_count }}</strong> items without an assigned category in this round. You must edit these vouchers and allocate them to categories before you can mark them as posted to Express.
             </p>
         </div>
     </div>
@@ -140,31 +132,34 @@
         <div class="glass-card" style="padding: 1.75rem; border-color: rgba(255,255,255,0.08);">
             <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin-bottom: 1rem;">Express ERP Posting</h3>
             <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
-                Summarize these values into your Express GL entries. Once saved in Express, click below to lock all vouchers for this month.
+                Summarize these values into your Express GL entries. Once saved in Express, click below to lock all vouchers for this round.
             </p>
 
-            {% if unposted_payments.exists %}
-                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?year={{ selected_year }}&month={{ selected_month }}">
+            {% if is_active_round %}
+                <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: #fbbf24; font-weight: 600; font-size: 0.95rem;">
+                    Active round cannot be locked. Create a replenishment top-up voucher first to mark the end of this round.
+                </div>
+            {% elif unposted_payments.exists %}
+                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}">
                     {% csrf_token %}
-                    <input type="hidden" name="year" value="{{ selected_year }}">
-                    <input type="hidden" name="month" value="{{ selected_month }}">
+                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
                     
                     {% if unallocated_count > 0 %}
                     <button type="button" class="btn btn-primary" style="width: 100%; cursor: not-allowed; opacity: 0.5; font-weight: 700; padding: 0.75rem;" disabled>
                         Post Lock Blocked
                     </button>
                     <div style="font-size: 0.8rem; color: #f87171; text-align: center; margin-top: 0.5rem; font-weight: 600;">
-                        Allocate categories to enable EOM posting.
+                        Allocate categories to enable posting.
                     </div>
                     {% else %}
-                    <button type="submit" class="btn btn-primary" style="width: 100%; font-weight: 700; padding: 0.75rem;" onclick="return confirm('Are you sure you want to mark all unposted vouchers in {{ selected_month }}/{{ selected_year }} as Posted? This will permanently lock them from future updates.');">
+                    <button type="submit" class="btn btn-primary" style="width: 100%; font-weight: 700; padding: 0.75rem;" onclick="return confirm('Are you sure you want to mark all unposted vouchers in this replenishment round as Posted? This will permanently lock them from future updates.');">
                         Lock & Mark as Posted
                     </button>
                     {% endif %}
                 </form>
             {% else %}
                 <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: var(--primary-light); font-weight: 700;">
-                    All vouchers for this month have been posted and locked.
+                    All vouchers for this round have been posted and locked.
                 </div>
             {% endif %}
         </div>

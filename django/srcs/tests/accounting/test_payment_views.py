@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.utils import timezone
 from common.models import Company, Individual
 from accounting.models import PettyCashAccount, PettyCashCategory, PettyCashPayment, PettyCashPaymentItem
+from accounting.services.payment_service import PettyCashPaymentService
 
 @pytest.fixture
 def manager_user(db):
@@ -241,6 +242,35 @@ class TestPettyCashPaymentViews:
         payment.refresh_from_db()
         assert payment.total_amount == Decimal("1500.00")
 
+    def test_update_payment_redirects_to_next(self, client, manager_user, account, category, payment):
+        client.force_login(manager_user)
+        
+        url = reverse('accounting:payment-update', kwargs={'pk': payment.pk})
+        target_next = '/accounting/payments/account/PC-HO-01/summary/'
+        
+        data = {
+            'payment_type': 'disbursement',
+            'payment_date': '2026-07-03',
+            'payee_name': 'Custodian User Updated',
+            
+            # Formset management form
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '1',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            
+            # Existing Line item updated
+            'items-0-id': payment.items.first().pk,
+            'items-0-category': category.pk,
+            'items-0-description': 'Taxi fare longer route',
+            'items-0-amount': '1000.00',
+            'items-0-note': ''
+        }
+        
+        response = client.post(url + f"?next={target_next}", data)
+        assert response.status_code == 302
+        assert response.url == target_next
+
     def test_cancel_payment_reverses_balance(self, client, manager_user, account, payment):
         client.force_login(manager_user)
         
@@ -298,17 +328,24 @@ class TestPettyCashPaymentViews:
         """Accountant 2 reviews aggregated categories and posts them to Express."""
         client.force_login(manager_user)
         
+        # Create a replenishment to mark the end of the round
+        replenishment = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("500.00"),
+            created_by=manager_user
+        )
+        
         # Check GET summary page
         url = reverse('accounting:payment-summary', kwargs={'account_code': account.code})
-        response = client.get(url)
+        response = client.get(url, {'round_id': str(replenishment.id)})
         assert response.status_code == 200
         assert len(response.context['category_sums']) == 1
         assert response.context['unallocated_count'] == 0
         
-        # Post the month's vouchers
+        # Post the round's vouchers
         post_data = {
-            'year': str(timezone.now().year),
-            'month': str(timezone.now().month)
+            'round_id': str(replenishment.id)
         }
         response = client.post(url, post_data)
         assert response.status_code == 302
@@ -336,10 +373,17 @@ class TestPettyCashPaymentViews:
             amount=Decimal("150.00")
         )
         
+        # Create a replenishment to mark the end of the round
+        replenishment = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("150.00"),
+            created_by=manager_user
+        )
+        
         url = reverse('accounting:payment-summary', kwargs={'account_code': account.code})
         post_data = {
-            'year': str(timezone.now().year),
-            'month': str(timezone.now().month)
+            'round_id': str(replenishment.id)
         }
         response = client.post(url, post_data)
         assert response.status_code == 302
@@ -347,3 +391,258 @@ class TestPettyCashPaymentViews:
         # Verify payment status is still unposted due to validation failure
         unallocated_payment.refresh_from_db()
         assert unallocated_payment.is_posted is False
+
+    def test_category_search_api(self, client, manager_user, company, category):
+        client.force_login(manager_user)
+        url = reverse('accounting:category-search')
+        
+        # Test search with company_id and query
+        response = client.get(url, {'company_id': company.id, 'q': category.code[:3]})
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data['results']) >= 1
+        assert data['results'][0]['code'] == category.code
+
+    def test_payment_allocate_api(self, client, manager_user, payment, category):
+        client.force_login(manager_user)
+        url = reverse('accounting:payment-allocate', kwargs={'pk': payment.pk})
+        
+        # Remove current category from items to make it unallocated
+        item = payment.items.first()
+        item.category = None
+        item.save()
+        
+        # Allocate category via API
+        import json
+        response = client.post(
+            url, 
+            data=json.dumps({'category_id': category.id}), 
+            content_type='application/json'
+        )
+        assert response.status_code == 200
+        assert response.json()['success'] is True
+        
+        item.refresh_from_db()
+        assert item.category == category
+
+    def test_summary_view_with_vat_and_external_pv(self, client, manager_user, account, company):
+        client.force_login(manager_user)
+        
+        # 1. Create categories: 5101-00 and 1155-00 (VAT category)
+        cat_normal = PettyCashCategory.objects.create(
+            company=company,
+            code="5101-00",
+            name="Normal Expense",
+            created_by=manager_user
+        )
+        cat_vat = PettyCashCategory.objects.create(
+            company=company,
+            code="1155-00",
+            name="ภาษีซื้อ-ยังไม่ถึงกำหนด",
+            created_by=manager_user
+        )
+        
+        # 2. Payment A: Normal with tax (Amount 1000.00, Tax 70.00)
+        pay_a = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="disbursement",
+            total_amount=Decimal("1000.00"),
+            created_by=manager_user
+        )
+        PettyCashPaymentItem.objects.create(
+            payment=pay_a,
+            category=cat_normal,
+            amount=Decimal("1000.00"),
+            tax=Decimal("70.00"),
+            description="Taxi fare with tax receipt"
+        )
+        
+        # 3. Payment B: Normal without tax (Amount 500.00, Tax 0.00)
+        pay_b = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="disbursement",
+            total_amount=Decimal("500.00"),
+            created_by=manager_user
+        )
+        PettyCashPaymentItem.objects.create(
+            payment=pay_b,
+            category=cat_normal,
+            amount=Decimal("500.00"),
+            tax=Decimal("0.00"),
+            description="Courier service"
+        )
+        
+        # 4. Payment C: Allocation already on 1155-00 directly (Amount 200.00, Tax 0.00)
+        pay_c = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="disbursement",
+            total_amount=Decimal("200.00"),
+            created_by=manager_user
+        )
+        PettyCashPaymentItem.objects.create(
+            payment=pay_c,
+            category=cat_vat,
+            amount=Decimal("200.00"),
+            tax=Decimal("0.00"),
+            description="Direct VAT allocation"
+        )
+        
+        # 5. Payment D: External PV (Amount 300.00, external_pv_no="PV-6902-001")
+        pay_d = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="disbursement",
+            total_amount=Decimal("300.00"),
+            external_pv_no="PV-6902-001",
+            created_by=manager_user
+        )
+        PettyCashPaymentItem.objects.create(
+            payment=pay_d,
+            category=None,
+            amount=Decimal("300.00"),
+            description="Direct Express PV Entry"
+        )
+        
+        # Create a replenishment to mark the end of the round
+        replenishment = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("2000.00"),
+            created_by=manager_user
+        )
+        
+        # GET request to summary view for this round
+        url = reverse('accounting:payment-summary', kwargs={'account_code': account.code})
+        response = client.get(url, {'round_id': str(replenishment.id)})
+        assert response.status_code == 200
+        
+        category_sums = response.context['category_sums']
+        # We expect:
+        # - Code "5101-00" with net amount: (1000 - 70) + 500 = 1430.00
+        # - Code "1155-00" with base + tax: 200 + 70 = 270.00
+        # - Code "PV: PV-6902-001" with amount: 300.00
+        
+        sums_dict = {row['category__code']: row for row in category_sums}
+        
+        assert "5101-00" in sums_dict
+        assert sums_dict["5101-00"]["total"] == Decimal("1430.00")
+        
+        assert "1155-00" in sums_dict
+        assert sums_dict["1155-00"]["total"] == Decimal("270.00")
+        
+        assert "PV: PV-6902-001" in sums_dict
+        assert sums_dict["PV: PV-6902-001"]["total"] == Decimal("300.00")
+        
+        # Verify unallocated count is 0 (since PV-6902-001 is excluded from unallocated items)
+        assert response.context['unallocated_count'] == 0
+        
+        # POST request to post the round's vouchers
+        response_post = client.post(url, {'round_id': str(replenishment.id)})
+        assert response_post.status_code == 302
+        
+        # Verify all payments are marked as posted
+        pay_a.refresh_from_db()
+        pay_b.refresh_from_db()
+        pay_c.refresh_from_db()
+        pay_d.refresh_from_db()
+        assert pay_a.is_posted is True
+        assert pay_b.is_posted is True
+        assert pay_c.is_posted is True
+        assert pay_d.is_posted is True
+
+    def test_payment_with_rounding_adjustment(self, client, manager_user, account, company):
+        client.force_login(manager_user)
+        
+        # Configure custom category codes on the account
+        account.rounding_category_code = '4200-09'
+        account.save()
+        
+        # Create rounding category
+        cat_rounding = PettyCashCategory.objects.create(
+            company=company,
+            code="4200-09",
+            name="Rounding Adjustments",
+            created_by=manager_user
+        )
+        
+        # Create standard expense category
+        cat_expense = PettyCashCategory.objects.create(
+            company=company,
+            code="5101-00",
+            name="Taxi fare",
+            created_by=manager_user
+        )
+        
+        # Capture initial balance
+        account.refresh_from_db()
+        initial_bal = account.balance
+        
+        # Create normal payment (Amount 1001.00 gross + Rounding 0.25)
+        pay_expense = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=[{
+                'description': 'Taxi fare',
+                'amount': Decimal('1001.00'),
+                'category': cat_expense,
+                'note': ''
+            }],
+            rounding_adjustment=Decimal('0.25'),
+            created_by=manager_user
+        )
+        
+        # Verify disbursement total amount is exactly 1001.00 (the gross amount)
+        assert pay_expense.total_amount == Decimal("1001.00")
+        assert pay_expense.rounding_adjustment == Decimal("0.25")
+        
+        # Verify account balance decreased by 1001.00
+        account.refresh_from_db()
+        assert account.balance == initial_bal - Decimal("1001.00")
+        
+        # Verify that ONLY the standard expense item is created (count is 1)
+        items = pay_expense.items.all()
+        assert items.count() == 1
+        
+        expense_item = items.first()
+        assert expense_item.amount == Decimal("1001.00")
+        assert expense_item.category == cat_expense
+        
+        # Update the payment and verify it stays stable
+        all_items_data = []
+        for item in pay_expense.items.all():
+            all_items_data.append({
+                'category': item.category,
+                'description': item.description,
+                'amount': item.amount,
+                'tax': item.tax,
+                'note': item.note
+            })
+            
+        updated_pay = PettyCashPaymentService.update_payment(
+            pay_expense,
+            updated_by=manager_user,
+            items_data=all_items_data,
+            rounding_adjustment=Decimal("0.25")
+        )
+        assert updated_pay.total_amount == Decimal("1001.00")
+        assert updated_pay.items.count() == 1
+        
+        # Create a replenishment to mark the end of the round
+        replenishment = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("1001.00"),
+            created_by=manager_user
+        )
+        
+        # Verify summary page aggregates rounding item under 4200-09
+        url = reverse('accounting:payment-summary', kwargs={'account_code': account.code})
+        response = client.get(url, {'round_id': str(replenishment.id)})
+        assert response.status_code == 200
+        
+        category_sums = response.context['category_sums']
+        sums_dict = {row['category__code']: row for row in category_sums}
+        
+        assert "4200-09" in sums_dict
+        assert sums_dict["4200-09"]["total"] == Decimal("0.25")
+        assert "5101-00" in sums_dict
+        assert sums_dict["5101-00"]["total"] == Decimal("1000.75")

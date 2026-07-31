@@ -22,7 +22,9 @@ from accounting.views import (
     PettyCashPaymentUpdateView,
     PettyCashPaymentCancelView,
     PettyCashPaymentTrashListView,
-    PettyCashPaymentSummaryView
+    PettyCashPaymentSummaryView,
+    PettyCashCategorySearchAPIView,
+    PettyCashPaymentAllocateAPIView
 )
 
 app_name = 'accounting'
@@ -31,6 +33,7 @@ urlpatterns = [
     path('', PettyCashOverviewView.as_view(), name='overview'),
     
     # Categories
+    path('categories/search/', PettyCashCategorySearchAPIView.as_view(), name='category-search'),
     path('categories/', PettyCashCategoryListView.as_view(), name='category-list'),
     path('categories/create/', PettyCashCategoryCreateView.as_view(), name='category-create'),
     path('categories/trash/', PettyCashCategoryTrashListView.as_view(), name='category-trash'),
@@ -57,4 +60,5 @@ urlpatterns = [
     path('payments/<int:pk>/', PettyCashPaymentDetailView.as_view(), name='payment-detail'),
     path('payments/<int:pk>/update/', PettyCashPaymentUpdateView.as_view(), name='payment-update'),
     path('payments/<int:pk>/cancel/', PettyCashPaymentCancelView.as_view(), name='payment-cancel'),
+    path('payments/<int:pk>/allocate/', PettyCashPaymentAllocateAPIView.as_view(), name='payment-allocate'),
 ]

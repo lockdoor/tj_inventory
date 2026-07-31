@@ -8,7 +8,7 @@ from accounting.models import PettyCashPayment, PettyCashPaymentItem, PettyCashA
 class PettyCashPaymentService:
     @staticmethod
     @transaction.atomic
-    def create_payment(*, account, payment_type, items_data, payee=None, payee_name='', payment_date=None, created_by, note=''):
+    def create_payment(*, account, payment_type, items_data, payee=None, payee_name='', payment_date=None, created_by, note='', external_pv_no='', rounding_adjustment=None):
         """
         Create a new PettyCashPayment atomically, locking and updating account balance.
         items_data should be: [{'description': '...', 'amount': Decimal('...'), 'category': category_obj, 'note': '...'}]
@@ -19,15 +19,34 @@ class PettyCashPaymentService:
         # Lock account
         locked_account = PettyCashAccount.objects.select_for_update().get(pk=account.pk)
 
-        # Validate all categories belong to the same company
+        # Validate categories: company check and external PV rule
         for item in items_data:
             category = item.get('category')
+            if external_pv_no and category is not None:
+                raise ValidationError("Vouchers with an external PV number cannot have a Chart of Accounts category assigned.")
             if category and category.company != locked_account.company:
                 raise ValidationError(
                     f"Category '{category.code}' belongs to company '{category.company.code}', "
                     f"which does not match the account's company '{locked_account.company.code}'."
                 )
 
+        # Handle rounding adjustment for disbursements and adjustments
+        rounding_val = Decimal('0.00')
+        rounding_cat = None
+        if payment_type in ['disbursement', 'adjustment'] and rounding_adjustment:
+            rounding_val = Decimal(str(rounding_adjustment))
+            if rounding_val != Decimal('0.00'):
+                rounding_code = locked_account.rounding_category_code or '4200-07'
+                from accounting.models import PettyCashCategory
+                rounding_cat = PettyCashCategory.objects.filter(
+                    code=rounding_code,
+                    company=locked_account.company,
+                    is_deleted=False
+                ).first()
+                if not rounding_cat:
+                    raise ValidationError(f"Rounding category with code '{rounding_code}' does not exist for company '{locked_account.company.code}'.")
+
+        # Aggregate total amount
         # Aggregate total amount
         total_amount = sum(item['amount'] for item in items_data)
 
@@ -59,7 +78,9 @@ class PettyCashPaymentService:
             payee=payee,
             payee_name=payee_name,
             created_by=created_by,
-            note=note
+            note=note,
+            external_pv_no=external_pv_no,
+            rounding_adjustment=rounding_adjustment
         )
         if payment_date:
             payment.payment_date = payment_date
@@ -118,7 +139,7 @@ class PettyCashPaymentService:
 
     @staticmethod
     @transaction.atomic
-    def update_payment(payment, *, updated_by, items_data=None, payee=None, payee_name='', payment_date=None, note=''):
+    def update_payment(payment, *, updated_by, items_data=None, payee=None, payee_name='', payment_date=None, note='', external_pv_no=None, rounding_adjustment=None):
         """
         Update an existing PettyCashPayment. If items_data is provided, recalculate balance.
         """
@@ -136,6 +157,12 @@ class PettyCashPaymentService:
         payment.note = note
         if payment_date:
             payment.payment_date = payment_date
+        if external_pv_no is not None:
+            payment.external_pv_no = external_pv_no
+        if rounding_adjustment is not None:
+            payment.rounding_adjustment = rounding_adjustment
+
+        effective_external_pv = payment.external_pv_no
 
         if items_data is not None:
             if not items_data:
@@ -144,6 +171,8 @@ class PettyCashPaymentService:
             # Validate all categories belong to the same company
             for item in items_data:
                 category = item.get('category')
+                if effective_external_pv and category is not None:
+                    raise ValidationError("Vouchers with an external PV number cannot have a Chart of Accounts category assigned.")
                 if category and category.company != locked_account.company:
                     raise ValidationError(
                         f"Category '{category.code}' belongs to company '{category.company.code}', "
@@ -189,6 +218,11 @@ class PettyCashPaymentService:
                 )
                 line_item.full_clean()
                 line_item.save()
+        else:
+            # If items_data is not updated, but external_pv_no is being set to a non-empty value:
+            if effective_external_pv:
+                if payment.items.filter(category__isnull=False).exists():
+                    raise ValidationError("Cannot assign an external PV number to a voucher that has Chart of Accounts categories allocated.")
 
         payment.updated_by = updated_by
         payment.full_clean()
@@ -208,10 +242,11 @@ class PettyCashPaymentService:
             if payment.is_posted:
                 continue
             
-            # Verify all items have a category
-            for item in payment.items.all():
-                if not item.category:
-                    raise ValidationError(f"Voucher {payment.payment_no} has unallocated line items (missing category).")
+            # Verify all items have a category, unless it is an external PV payment
+            if not payment.external_pv_no:
+                for item in payment.items.all():
+                    if not item.category:
+                        raise ValidationError(f"Voucher {payment.payment_no} has unallocated line items (missing category).")
             
             payment.is_posted = True
             payment.posted_at = timezone.now()

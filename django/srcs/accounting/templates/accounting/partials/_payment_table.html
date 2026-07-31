@@ -24,19 +24,43 @@
             <tr class="table-row" style="border-bottom: 1px solid var(--glass-border); transition: var(--transition);">
                 <td style="padding: 1.25rem; color: var(--text-dim); vertical-align: top;">
                     <div style="font-weight: 500; margin-bottom: 0.35rem; color: var(--text-main);">{{ payment.payment_date|date:"Y-m-d" }}</div>
-                    {% if payment.is_posted %}
+                    {% if payment.payment_type == 'replenishment' %}
+                    <span style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block;">Replenishment</span>
+                    {% elif payment.is_posted %}
                     <span style="font-size: 0.65rem; background: rgba(16, 185, 129, 0.08); color: var(--primary-light); padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.15); display: inline-block;">Posted</span>
                     {% else %}
-                    <span style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block;">Unposted</span>
+                    <button type="button" 
+                            onclick="openAllocationModal('{{ payment.pk }}', '{{ payment.payment_no }}', '{{ payment.account.company.pk }}', '{{ payment.external_pv_no|default:"" }}', '{{ payment.items.first.description|escapejs }}')" 
+                            style="font-size: 0.65rem; background: rgba(251, 191, 36, 0.08); color: #fbbf24; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 700; border: 1px solid rgba(251, 191, 36, 0.15); display: inline-block; cursor: pointer; transition: all 0.2s; outline: none; border-style: solid;" 
+                            onmouseover="this.style.background='rgba(251, 191, 36, 0.15)'" 
+                            onmouseout="this.style.background='rgba(251, 191, 36, 0.08)'"
+                            title="Click to allocate category or external PV">
+                        Unposted
+                    </button>
                     {% endif %}
                 </td>
                 <td style="padding: 1.25rem; color: var(--text-main); font-weight: 500; vertical-align: top;">
-                    {{ payment.payee_name|default:payment.payee }}
+                    <div>{{ payment.payee_name|default:payment.payee }}</div>
+                    {% if payment.items.first.category %}
+                    <div style="font-size: 0.8rem; color: var(--primary-light); font-family: monospace; font-weight: 700; margin-top: 0.25rem;">
+                        {{ payment.items.first.category.code }}
+                    </div>
+                    {% elif payment.external_pv_no %}
+                    <div style="font-size: 0.8rem; color: var(--text-dim); font-family: monospace; margin-top: 0.25rem;">
+                        Ext PV: {{ payment.external_pv_no }}
+                    </div>
+                    {% endif %}
                 </td>
                 <td style="padding: 1.25rem; font-size: 0.95rem; vertical-align: top;">
                     <a href="{% url 'accounting:payment-detail' payment.pk %}" style="color: var(--primary-light); text-decoration: none; font-weight: 500; transition: var(--transition);" onmouseover="this.style.color='var(--primary-hover)'" onmouseout="this.style.color='var(--primary-light)'">
                         {{ payment.items.first.description|default:"View Details" }}
                     </a>
+                    {% if payment.items.first.category %}
+                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.25rem;">
+                        <span style="font-family: monospace; font-weight: 700; color: var(--primary-light);">{{ payment.items.first.category.code }}</span>
+                        <span>- {{ payment.items.first.category.name }}</span>
+                    </div>
+                    {% endif %}
                 </td>
                 <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
                     {% if payment.items.first.tax %}{{ payment.items.first.tax }}{% else %}-{% endif %}
@@ -55,3 +79,262 @@
         </tbody>
     </table>
 </div>
+
+<!-- Category Allocation Modal -->
+<div id="allocationModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+    <div class="glass-card" style="width: 100%; max-width: 480px; padding: 2rem; border-color: rgba(255,255,255,0.1); transform: translateY(-20px); transition: transform 0.3s ease; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin: 0;">Allocate Voucher</h3>
+            <button onclick="closeAllocationModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; line-height: 1; padding: 0;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+        </div>
+        
+        <p style="color: var(--text-dim); font-size: 0.95rem; margin-bottom: 1.5rem;">
+            Configure allocation for voucher <strong id="modalVoucherNo" style="color: var(--primary-light);"></strong>.
+            <span id="modalDescription" style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-top: 0.35rem; font-style: italic;"></span>
+        </p>
+
+        <!-- Toggle Switch -->
+        <div style="display: flex; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.25rem; margin-bottom: 1.5rem;">
+            <button type="button" id="tabCOA" onclick="switchMode('coa')" 
+                    style="flex: 1; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: var(--primary-light); color: white;">
+                Chart of Account
+            </button>
+            <button type="button" id="tabPV" onclick="switchMode('pv')" 
+                    style="flex: 1; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-dim);">
+                External PV
+            </button>
+        </div>
+        
+        <!-- Search Form (COA Mode) -->
+        <div id="coaForm" style="position: relative; margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Search Category</label>
+            <input type="text" id="categorySearchInput" oninput="searchCategories()" placeholder="Type a code or name (e.g. 5101)..." 
+                   style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s;"
+                   onfocus="this.style.border-color='var(--primary-light)'" onblur="this.style.border-color='var(--glass-border)'">
+            
+            <!-- Autocomplete Dropdown List -->
+            <div id="categorySuggestions" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1a1a24; border: 1px solid var(--glass-border); border-radius: 6px; margin-top: 0.5rem; max-height: 200px; overflow-y: auto; z-index: 1010; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            </div>
+        </div>
+
+        <!-- External PV Form (PV Mode) -->
+        <div id="pvForm" style="display: none; margin-bottom: 1.5rem;">
+            <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">External PV Number</label>
+            <input type="text" id="externalPvInput" placeholder="Enter Express PV number (e.g. PV-6902-001)..." 
+                   style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s;"
+                   onfocus="this.style.border-color='var(--primary-light)'" onblur="this.style.border-color='var(--glass-border)'">
+            <span style="display: block; font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.4;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 0.25rem;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                Vouchers with an external PV number do not accumulate to petty cash expense categories in TJ Inventory as they are recorded directly in Express ERP.
+            </span>
+        </div>
+
+        <input type="hidden" id="modalPaymentId">
+        <input type="hidden" id="modalCompanyId">
+        <input type="hidden" id="selectedCategoryId">
+
+        <!-- Actions -->
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 2rem;">
+            <button onclick="closeAllocationModal()" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">Cancel</button>
+            <button onclick="saveAllocation()" class="btn btn-primary" style="padding: 0.6rem 1.5rem; font-size: 0.9rem; font-weight: 700;">Save Allocation</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toastNotification" style="display: none; position: fixed; bottom: 2rem; right: 2rem; background: rgba(239, 68, 68, 0.95); backdrop-filter: blur(10px); color: white; padding: 1rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; box-shadow: 0 10px 30px rgba(0,0,0,0.35); z-index: 1100; border: 1px solid rgba(255,255,255,0.1); opacity: 0; transition: opacity 0.3s ease;">
+</div>
+
+<script>
+    let searchTimeout = null;
+    let currentMode = 'coa';
+
+    function switchMode(mode) {
+        currentMode = mode;
+        const tabCOA = document.getElementById('tabCOA');
+        const tabPV = document.getElementById('tabPV');
+        const coaForm = document.getElementById('coaForm');
+        const pvForm = document.getElementById('pvForm');
+
+        if (mode === 'coa') {
+            tabCOA.style.background = 'var(--primary-light)';
+            tabCOA.style.color = 'white';
+            tabPV.style.background = 'transparent';
+            tabPV.style.color = 'var(--text-dim)';
+            coaForm.style.display = 'block';
+            pvForm.style.display = 'none';
+            setTimeout(() => document.getElementById('categorySearchInput').focus(), 50);
+        } else {
+            tabPV.style.background = 'var(--primary-light)';
+            tabPV.style.color = 'white';
+            tabCOA.style.background = 'transparent';
+            tabCOA.style.color = 'var(--text-dim)';
+            coaForm.style.display = 'none';
+            pvForm.style.display = 'block';
+            setTimeout(() => document.getElementById('externalPvInput').focus(), 50);
+        }
+    }
+
+    function openAllocationModal(paymentId, voucherNo, companyId, externalPvNo, description) {
+        const modal = document.getElementById('allocationModal');
+        document.getElementById('modalPaymentId').value = paymentId;
+        document.getElementById('modalVoucherNo').textContent = voucherNo || 'New Voucher';
+        document.getElementById('modalDescription').textContent = description ? `Description: "${description}"` : '';
+        document.getElementById('modalCompanyId').value = companyId;
+        document.getElementById('selectedCategoryId').value = '';
+        document.getElementById('categorySearchInput').value = '';
+        document.getElementById('categorySuggestions').style.display = 'none';
+        document.getElementById('externalPvInput').value = externalPvNo || '';
+        
+        modal.style.display = 'flex';
+        modal.offsetHeight;
+        modal.style.opacity = '1';
+        modal.firstElementChild.style.transform = 'translateY(0)';
+        
+        if (externalPvNo) {
+            switchMode('pv');
+        } else {
+            switchMode('coa');
+        }
+    }
+
+    function closeAllocationModal() {
+        const modal = document.getElementById('allocationModal');
+        modal.style.opacity = '0';
+        modal.firstElementChild.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    function showToast(message, isSuccess = false) {
+        const toast = document.getElementById('toastNotification');
+        toast.textContent = message;
+        toast.style.background = isSuccess ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)';
+        toast.style.display = 'block';
+        toast.offsetHeight;
+        toast.style.opacity = '1';
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 300);
+        }, 3000);
+    }
+
+    function searchCategories() {
+        const q = document.getElementById('categorySearchInput').value.trim();
+        const companyId = document.getElementById('modalCompanyId').value;
+        const suggestionsBox = document.getElementById('categorySuggestions');
+        
+        if (q.length < 1) {
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+        
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            fetch(`/accounting/categories/search/?company_id=${companyId}&q=${encodeURIComponent(q)}`)
+                .then(res => res.json())
+                .then(data => {
+                    suggestionsBox.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(cat => {
+                            const div = document.createElement('div');
+                            div.style.padding = '0.75rem 1rem';
+                            div.style.cursor = 'pointer';
+                            div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+                            div.style.color = 'var(--text-main)';
+                            div.style.fontSize = '0.9rem';
+                            div.style.transition = 'background 0.2s';
+                            div.innerHTML = `<strong style="color: var(--primary-light); font-family: monospace;">${cat.code}</strong> - <span style="color: var(--text-dim);">${cat.name}</span>`;
+                            
+                            div.onmouseover = () => div.style.background = 'rgba(255, 255, 255, 0.05)';
+                            div.onmouseout = () => div.style.background = 'transparent';
+                            
+                            div.onclick = () => {
+                                document.getElementById('selectedCategoryId').value = cat.id;
+                                document.getElementById('categorySearchInput').value = `${cat.code} - ${cat.name}`;
+                                suggestionsBox.style.display = 'none';
+                            };
+                            
+                            suggestionsBox.appendChild(div);
+                        });
+                        suggestionsBox.style.display = 'block';
+                    } else {
+                        suggestionsBox.innerHTML = '<div style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.9rem; text-align: center;">No matches found</div>';
+                        suggestionsBox.style.display = 'block';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                });
+        }, 200);
+    }
+
+    function saveAllocation() {
+        const paymentId = document.getElementById('modalPaymentId').value;
+        let payload = {};
+
+        if (currentMode === 'coa') {
+            const categoryId = document.getElementById('selectedCategoryId').value;
+            if (!categoryId) {
+                showToast('Please select a category from the suggestions.');
+                return;
+            }
+            payload = { category_id: categoryId };
+        } else {
+            const externalPv = document.getElementById('externalPvInput').value.trim();
+            if (!externalPv) {
+                showToast('Please enter an External PV number.');
+                return;
+            }
+            payload = { external_pv_no: externalPv };
+        }
+        
+        // Get CSRF Token
+        let csrfToken = null;
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+        
+        fetch(`/accounting/payments/${paymentId}/allocate/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken || ''
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeAllocationModal();
+                showToast('Allocation updated successfully!', true);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                showToast(data.error || 'Failed to save allocation.');
+            }
+        })
+        .catch(err => {
+            showToast('An unexpected network error occurred.');
+            console.error(err);
+        });
+    }
+
+    // Close modal on escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeAllocationModal();
+        }
+    });
+</script>

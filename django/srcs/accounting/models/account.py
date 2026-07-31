@@ -35,6 +35,16 @@ class PettyCashAccount(AuditableMixin):
         default='', 
         help_text="Optional remarks for this account"
     )
+    vat_category_code = models.CharField(
+        max_length=20,
+        default='1155-00',
+        help_text="GL Chart of Accounts category code for undue input VAT"
+    )
+    rounding_category_code = models.CharField(
+        max_length=20,
+        default='4200-07',
+        help_text="GL Chart of Accounts category code for rounding adjustments"
+    )
 
     class Meta:
         ordering = ['code']

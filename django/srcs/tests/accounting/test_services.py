@@ -364,3 +364,65 @@ class TestPettyCashServices:
         # 1000.00 - 300.00 = 700.00
         assert payment.total_amount == Decimal("300.00")
         assert account.balance == Decimal("700.00")
+
+    def test_payment_with_external_pv_constraints(self, account, category, admin_user):
+        account.balance = Decimal("1000.00")
+        account.save()
+
+        # 1. Creating with external PV and a category should fail
+        items = [{'description': 'Expense', 'amount': Decimal("100.00"), 'category': category}]
+        with pytest.raises(ValidationError, match="Vouchers with an external PV number cannot have a Chart of Accounts category assigned."):
+            PettyCashPaymentService.create_payment(
+                account=account,
+                payment_type="disbursement",
+                items_data=items,
+                created_by=admin_user,
+                external_pv_no="EXT-PV-0001"
+            )
+
+        # 2. Creating with external PV and NO category should succeed
+        items_no_cat = [{'description': 'Expense', 'amount': Decimal("100.00"), 'category': None}]
+        payment = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=items_no_cat,
+            created_by=admin_user,
+            external_pv_no="EXT-PV-0001"
+        )
+        assert payment.external_pv_no == "EXT-PV-0001"
+
+        # 3. Updating an external PV payment with a category should fail
+        with pytest.raises(ValidationError, match="Vouchers with an external PV number cannot have a Chart of Accounts category assigned."):
+            PettyCashPaymentService.update_payment(
+                payment,
+                updated_by=admin_user,
+                items_data=items
+            )
+
+        # 4. Updating a payment with no category to have external PV should succeed
+        payment2 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=items_no_cat,
+            created_by=admin_user
+        )
+        PettyCashPaymentService.update_payment(
+            payment2,
+            updated_by=admin_user,
+            external_pv_no="EXT-PV-0002"
+        )
+        assert payment2.external_pv_no == "EXT-PV-0002"
+
+        # 5. Setting external PV on a payment with a category should fail
+        payment3 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=items,
+            created_by=admin_user
+        )
+        with pytest.raises(ValidationError, match="Cannot assign an external PV number to a voucher that has Chart of Accounts categories allocated."):
+            PettyCashPaymentService.update_payment(
+                payment3,
+                updated_by=admin_user,
+                external_pv_no="EXT-PV-0003"
+            )

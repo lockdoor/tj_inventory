@@ -6,13 +6,14 @@ from accounting.models import PettyCashPayment, PettyCashPaymentItem
 class PettyCashPaymentForm(forms.ModelForm):
     class Meta:
         model = PettyCashPayment
-        fields = ['payment_type', 'payee', 'payee_name', 'payment_date', 'note']
+        fields = ['payment_type', 'payee', 'payee_name', 'payment_date', 'note', 'rounding_adjustment']
         widgets = {
             'payment_type': forms.Select(attrs={'class': 'form-input'}),
             'payee': forms.Select(attrs={'class': 'form-input'}),
             'payee_name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g. Somchai S.'}),
             'payment_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
             'note': forms.Textarea(attrs={'class': 'form-input', 'rows': 3, 'placeholder': 'Optional remarks...'}),
+            'rounding_adjustment': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01', 'placeholder': 'e.g. 0.25 or -0.75'}),
         }
 
     def __init__(self, *args, **kwargs):

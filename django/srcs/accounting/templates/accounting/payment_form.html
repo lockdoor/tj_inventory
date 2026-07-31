@@ -20,7 +20,7 @@
 <div class="container" style="max-width: 1000px;">
     <!-- Back Link -->
     <div style="margin-bottom: 1.5rem;">
-        <a href="{% url 'accounting:payment-list' account.code %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem;">
+        <a href="{% if next %}{{ next }}{% else %}{% url 'accounting:payment-list' account.code %}{% endif %}" style="color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.95rem;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
@@ -41,7 +41,7 @@
 
     <!-- Form Card -->
     <div class="glass-card" style="padding: 2.5rem; border-color: rgba(255,255,255,0.08);">
-        <form method="post" id="payment-form" style="display: flex; flex-direction: column; gap: 2.5rem;">
+        <form method="post" id="payment-form" action="?next={{ next|default:'' }}" style="display: flex; flex-direction: column; gap: 2.5rem;">
             {% csrf_token %}
 
             {% if form.non_field_errors %}
@@ -89,6 +89,13 @@
                         {{ form.payee_name }}
                         {% if form.payee_name.errors %}
                         <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.payee_name.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div id="rounding-adjustment-wrapper" style="display: none;">
+                        <label for="{{ form.rounding_adjustment.id_for_label }}" style="display: block; font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 0.5rem;">Rounding Adjustment (GL Code: {{ account.rounding_category_code|default:"4200-07" }})</label>
+                        {{ form.rounding_adjustment }}
+                        {% if form.rounding_adjustment.errors %}
+                        <span style="color: #f87171; font-size: 0.85rem; margin-top: 0.25rem; display: block;">{{ form.rounding_adjustment.errors.0 }}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -175,7 +182,7 @@
 
             <!-- Submit buttons -->
             <div style="display: flex; gap: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem; justify-content: flex-end;">
-                <a href="{% url 'accounting:payment-list' account.code %}" class="btn btn-outline" style="border-color: rgba(255,255,255,0.1); padding: 0.6rem 1.5rem; font-weight: 600;">Cancel</a>
+                <a href="{% if next %}{{ next }}{% else %}{% url 'accounting:payment-list' account.code %}{% endif %}" class="btn btn-outline" style="border-color: rgba(255,255,255,0.1); padding: 0.6rem 1.5rem; font-weight: 600;">Cancel</a>
                 <button type="submit" class="btn btn-primary" style="padding: 0.6rem 2rem; font-weight: 700;">
                     {% if object %}Save Voucher{% else %}Create Voucher{% endif %}
                 </button>
@@ -223,6 +230,25 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    // Rounding adjustment toggle logic
+    const typeSelect = document.getElementById("id_payment_type");
+    const roundingWrapper = document.getElementById("rounding-adjustment-wrapper");
+    function toggleRounding() {
+        if (typeSelect && roundingWrapper) {
+            if (typeSelect.value === 'disbursement' || typeSelect.value === 'adjustment') {
+                roundingWrapper.style.display = 'block';
+            } else {
+                roundingWrapper.style.display = 'none';
+                const roundingInput = document.getElementById("id_rounding_adjustment");
+                if (roundingInput) roundingInput.value = '';
+            }
+        }
+    }
+    if (typeSelect) {
+        typeSelect.addEventListener("change", toggleRounding);
+        toggleRounding();
+    }
+
     const addButton = document.getElementById("add-item-btn");
     const container = document.getElementById("formset-container");
     const totalFormsInput = document.getElementById("id_items-TOTAL_FORMS");
