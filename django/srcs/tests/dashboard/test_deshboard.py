@@ -16,7 +16,9 @@ def test_dashboard_login_required(client):
 
 @pytest.mark.django_db
 def test_dashboard_access_for_logged_in_user(client, test_user):
-    """Authenticated users should see the dashboard and links."""
+    """Authenticated users with executive access (e.g. superusers) should see the dashboard and links."""
+    test_user.is_superuser = True
+    test_user.save()
     client.force_login(test_user)
     url = reverse('dashboard:home')
     response = client.get(url)
@@ -36,6 +38,14 @@ def test_dashboard_access_for_logged_in_user(client, test_user):
     assert reverse('inventory:overview') in content
     assert reverse('procurement:overview') in content
     assert reverse('sales:overview') in content
+
+@pytest.mark.django_db
+def test_dashboard_access_denied_for_no_role(client, test_user):
+    """Authenticated users without any assigned groups/roles should get 403 Forbidden."""
+    client.force_login(test_user)
+    url = reverse('dashboard:home')
+    response = client.get(url)
+    assert response.status_code == 403
 
 @pytest.mark.django_db
 def test_dashboard_sales_rep_access(client, test_user):

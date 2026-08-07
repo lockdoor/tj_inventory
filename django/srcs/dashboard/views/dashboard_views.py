@@ -1,5 +1,6 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     """
@@ -7,10 +8,20 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     Automatically serves a specialized dashboard based on the user's group.
     """
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        
+        role = self.get_role()
+        if role is None:
+            raise PermissionDenied("You do not have a role assigned to access the dashboard.")
+            
+        return super().dispatch(request, *args, **kwargs)
+
     def get_role(self):
         """
         Determines the effective role of the user based on group membership.
-        Priority: Executive > Accountant > Stock Controller > Warehouse Admin > Sales Rep > Default (Executive)
+        Priority: Executive > Accountant > Stock Controller > Warehouse Admin > Sales Rep > None
         """
         groups = self.request.user.groups.values_list('name', flat=True)
         if 'executive' in groups or self.request.user.is_superuser:
@@ -23,7 +34,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             return 'warehouse_admin'
         if 'sales_rep' in groups:
             return 'sales_rep'
-        return 'executive' # Fallback
+        return None # Return None if no group matches
 
     def get_template_names(self):
         role = self.get_role()
@@ -117,7 +128,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context['page_title'] = "Accountant Command Center"
         context['modules'] = [
             {
-                'title': 'accounting Operations',
+                'title': 'Accounting Operations',
                 'description': 'Track physical cash boxes, custodian limits, accounting GL categories, and payment vouchers.',
                 'url': 'accounting:overview',
                 'icon_name': 'credit-card',
