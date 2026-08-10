@@ -17,7 +17,7 @@
             <p style="color: var(--text-dim); font-size: 1.1rem;">Manage corporate petty cash boxes, balances, credit ceilings, and custodians.</p>
         </div>
         <div style="display: flex; gap: 0.75rem;">
-            {% if perms.petty_cash.add_pettycashaccount %}
+            {% if perms.accounting.add_pettycashaccount %}
             <a href="{% url 'accounting:account-create' %}" class="btn btn-primary"
                 style="padding: 0.6rem 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -28,7 +28,7 @@
                 Create Account
             </a>
             {% endif %}
-            {% if perms.petty_cash.delete_pettycashaccount %}
+            {% if perms.accounting.delete_pettycashaccount %}
             <a href="{% url 'accounting:account-trash' %}" class="btn btn-outline"
                 style="padding: 0.6rem 1rem; border-color: rgba(255,255,255,0.1);" title="Trash Bin">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"

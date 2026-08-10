@@ -26,15 +26,63 @@ class PettyCashPaymentListView(LoginRequiredMixin, PermissionRequiredMixin, List
     def get_queryset(self):
         account = self.get_account()
         qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+        
+        sf_list = self.request.GET.getlist('sf')
+        sv_list = self.request.GET.getlist('sv')
+        
+        # Also fall back to general q search if present
         q = self.request.GET.get('q', '').strip()
         if q:
-            qs = qs.filter(payment_no__icontains=q) | qs.filter(payee_name__icontains=q) | qs.filter(note__icontains=q)
-        return qs.select_related('account', 'created_by').prefetch_related('items')
+            qs = qs.filter(
+                Q(payment_no__icontains=q) |
+                Q(payee_name__icontains=q) |
+                Q(note__icontains=q)
+            )
+
+        for sf, sv in zip(sf_list, sv_list):
+            sv = sv.strip()
+            if not sv:
+                continue
+            if sf == 'voucher_no':
+                qs = qs.filter(payment_no__icontains=sv)
+            elif sf == 'payee':
+                qs = qs.filter(payee_name__icontains=sv)
+            elif sf == 'gl_code':
+                qs = qs.filter(items__category__code__icontains=sv)
+            elif sf == 'external_pv':
+                qs = qs.filter(items__external_pv_no__icontains=sv)
+            elif sf == 'description':
+                qs = qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
+            else: # 'all' or fallback
+                qs = qs.filter(
+                    Q(payment_no__icontains=sv) |
+                    Q(payee_name__icontains=sv) |
+                    Q(note__icontains=sv) |
+                    Q(items__category__code__icontains=sv) |
+                    Q(items__external_pv_no__icontains=sv) |
+                    Q(items__description__icontains=sv)
+                )
+                
+        return qs.distinct().select_related('account', 'created_by').prefetch_related('items')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['account'] = self.get_account()
         context['q'] = self.request.GET.get('q', '')
+        
+        # Build search lines list for template
+        sf_list = self.request.GET.getlist('sf')
+        sv_list = self.request.GET.getlist('sv')
+        search_lines = []
+        for sf, sv in zip(sf_list, sv_list):
+            if sv.strip():
+                search_lines.append({'field': sf, 'value': sv.strip()})
+        
+        # Always guarantee at least one search line if none exist
+        if not search_lines:
+            search_lines.append({'field': 'all', 'value': ''})
+            
+        context['search_lines'] = search_lines
         return context
 
 
@@ -299,8 +347,55 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
                     payments_qs = payments_qs.filter(id__lte=selected_rep.id)
             except (ValueError, PettyCashPayment.DoesNotExist):
                 payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-        else:
-            payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+        # Apply advanced multi-condition search filtering on payments_qs
+        sf_list = self.request.GET.getlist('sf')
+        sv_list = self.request.GET.getlist('sv')
+        
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            payments_qs = payments_qs.filter(
+                Q(payment_no__icontains=q) |
+                Q(payee_name__icontains=q) |
+                Q(note__icontains=q)
+            )
+
+        for sf, sv in zip(sf_list, sv_list):
+            sv = sv.strip()
+            if not sv:
+                continue
+            if sf == 'voucher_no':
+                payments_qs = payments_qs.filter(payment_no__icontains=sv)
+            elif sf == 'payee':
+                payments_qs = payments_qs.filter(payee_name__icontains=sv)
+            elif sf == 'gl_code':
+                payments_qs = payments_qs.filter(items__category__code__icontains=sv)
+            elif sf == 'external_pv':
+                payments_qs = payments_qs.filter(items__external_pv_no__icontains=sv)
+            elif sf == 'description':
+                payments_qs = payments_qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
+            else: # 'all' or fallback
+                payments_qs = payments_qs.filter(
+                    Q(payment_no__icontains=sv) |
+                    Q(payee_name__icontains=sv) |
+                    Q(note__icontains=sv) |
+                    Q(items__category__code__icontains=sv) |
+                    Q(items__external_pv_no__icontains=sv) |
+                    Q(items__description__icontains=sv)
+                )
+
+        payments_qs = payments_qs.distinct()
+
+        # Build search lines list for template
+        search_lines = []
+        for sf, sv in zip(sf_list, sv_list):
+            if sv.strip():
+                search_lines.append({'field': sf, 'value': sv.strip()})
+        
+        if not search_lines:
+            search_lines.append({'field': 'all', 'value': ''})
+            
+        context['search_lines'] = search_lines
+        context['q'] = q
 
         items = PettyCashPaymentItem.objects.filter(payment__in=payments_qs)
         
@@ -320,10 +415,10 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         normal_items = normal_items.select_related('payment')
 
         vat_items_list = []
+        rounding_items_list = []
         for item in normal_items:
             tax_amount = item.tax or Decimal('0.00')
             item_rounding = item.rounding_adjustment or Decimal('0.00')
-            total_rounding += item_rounding
 
             net_amount = item.amount - tax_amount - item_rounding
 
@@ -339,6 +434,18 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
                     'total': tax_amount
                 })
 
+            if item_rounding != Decimal('0.00'):
+                rounding_code = account.rounding_category_code or '4200-07'
+                rounding_cat = PettyCashCategory.objects.filter(code=rounding_code, company=account.company, is_deleted=False).first()
+                rounding_name = rounding_cat.name if rounding_cat else "รายได้-อื่นๆ"
+                payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
+                desc_str = f"Rounding: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Rounding Adjustment')
+                rounding_items_list.append({
+                    'category__code': rounding_code,
+                    'category__name': f"{rounding_name} ({desc_str})",
+                    'total': item_rounding
+                })
+
             if item.category:
                 code = item.category.code
                 name = item.category.name
@@ -352,25 +459,14 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
             else:
                 unallocated_sum += net_amount
 
-        # Add Rounding aggregation under the configured rounding category code if rounding exists
-        if total_rounding != Decimal('0.00'):
-            rounding_code = account.rounding_category_code or '4200-07'
-            if rounding_code in category_sums_dict:
-                category_sums_dict[rounding_code]['total'] += total_rounding
-            else:
-                rounding_cat = PettyCashCategory.objects.filter(code=rounding_code, company=account.company, is_deleted=False).first()
-                rounding_name = rounding_cat.name if rounding_cat else "รายได้-อื่นๆ"
-                category_sums_dict[rounding_code] = {
-                    'category__code': rounding_code,
-                    'category__name': rounding_name,
-                    'total': total_rounding
-                }
-
         # Convert to list and sort normal categories by code
         category_sums_list = sorted(category_sums_dict.values(), key=lambda x: x['category__code'])
 
         # Append individual VAT records
         category_sums_list.extend(vat_items_list)
+
+        # Append individual rounding records
+        category_sums_list.extend(rounding_items_list)
 
         # Append unallocated row if it exists
         if unallocated_sum > Decimal('0.00'):

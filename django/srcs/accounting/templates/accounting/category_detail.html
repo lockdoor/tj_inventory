@@ -24,12 +24,12 @@
             <p style="color: var(--text-dim); font-size: 1rem;">Registered under {{ category.company.name }}.</p>
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            {% if perms.petty_cash.change_pettycashcategory %}
+            {% if perms.accounting.change_pettycashcategory %}
             <a href="{% url 'accounting:category-update' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem;">
                 Edit Category
             </a>
             {% endif %}
-            {% if perms.petty_cash.delete_pettycashcategory %}
+            {% if perms.accounting.delete_pettycashcategory %}
             <a href="{% url 'accounting:category-delete' category.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">
                 Delete
             </a>

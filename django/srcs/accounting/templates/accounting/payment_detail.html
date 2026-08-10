@@ -48,7 +48,7 @@
         </div>
         <div style="display: flex; gap: 0.75rem;">
             {% if not payment.is_deleted and not payment.is_posted %}
-                {% if perms.petty_cash.change_pettycashpayment %}
+                {% if perms.accounting.change_pettycashpayment %}
                 <a href="{% url 'accounting:payment-update' payment.pk %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; border-color: rgba(255,255,255,0.1);">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 20h9"></path>
@@ -57,7 +57,7 @@
                     Edit Voucher
                 </a>
                 {% endif %}
-                {% if perms.petty_cash.delete_pettycashpayment %}
+                {% if perms.accounting.delete_pettycashpayment %}
                 <form method="post" action="{% url 'accounting:payment-cancel' payment.pk %}" style="display: inline-block;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; color: #f87171; border-color: rgba(239,68,68,0.2); display: flex; align-items: center; gap: 0.5rem;" onclick="return confirm('Are you sure you want to cancel this payment voucher? This will atomically reverse the cash box balance.');">

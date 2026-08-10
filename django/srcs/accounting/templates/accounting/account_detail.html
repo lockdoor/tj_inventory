@@ -39,7 +39,7 @@
             <h1 class="text-gradient" style="font-size: 3rem; font-weight: 800; margin: 0; letter-spacing: -0.02em;">{{ account.name }}</h1>
         </div>
         <div style="display: flex; gap: 0.75rem;">
-            {% if perms.petty_cash.change_pettycashaccount %}
+            {% if perms.accounting.change_pettycashaccount %}
             <a href="{% url 'accounting:account-update' account.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; border-color: rgba(255,255,255,0.1);">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 20h9"></path>
@@ -48,7 +48,7 @@
                 Edit Account
             </a>
             {% endif %}
-            {% if perms.petty_cash.delete_pettycashaccount %}
+            {% if perms.accounting.delete_pettycashaccount %}
             <a href="{% url 'accounting:account-delete' account.pk %}" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; color: #f87171; border-color: rgba(239,68,68,0.2); display: flex; align-items: center; gap: 0.5rem;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>

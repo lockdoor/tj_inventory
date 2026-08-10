@@ -112,6 +112,21 @@ class TestPettyCashPaymentViews:
         assert response.status_code == 200
         assert len(response.context['payments']) == 0
 
+        # Test advanced search matching gl_code
+        response = client.get(url, {'sf': ['gl_code'], 'sv': ['5101-01']})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 1
+
+        # Test advanced search matching multiple conditions (gl_code AND payee)
+        response = client.get(url, {'sf': ['gl_code', 'payee'], 'sv': ['5101-01', 'Unique Payee']})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 1
+
+        # Test advanced search mismatching second condition
+        response = client.get(url, {'sf': ['gl_code', 'payee'], 'sv': ['5101-01', 'Incorrect Payee']})
+        assert response.status_code == 200
+        assert len(response.context['payments']) == 0
+
     def test_create_payment_success(self, client, manager_user, account, category):
         client.force_login(manager_user)
         
@@ -447,6 +462,7 @@ class TestPettyCashPaymentViews:
             account=account,
             payment_type="disbursement",
             total_amount=Decimal("1000.00"),
+            payee_name="Somchai",
             created_by=manager_user
         )
         PettyCashPaymentItem.objects.create(
@@ -537,6 +553,14 @@ class TestPettyCashPaymentViews:
         # Verify unallocated count is 0 (since PV-6902-001 is excluded from unallocated items)
         assert response.context['unallocated_count'] == 0
         
+        # Test searching inside summary view: filter by payee
+        response_search = client.get(url, {'round_id': str(replenishment.id), 'sf': ['payee'], 'sv': ['Somchai']})
+        assert response_search.status_code == 200
+        category_sums_search = response_search.context['category_sums']
+        search_sums_dict = {row['category__code']: row for row in category_sums_search if row['category__code'] != "1155-00"}
+        assert "5101-00" in search_sums_dict
+        assert search_sums_dict["5101-00"]["total"] == Decimal("930.00")
+
         # POST request to post the round's vouchers
         response_post = client.post(url, {'round_id': str(replenishment.id)})
         assert response_post.status_code == 302
@@ -656,11 +680,12 @@ class TestPettyCashPaymentViews:
         assert response.status_code == 200
         
         category_sums = response.context['category_sums']
-        sums_dict = {row['category__code']: row for row in category_sums}
+        # Rounded adjustments are now individual rows instead of a single aggregated row.
+        rounding_rows = [row for row in category_sums if row['category__code'] == "4200-09"]
+        total_rounding_sum = sum(row['total'] for row in rounding_rows)
+        assert total_rounding_sum == Decimal("-0.25")
         
-        # Rounded adjustments: 0.25 + (-0.50) = -0.25
-        assert "4200-09" in sums_dict
-        assert sums_dict["4200-09"]["total"] == Decimal("-0.25")
+        sums_dict = {row['category__code']: row for row in category_sums if row['category__code'] not in ("4200-09", "1155-00")}
         
         # Expense: (1001.00 - 0.25) + (500.00 - (-0.50)) = 1000.75 + 500.50 = 1501.25
         assert "5101-00" in sums_dict

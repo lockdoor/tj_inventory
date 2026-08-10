@@ -14,6 +14,9 @@
                 <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 110px;">
                     Tax
                 </th>
+                <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 110px;">
+                    Rounding
+                </th>
                 <th style="padding: 1.5rem 1.25rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.1em; text-align: right; width: 130px;">
                     Amount
                 </th>
@@ -75,6 +78,9 @@
                     <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
                         {% if item.tax %}{{ item.tax }}{% else %}-{% endif %}
                     </td>
+                    <td style="padding: 1.25rem; text-align: right; font-family: monospace; font-size: 0.95rem; font-weight: 600; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
+                        {% if item.rounding_adjustment %}{{ item.rounding_adjustment }}{% else %}-{% endif %}
+                    </td>
                     <td style="padding: 1.25rem; text-align: right; font-weight: 700; font-family: monospace; font-size: 1.05rem; color: {% if payment.payment_type == 'disbursement' %}#f87171{% else %}#34d399{% endif %}; vertical-align: top;">
                         {% if payment.payment_type == 'disbursement' %}-{% else %}+{% endif %}{{ item.amount }}
                     </td>
@@ -82,7 +88,7 @@
                 {% endfor %}
             {% empty %}
             <tr>
-                <td colspan="5" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-muted);">
                     No vouchers recorded for this account.
                 </td>
             </tr>
