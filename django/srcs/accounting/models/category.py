@@ -37,9 +37,11 @@ class PettyCashCategory(AuditableMixin):
         Level 4: XXXXXX-00 (ends in -00)
         Level 5: XXXXXX-XX (any other suffix)
         """
-        if not self.code or len(self.code) < 7:
+        if not self.code:
             return 1
-        code_clean = self.code.replace('-', '')
+        code_clean = self.code.strip().replace('-', '')
+        if len(code_clean) < 6:
+            return 1
         if code_clean.endswith('00000'):
             return 1
         if code_clean.endswith('0000'):

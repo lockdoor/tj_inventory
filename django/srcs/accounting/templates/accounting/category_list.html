@@ -162,9 +162,9 @@
             </thead>
             <tbody>
                 {% for category in categories %}
-                <tr class="table-row account-row level-{{ category.level }}" 
+                <tr id="category-row-{{ category.pk }}" class="table-row account-row level-{{ category.level }}" 
                     data-level="{{ category.level }}" 
-                    style="border-bottom: 1px solid var(--glass-border); transition: var(--transition); {% if category.level > 1 %}display: none;{% endif %}">
+                    style="border-bottom: 1px solid var(--glass-border); transition: var(--transition); {% if category.level > 1 and not q %}display: none;{% endif %}">
                     <td style="padding: 1.25rem; font-family: monospace; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; padding-left: calc(({{ category.level }} - 1) * 2rem + 1.25rem);">
                         {% if category.level < 5 %}
                         <button class="toggle-btn" onclick="toggleChildren(this)" data-collapsed="true" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); font-weight: bold; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0;">
@@ -202,8 +202,45 @@
 </div>
 
 <script>
+function initCategoryTree() {
+    const rows = document.querySelectorAll('tbody tr.account-row');
+    const stack = [];
+    const parentIds = new Set();
+    
+    rows.forEach(row => {
+        const level = parseInt(row.getAttribute('data-level'));
+        while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+            stack.pop();
+        }
+        
+        if (stack.length > 0) {
+            const parentId = stack[stack.length - 1].id;
+            row.setAttribute('data-parent-id', parentId);
+            parentIds.add(parentId);
+        } else {
+            row.setAttribute('data-parent-id', '');
+        }
+        
+        stack.push({ level: level, id: row.id });
+    });
+    
+    // For rows without children, replace the toggle button with a blank spacer
+    rows.forEach(row => {
+        if (!parentIds.has(row.id)) {
+            const btn = row.querySelector('.toggle-btn');
+            if (btn) {
+                const spacer = document.createElement('span');
+                spacer.style.width = '22px';
+                spacer.style.display = 'inline-block';
+                btn.replaceWith(spacer);
+            }
+        }
+    });
+}
+
 function toggleChildren(button) {
     const row = button.closest('tr');
+    const rowId = row.id;
     const currentLevel = parseInt(row.getAttribute('data-level'));
     let nextRow = row.nextElementSibling;
     const isCollapsed = button.getAttribute('data-collapsed') === 'true';
@@ -214,11 +251,11 @@ function toggleChildren(button) {
     while (nextRow) {
         const nextLevel = parseInt(nextRow.getAttribute('data-level'));
         if (nextLevel <= currentLevel) {
-            break; // hit same level or parent level, stop
+            break; // reached sibling or higher level in the hierarchy
         }
         
         if (!isCollapsed) {
-            // Collapse all descendants
+            // Collapse: hide all descendants and reset their buttons to collapsed
             nextRow.style.display = 'none';
             const descBtn = nextRow.querySelector('.toggle-btn');
             if (descBtn) {
@@ -226,13 +263,16 @@ function toggleChildren(button) {
                 descBtn.innerHTML = '+';
             }
         } else {
-            // Expand only immediate children (level = currentLevel + 1)
-            if (nextLevel === currentLevel + 1) {
+            // Expand: show immediate children regardless of level difference
+            if (nextRow.getAttribute('data-parent-id') === rowId) {
                 nextRow.style.display = '';
             }
         }
         nextRow = nextRow.nextElementSibling;
     }
 }
+
+// Initialize tree relationships and spacers
+initCategoryTree();
 </script>
 {% endblock %}
