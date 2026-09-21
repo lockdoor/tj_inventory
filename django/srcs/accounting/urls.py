@@ -23,6 +23,7 @@ from accounting.views import (
     PettyCashPaymentCancelView,
     PettyCashPaymentTrashListView,
     PettyCashPaymentSummaryView,
+    PettyCashPaymentSummaryExportView,
     PettyCashCategorySearchAPIView,
     PettyCashPaymentAllocateAPIView
 )
@@ -57,6 +58,7 @@ urlpatterns = [
     path('payments/account/<str:account_code>/create/', PettyCashPaymentCreateView.as_view(), name='payment-create'),
     path('payments/account/<str:account_code>/trash/', PettyCashPaymentTrashListView.as_view(), name='payment-trash'),
     path('payments/account/<str:account_code>/summary/', PettyCashPaymentSummaryView.as_view(), name='payment-summary'),
+    path('payments/account/<str:account_code>/summary/export/', PettyCashPaymentSummaryExportView.as_view(), name='payment-summary-export'),
     path('payments/<int:pk>/', PettyCashPaymentDetailView.as_view(), name='payment-detail'),
     path('payments/<int:pk>/update/', PettyCashPaymentUpdateView.as_view(), name='payment-update'),
     path('payments/<int:pk>/cancel/', PettyCashPaymentCancelView.as_view(), name='payment-cancel'),

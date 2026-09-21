@@ -1,3 +1,6 @@
+import datetime
+import io
+import openpyxl
 import pytest
 from django.urls import reverse
 from django.contrib.auth.models import User, Permission
@@ -690,3 +693,106 @@ class TestPettyCashPaymentViews:
         # Expense: (1001.00 - 0.25) + (500.00 - (-0.50)) = 1000.75 + 500.50 = 1501.25
         assert "5101-00" in sums_dict
         assert sums_dict["5101-00"]["total"] == Decimal("1501.25")
+
+    def test_summary_excel_export(self, client, manager_user, account, category):
+        """Test exporting replenishment summary to Excel report."""
+        client.force_login(manager_user)
+
+        # Create two disbursement payments with items
+        pay1 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=[{
+                'description': 'Taxi fare to customer',
+                'amount': Decimal('250.00'),
+                'category': category,
+                'tax': Decimal('0.00'),
+                'note': ''
+            }],
+            created_by=manager_user
+        )
+        pay1.payee_name = "Mr. Somsak"
+        pay1.save()
+
+        pay2 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            items_data=[{
+                'description': 'Office coffee and tea',
+                'amount': Decimal('107.00'),
+                'category': category,
+                'tax': Decimal('7.00'),
+                'note': ''
+            }],
+            created_by=manager_user
+        )
+        pay2.payee_name = "Supermarket Ltd."
+        pay2.save()
+
+        # Create a replenishment to mark the end of the round
+        replenishment = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("357.00"),
+            payment_date=datetime.date(2026, 9, 20),
+            created_by=manager_user
+        )
+
+        export_url = reverse('accounting:payment-summary-export', kwargs={'account_code': account.code})
+        response = client.get(export_url, {'round_id': str(replenishment.id)})
+
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        assert f'petty_cash_{account.code}_{replenishment.id}.xlsx' in response['Content-Disposition']
+
+        # Parse workbook
+        wb = openpyxl.load_workbook(io.BytesIO(response.content))
+        ws = wb.active
+        assert ws.title == "ใบเบิกเงินสดย่อย"
+
+        # Headers out of table
+        assert ws['A1'].value == account.company.name
+        assert ws['A2'].value == "ใบเบิกเงินสดย่อย"
+        assert "20/09/2026" in ws['A3'].value
+
+        # Table columns (Row 5)
+        headers = [ws.cell(row=5, column=col).value for col in range(1, 7)]
+        assert headers == ["ลำดับ", "วันที่", "จ่ายให้", "รายการ", "ภาษี", "ยอดเงิน"]
+
+        # Data rows (Row 6 and 7)
+        assert ws.cell(row=6, column=1).value == 1
+        assert ws.cell(row=6, column=3).value == "Mr. Somsak"
+        assert ws.cell(row=6, column=4).value == "Taxi fare to customer"
+        assert ws.cell(row=6, column=5).value == 0.00
+        assert ws.cell(row=6, column=6).value == 250.00
+
+        assert ws.cell(row=7, column=1).value == 2
+        assert ws.cell(row=7, column=3).value == "Supermarket Ltd."
+        assert ws.cell(row=7, column=4).value == "Office coffee and tea"
+        assert ws.cell(row=7, column=5).value == 7.00
+        assert ws.cell(row=7, column=6).value == 107.00
+
+        # Summary Row (Row 8)
+        assert ws.cell(row=8, column=1).value == "รวม"
+        assert ws.cell(row=8, column=5).value == "=SUM(E6:E7)"
+        assert ws.cell(row=8, column=6).value == "=SUM(F6:F7)"
+
+        # Test active round export
+        response_active = client.get(export_url, {'round_id': 'active'})
+        assert response_active.status_code == 200
+        wb_active = openpyxl.load_workbook(io.BytesIO(response_active.content))
+        ws_active = wb_active.active
+        assert "รอบปัจจุบัน" in ws_active['A3'].value
+
+        # Test search filter in export
+        response_filtered = client.get(export_url, {
+            'round_id': str(replenishment.id),
+            'sf': ['payee'],
+            'sv': ['Somsak']
+        })
+        assert response_filtered.status_code == 200
+        wb_filtered = openpyxl.load_workbook(io.BytesIO(response_filtered.content))
+        ws_filtered = wb_filtered.active
+        # Only 1 data row (Row 6)
+        assert ws_filtered.cell(row=6, column=3).value == "Mr. Somsak"
+        assert ws_filtered.cell(row=7, column=1).value == "รวม"

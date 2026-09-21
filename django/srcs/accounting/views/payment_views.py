@@ -1,3 +1,7 @@
+import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from django.http import HttpResponse
 import datetime
 from decimal import Decimal
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, TemplateView
@@ -598,3 +602,264 @@ class PettyCashPaymentAllocateAPIView(LoginRequiredMixin, PermissionRequiredMixi
             item.save()
             
         return JsonResponse({'success': True})
+
+
+class PettyCashPaymentSummaryExportView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'accounting.view_pettycashpayment'
+
+    def get_account(self, account_code):
+        return get_object_or_404(PettyCashAccount, code=account_code, is_deleted=False)
+
+    def get(self, request, account_code, *args, **kwargs):
+        account = self.get_account(account_code)
+
+        # Fetch replenishments to resolve rounds
+        replenishments = PettyCashPayment.objects.filter(
+            account=account,
+            payment_type='replenishment',
+            is_deleted=False
+        ).order_by('-payment_date', '-id')
+
+        latest_rep = replenishments.first()
+        active_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+        if latest_rep:
+            active_qs = active_qs.filter(id__gt=latest_rep.id)
+
+        rounds = []
+        if active_qs.exists():
+            rounds.append({'id': 'active', 'name': 'Active (Unreplenished) Round'})
+        for rep in replenishments:
+            formatted_date = rep.payment_date.strftime('%Y-%m-%d') if rep.payment_date else ''
+            rounds.append({
+                'id': str(rep.id),
+                'name': f"Replenishment {rep.payment_no} ({formatted_date})"
+            })
+
+        round_id = request.GET.get('round_id')
+        if not round_id and rounds:
+            round_id = rounds[0]['id']
+
+        selected_rep = None
+        if round_id == 'active':
+            payments_qs = active_qs
+        elif round_id:
+            try:
+                selected_rep = replenishments.get(pk=int(round_id))
+                prev_rep = replenishments.filter(id__lt=selected_rep.id).order_by('-id').first()
+                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+                if prev_rep:
+                    payments_qs = payments_qs.filter(id__gt=prev_rep.id, id__lte=selected_rep.id)
+                else:
+                    payments_qs = payments_qs.filter(id__lte=selected_rep.id)
+            except (ValueError, PettyCashPayment.DoesNotExist):
+                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+        else:
+            payments_qs = PettyCashPayment.objects.none()
+
+        # Apply multi-condition search filtering if any
+        sf_list = request.GET.getlist('sf')
+        sv_list = request.GET.getlist('sv')
+        q = request.GET.get('q', '').strip()
+        if q:
+            payments_qs = payments_qs.filter(
+                Q(payment_no__icontains=q) |
+                Q(payee_name__icontains=q) |
+                Q(note__icontains=q)
+            )
+
+        for sf, sv in zip(sf_list, sv_list):
+            sv = sv.strip()
+            if not sv:
+                continue
+            if sf == 'voucher_no':
+                payments_qs = payments_qs.filter(payment_no__icontains=sv)
+            elif sf == 'payee':
+                payments_qs = payments_qs.filter(payee_name__icontains=sv)
+            elif sf == 'gl_code':
+                payments_qs = payments_qs.filter(items__category__code__icontains=sv)
+            elif sf == 'external_pv':
+                payments_qs = payments_qs.filter(items__external_pv_no__icontains=sv)
+            elif sf == 'description':
+                payments_qs = payments_qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
+            else:
+                payments_qs = payments_qs.filter(
+                    Q(payment_no__icontains=sv) |
+                    Q(payee_name__icontains=sv) |
+                    Q(note__icontains=sv) |
+                    Q(items__category__code__icontains=sv) |
+                    Q(items__external_pv_no__icontains=sv) |
+                    Q(items__description__icontains=sv)
+                )
+
+        payments_qs = payments_qs.distinct()
+
+        items = PettyCashPaymentItem.objects.filter(
+            payment__in=payments_qs
+        ).exclude(
+            payment__payment_type='replenishment'
+        ).select_related('payment', 'payment__payee').order_by('payment__payment_date', 'payment__id', 'id')
+
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "ใบเบิกเงินสดย่อย"
+
+        # Styles
+        font_company = Font(name='Arial', size=14, bold=True)
+        font_title = Font(name='Arial', size=13, bold=True)
+        font_date = Font(name='Arial', size=10, italic=True)
+        font_header = Font(name='Arial', size=10, bold=True)
+        font_data = Font(name='Arial', size=10)
+        font_total = Font(name='Arial', size=10, bold=True)
+
+        header_fill = PatternFill(start_color='F2F4F7', end_color='F2F4F7', fill_type='solid')
+        total_fill = PatternFill(start_color='F9FAFB', end_color='F9FAFB', fill_type='solid')
+
+        thin_side = Side(style='thin', color='C0C0C0')
+        double_side = Side(style='double', color='000000')
+
+        cell_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        total_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=double_side)
+
+        # 3 Headers out of table
+        company_name = account.company.name if account.company else "องค์กร"
+        ws['A1'] = company_name
+        ws['A1'].font = font_company
+        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.merge_cells('A1:F1')
+
+        ws['A2'] = "ใบเบิกเงินสดย่อย"
+        ws['A2'].font = font_title
+        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.merge_cells('A2:F2')
+
+        if selected_rep and selected_rep.payment_date:
+            rep_date_str = selected_rep.payment_date.strftime('%d/%m/%Y')
+            ws['A3'] = f"วันที่เบิกชดเชย: {rep_date_str}"
+        elif round_id == 'active':
+            ws['A3'] = "วันที่เบิกชดเชย: รอบปัจจุบัน (ยังไม่ได้เบิกชดเชย)"
+        else:
+            ws['A3'] = "วันที่เบิกชดเชย: -"
+        ws['A3'].font = font_date
+        ws['A3'].alignment = Alignment(horizontal='center', vertical='center')
+        ws.merge_cells('A3:F3')
+
+        # Table Headers at Row 5
+        headers = ["ลำดับ", "วันที่", "จ่ายให้", "รายการ", "ภาษี", "ยอดเงิน"]
+        for col_idx, h in enumerate(headers, start=1):
+            cell = ws.cell(row=5, column=col_idx, value=h)
+            cell.font = font_header
+            cell.fill = header_fill
+            cell.border = cell_border
+            if col_idx in [1, 2]:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            elif col_idx in [5, 6]:
+                cell.alignment = Alignment(horizontal='right', vertical='center')
+            else:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+
+        current_row = 6
+        num_items = items.count()
+
+        for idx, item in enumerate(items, start=1):
+            date_str = item.payment.payment_date.strftime('%d/%m/%Y') if item.payment.payment_date else ''
+            payee = item.payment.payee_name or (item.payment.payee.full_name if item.payment.payee else '') or str(item.payment.payee or '')
+            desc = item.description or ''
+            tax_val = float(item.tax) if item.tax is not None else 0.0
+            amount_val = float(item.amount) if item.amount is not None else 0.0
+
+            cA = ws.cell(row=current_row, column=1, value=idx)
+            cA.alignment = Alignment(horizontal='center', vertical='center')
+
+            cB = ws.cell(row=current_row, column=2, value=date_str)
+            cB.alignment = Alignment(horizontal='center', vertical='center')
+
+            cC = ws.cell(row=current_row, column=3, value=payee)
+            cC.alignment = Alignment(horizontal='left', vertical='center')
+
+            cD = ws.cell(row=current_row, column=4, value=desc)
+            cD.alignment = Alignment(horizontal='left', vertical='center')
+
+            cE = ws.cell(row=current_row, column=5, value=tax_val)
+            cE.alignment = Alignment(horizontal='right', vertical='center')
+            cE.number_format = '#,##0.00'
+
+            cF = ws.cell(row=current_row, column=6, value=amount_val)
+            cF.alignment = Alignment(horizontal='right', vertical='center')
+            cF.number_format = '#,##0.00'
+
+            for c in [cA, cB, cC, cD, cE, cF]:
+                c.font = font_data
+                c.border = cell_border
+
+            current_row += 1
+
+        # Summary Row
+        summary_row = current_row
+        ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
+        c_label = ws.cell(row=summary_row, column=1, value="รวม")
+        c_label.font = font_total
+        c_label.alignment = Alignment(horizontal='right', vertical='center')
+
+        for col_idx in range(1, 5):
+            cell = ws.cell(row=summary_row, column=col_idx)
+            cell.border = total_border
+            cell.fill = total_fill
+
+        c_sum_tax = ws.cell(row=summary_row, column=5)
+        c_sum_amount = ws.cell(row=summary_row, column=6)
+
+        if num_items > 0:
+            c_sum_tax.value = f"=SUM(E6:E{summary_row - 1})"
+            c_sum_amount.value = f"=SUM(F6:F{summary_row - 1})"
+        else:
+            c_sum_tax.value = 0.00
+            c_sum_amount.value = 0.00
+
+        for cell in [c_sum_tax, c_sum_amount]:
+            cell.font = font_total
+            cell.alignment = Alignment(horizontal='right', vertical='center')
+            cell.number_format = '#,##0.00'
+            cell.border = total_border
+            cell.fill = total_fill
+
+        # Column widths
+        column_widths = {
+            'A': 8,
+            'B': 13,
+            'C': 24,
+            'D': 36,
+            'E': 14,
+            'F': 16,
+        }
+        for col_letter, width in column_widths.items():
+            ws.column_dimensions[col_letter].width = width
+
+        # Row heights
+        ws.row_dimensions[1].height = 24
+        ws.row_dimensions[2].height = 22
+        ws.row_dimensions[3].height = 18
+        ws.row_dimensions[5].height = 22
+        for r in range(6, current_row + 1):
+            ws.row_dimensions[r].height = 20
+
+        # Print / Page Setup for A4
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        clean_round = "".join(c for c in (round_id or 'all') if c.isalnum() or c in ('-', '_'))
+        filename = f"petty_cash_{account.code}_{clean_round}.xlsx"
+
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
