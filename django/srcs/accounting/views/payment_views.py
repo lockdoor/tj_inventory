@@ -479,7 +479,7 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         # Append individual actual PV records
         for item in actual_pv_items:
             payment = item.payment
-            payee = payment.payee_name or (payment.payee.get_full_name() if payment.payee else '') or str(payment.payee or '')
+            payee = payment.payee_name or (payment.payee.full_name if payment.payee else '') or str(payment.payee or '')
             desc_str = f"{payee} - {item.description}" if payee and item.description else (payee or item.description or 'External PV')
             category_sums_list.append({
                 'category__code': f"PV: {item.external_pv_no}",
