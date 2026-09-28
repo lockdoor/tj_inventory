@@ -270,6 +270,91 @@ class PettyCashPaymentTrashListView(LoginRequiredMixin, PermissionRequiredMixin,
         return context
 
 
+def get_round_data(account, round_id=None):
+    """
+    Given an account and optional round_id, compute:
+    - replenishments: QuerySet of all replenishments ordered by (-payment_date, -id)
+    - active_qs: QuerySet of payments belonging to the active (unreplenished) round
+    - rounds: list of round dicts ({'id': ..., 'name': ...})
+    - selected_round_id: resolved round_id
+    - selected_rep: PettyCashPayment instance or None
+    - prev_rep: PettyCashPayment instance or None
+    - is_active_round: bool
+    - payments_qs: QuerySet of PettyCashPayment belonging to this round
+    """
+    replenishments = PettyCashPayment.objects.filter(
+        account=account,
+        payment_type='replenishment',
+        is_deleted=False
+    ).order_by('-payment_date', '-id')
+
+    latest_rep = replenishments.first()
+    active_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+    if latest_rep:
+        active_qs = active_qs.filter(
+            Q(payment_date__gt=latest_rep.payment_date) |
+            Q(payment_date=latest_rep.payment_date, id__gt=latest_rep.id)
+        )
+
+    rounds = []
+    if active_qs.exists():
+        rounds.append({
+            'id': 'active',
+            'name': 'Active (Unreplenished) Round'
+        })
+    for rep in replenishments:
+        formatted_date = rep.payment_date.strftime('%Y-%m-%d') if rep.payment_date else ''
+        rounds.append({
+            'id': str(rep.id),
+            'name': f"Replenishment {rep.payment_no} ({formatted_date})"
+        })
+
+    if not round_id and rounds:
+        round_id = rounds[0]['id']
+
+    selected_rep = None
+    prev_rep = None
+    is_active_round = False
+
+    if round_id == 'active':
+        is_active_round = True
+        payments_qs = active_qs
+    elif round_id:
+        try:
+            selected_rep = replenishments.get(pk=int(round_id))
+            prev_rep = replenishments.filter(
+                Q(payment_date__lt=selected_rep.payment_date) |
+                Q(payment_date=selected_rep.payment_date, id__lt=selected_rep.id)
+            ).order_by('-payment_date', '-id').first()
+
+            payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+            if prev_rep:
+                payments_qs = payments_qs.filter(
+                    (Q(payment_date__gt=prev_rep.payment_date) | Q(payment_date=prev_rep.payment_date, id__gt=prev_rep.id)) &
+                    (Q(payment_date__lt=selected_rep.payment_date) | Q(payment_date=selected_rep.payment_date, id__lte=selected_rep.id))
+                )
+            else:
+                payments_qs = payments_qs.filter(
+                    Q(payment_date__lt=selected_rep.payment_date) |
+                    Q(payment_date=selected_rep.payment_date, id__lte=selected_rep.id)
+                )
+        except (ValueError, PettyCashPayment.DoesNotExist):
+            payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+    else:
+        payments_qs = PettyCashPayment.objects.none()
+
+    return {
+        'replenishments': replenishments,
+        'active_qs': active_qs,
+        'rounds': rounds,
+        'selected_round_id': round_id,
+        'selected_rep': selected_rep,
+        'prev_rep': prev_rep,
+        'is_active_round': is_active_round,
+        'payments_qs': payments_qs,
+    }
+
+
 class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'accounting/payment_summary.html'
     permission_required = 'accounting.change_pettycashpayment'
@@ -282,38 +367,12 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         account = self.get_account()
         context['account'] = account
 
-        # Fetch replenishments to build rounds
-        replenishments = PettyCashPayment.objects.filter(
-            account=account,
-            payment_type='replenishment',
-            is_deleted=False
-        ).order_by('-payment_date', '-id')
-
-        # Check Active (Unreplenished) Round
-        latest_rep = replenishments.first()
-        active_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-        if latest_rep:
-            active_qs = active_qs.filter(id__gt=latest_rep.id)
-
-        # Build dropdown options
-        rounds = []
-        if active_qs.exists():
-            rounds.append({
-                'id': 'active',
-                'name': 'Active (Unreplenished) Round'
-            })
-        for rep in replenishments:
-            formatted_date = rep.payment_date.strftime('%Y-%m-%d') if rep.payment_date else ''
-            rounds.append({
-                'id': str(rep.id),
-                'name': f"Replenishment {rep.payment_no} ({formatted_date})"
-            })
-        context['rounds'] = rounds
-
-        # Determine selected round
         round_id = self.request.GET.get('round_id')
-        if not round_id and rounds:
-            round_id = rounds[0]['id']
+        round_data = get_round_data(account, round_id)
+
+        rounds = round_data['rounds']
+        round_id = round_data['selected_round_id']
+        context['rounds'] = rounds
         context['selected_round_id'] = round_id
 
         # Calculate prev/next round navigation
@@ -334,23 +393,9 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
         context['prev_round'] = prev_round
         context['next_round'] = next_round
 
-        selected_rep = None
-        is_active_round = False
-
-        if round_id == 'active':
-            is_active_round = True
-            payments_qs = active_qs
-        elif round_id:
-            try:
-                selected_rep = replenishments.get(pk=int(round_id))
-                prev_rep = replenishments.filter(id__lt=selected_rep.id).order_by('-id').first()
-                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-                if prev_rep:
-                    payments_qs = payments_qs.filter(id__gt=prev_rep.id, id__lte=selected_rep.id)
-                else:
-                    payments_qs = payments_qs.filter(id__lte=selected_rep.id)
-            except (ValueError, PettyCashPayment.DoesNotExist):
-                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
+        selected_rep = round_data['selected_rep']
+        is_active_round = round_data['is_active_round']
+        payments_qs = round_data['payments_qs']
         # Apply advanced multi-condition search filtering on payments_qs
         sf_list = self.request.GET.getlist('sf')
         sv_list = self.request.GET.getlist('sv')
@@ -515,19 +560,12 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
             messages.error(request, "You cannot lock the active round until a replenishment record is created.")
             return redirect(f"{request.path}?round_id=active")
 
-        selected_rep = get_object_or_404(PettyCashPayment, pk=int(round_id), account=account)
-        replenishments = PettyCashPayment.objects.filter(
-            account=account,
-            payment_type='replenishment',
-            is_deleted=False
-        ).order_by('-id')
-        prev_rep = replenishments.filter(id__lt=selected_rep.id).first()
+        round_data = get_round_data(account, round_id)
+        selected_rep = round_data['selected_rep']
+        if not selected_rep:
+            selected_rep = get_object_or_404(PettyCashPayment, pk=int(round_id), account=account)
 
-        payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-        if prev_rep:
-            payments_qs = payments_qs.filter(id__gt=prev_rep.id, id__lte=selected_rep.id)
-        else:
-            payments_qs = payments_qs.filter(id__lte=selected_rep.id)
+        payments_qs = round_data['payments_qs']
 
         unposted_payments = payments_qs.filter(is_posted=False)
 
@@ -613,48 +651,11 @@ class PettyCashPaymentSummaryExportView(LoginRequiredMixin, PermissionRequiredMi
     def get(self, request, account_code, *args, **kwargs):
         account = self.get_account(account_code)
 
-        # Fetch replenishments to resolve rounds
-        replenishments = PettyCashPayment.objects.filter(
-            account=account,
-            payment_type='replenishment',
-            is_deleted=False
-        ).order_by('-payment_date', '-id')
-
-        latest_rep = replenishments.first()
-        active_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-        if latest_rep:
-            active_qs = active_qs.filter(id__gt=latest_rep.id)
-
-        rounds = []
-        if active_qs.exists():
-            rounds.append({'id': 'active', 'name': 'Active (Unreplenished) Round'})
-        for rep in replenishments:
-            formatted_date = rep.payment_date.strftime('%Y-%m-%d') if rep.payment_date else ''
-            rounds.append({
-                'id': str(rep.id),
-                'name': f"Replenishment {rep.payment_no} ({formatted_date})"
-            })
-
         round_id = request.GET.get('round_id')
-        if not round_id and rounds:
-            round_id = rounds[0]['id']
+        round_data = get_round_data(account, round_id)
 
-        selected_rep = None
-        if round_id == 'active':
-            payments_qs = active_qs
-        elif round_id:
-            try:
-                selected_rep = replenishments.get(pk=int(round_id))
-                prev_rep = replenishments.filter(id__lt=selected_rep.id).order_by('-id').first()
-                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-                if prev_rep:
-                    payments_qs = payments_qs.filter(id__gt=prev_rep.id, id__lte=selected_rep.id)
-                else:
-                    payments_qs = payments_qs.filter(id__lte=selected_rep.id)
-            except (ValueError, PettyCashPayment.DoesNotExist):
-                payments_qs = PettyCashPayment.objects.filter(account=account, is_deleted=False)
-        else:
-            payments_qs = PettyCashPayment.objects.none()
+        selected_rep = round_data['selected_rep']
+        payments_qs = round_data['payments_qs']
 
         # Apply multi-condition search filtering if any
         sf_list = request.GET.getlist('sf')

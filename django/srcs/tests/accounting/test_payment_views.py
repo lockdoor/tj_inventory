@@ -702,6 +702,7 @@ class TestPettyCashPaymentViews:
         pay1 = PettyCashPaymentService.create_payment(
             account=account,
             payment_type="disbursement",
+            payment_date=datetime.date(2026, 9, 18),
             items_data=[{
                 'description': 'Taxi fare to customer',
                 'amount': Decimal('250.00'),
@@ -717,6 +718,7 @@ class TestPettyCashPaymentViews:
         pay2 = PettyCashPaymentService.create_payment(
             account=account,
             payment_type="disbursement",
+            payment_date=datetime.date(2026, 9, 19),
             items_data=[{
                 'description': 'Office coffee and tea',
                 'amount': Decimal('107.00'),
@@ -796,3 +798,70 @@ class TestPettyCashPaymentViews:
         # Only 1 data row (Row 6)
         assert ws_filtered.cell(row=6, column=3).value == "Mr. Somsak"
         assert ws_filtered.cell(row=7, column=1).value == "รวม"
+
+    def test_backdated_payment_appears_in_correct_round(self, client, manager_user, account, category):
+        """Payments created after replenishment but backdated before replenishment date must appear in that round."""
+        client.force_login(manager_user)
+
+        # 1. Create first replenishment on 2026-09-01
+        rep1 = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("1000.00"),
+            payment_date=datetime.date(2026, 9, 1),
+            created_by=manager_user
+        )
+
+        # 2. Create second replenishment on 2026-09-15
+        rep2 = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("1000.00"),
+            payment_date=datetime.date(2026, 9, 15),
+            created_by=manager_user
+        )
+
+        # 3. Create a backdated payment on 2026-09-10 (created AFTER rep2, so id > rep2.id)
+        backdated_pay = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            payment_date=datetime.date(2026, 9, 10),
+            items_data=[{
+                'description': 'Backdated taxi expense',
+                'amount': Decimal('200.00'),
+                'category': category,
+                'note': ''
+            }],
+            created_by=manager_user
+        )
+        assert backdated_pay.id > rep2.id
+
+        # 4. Create an active payment on 2026-09-20 (after rep2)
+        active_pay = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            payment_date=datetime.date(2026, 9, 20),
+            items_data=[{
+                'description': 'Current round expense',
+                'amount': Decimal('300.00'),
+                'category': category,
+                'note': ''
+            }],
+            created_by=manager_user
+        )
+
+        url = reverse('accounting:payment-summary', kwargs={'account_code': account.code})
+
+        # Test query for round rep2: backdated_pay must be present, active_pay must NOT be present
+        response_rep2 = client.get(url, {'round_id': str(rep2.id)})
+        assert response_rep2.status_code == 200
+        payments_in_rep2 = list(response_rep2.context['payments'])
+        assert backdated_pay in payments_in_rep2
+        assert active_pay not in payments_in_rep2
+
+        # Test query for active round: active_pay must be present, backdated_pay must NOT be present
+        response_active = client.get(url, {'round_id': 'active'})
+        assert response_active.status_code == 200
+        payments_in_active = list(response_active.context['payments'])
+        assert active_pay in payments_in_active
+        assert backdated_pay not in payments_in_active
