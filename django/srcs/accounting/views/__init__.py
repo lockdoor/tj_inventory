@@ -27,6 +27,7 @@ from accounting.views.payment_views import (
     PettyCashPaymentTrashListView,
     PettyCashPaymentSummaryView,
     PettyCashPaymentSummaryExportView,
+    PettyCashCategorySummaryExportView,
     PettyCashCategorySearchAPIView,
     PettyCashPaymentAllocateAPIView
 )

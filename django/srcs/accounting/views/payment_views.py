@@ -1,7 +1,3 @@
-import io
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from django.http import HttpResponse
 import datetime
 from decimal import Decimal
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, View, TemplateView
@@ -10,11 +6,12 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Sum, Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from accounting.models import PettyCashPayment, PettyCashAccount, PettyCashPaymentItem, PettyCashCategory
 from accounting.forms.payment_form import PettyCashPaymentForm, PettyCashPaymentItemFormSet
 from accounting.services.payment_service import PettyCashPaymentService
+from accounting.services.excel_service import PettyCashExcelExportService
 
 
 class PettyCashPaymentListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -361,6 +358,157 @@ def get_round_data(account, round_id=None):
     }
 
 
+def filter_payments_by_search(payments_qs, query_params):
+    """
+    Applies multi-condition search filtering to payments_qs based on query_params:
+    - q: general text search across payment_no, payee_name, note
+    - sf / sv: field-specific search (voucher_no, payee, gl_code, external_pv, description, all)
+    """
+    sf_list = query_params.getlist('sf')
+    sv_list = query_params.getlist('sv')
+
+    q = query_params.get('q', '').strip()
+    if q:
+        payments_qs = payments_qs.filter(
+            Q(payment_no__icontains=q) |
+            Q(payee_name__icontains=q) |
+            Q(note__icontains=q)
+        )
+
+    for sf, sv in zip(sf_list, sv_list):
+        sv = sv.strip()
+        if not sv:
+            continue
+        if sf == 'voucher_no':
+            payments_qs = payments_qs.filter(payment_no__icontains=sv)
+        elif sf == 'payee':
+            payments_qs = payments_qs.filter(payee_name__icontains=sv)
+        elif sf == 'gl_code':
+            payments_qs = payments_qs.filter(items__category__code__icontains=sv)
+        elif sf == 'external_pv':
+            payments_qs = payments_qs.filter(items__external_pv_no__icontains=sv)
+        elif sf == 'description':
+            payments_qs = payments_qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
+        else:
+            payments_qs = payments_qs.filter(
+                Q(payment_no__icontains=sv) |
+                Q(payee_name__icontains=sv) |
+                Q(note__icontains=sv) |
+                Q(items__category__code__icontains=sv) |
+                Q(items__external_pv_no__icontains=sv) |
+                Q(items__description__icontains=sv)
+            )
+
+    return payments_qs.distinct()
+
+
+def calculate_category_sums(account, payments_qs):
+    """
+    Computes category aggregations including net normal expense categories,
+    VAT extraction lines, rounding adjustment lines, pending allocation lines,
+    and external PV items.
+    Returns: (category_sums_list, unallocated_count)
+    """
+    items = PettyCashPaymentItem.objects.filter(payment__in=payments_qs)
+    round_items = items.exclude(payment__payment_type='replenishment')
+
+    # Distinguish actual PV items and normal items
+    actual_pv_items = round_items.exclude(external_pv_no='').exclude(external_pv_no__isnull=True).order_by('external_pv_no', 'id')
+    normal_items = round_items.filter(Q(external_pv_no='') | Q(external_pv_no__isnull=True))
+
+    # In-memory aggregation of normal items with VAT extraction and rounding adjustment deduction
+    category_sums_dict = {}
+    unallocated_sum = Decimal('0.00')
+
+    # Prefetch payment to avoid N+1 queries on item.payment
+    normal_items = normal_items.select_related('payment')
+
+    vat_items_list = []
+    rounding_items_list = []
+    for item in normal_items:
+        tax_amount = item.tax or Decimal('0.00')
+        item_rounding = item.rounding_adjustment or Decimal('0.00')
+
+        net_amount = item.amount - tax_amount - item_rounding
+
+        if tax_amount > Decimal('0.00'):
+            vat_code = account.vat_category_code or '1155-00'
+            vat_cat = PettyCashCategory.objects.filter(code=vat_code, company=account.company, is_deleted=False).first()
+            vat_name = vat_cat.name if vat_cat else "ภาษีซื้อ-ยังไม่ถึงกำหนด"
+            payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
+            desc_str = f"VAT: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Input VAT')
+            vat_items_list.append({
+                'category__code': vat_code,
+                'category__name': f"{vat_name} ({desc_str})",
+                'category_base_name': vat_name,
+                'total': tax_amount
+            })
+
+        if item_rounding != Decimal('0.00'):
+            rounding_code = account.rounding_category_code or '4200-07'
+            rounding_cat = PettyCashCategory.objects.filter(code=rounding_code, company=account.company, is_deleted=False).first()
+            rounding_name = rounding_cat.name if rounding_cat else "รายได้-อื่นๆ"
+            payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
+            desc_str = f"Rounding: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Rounding Adjustment')
+            rounding_items_list.append({
+                'category__code': rounding_code,
+                'category__name': f"{rounding_name} ({desc_str})",
+                'category_base_name': rounding_name,
+                'total': item_rounding
+            })
+
+        if item.category:
+            code = item.category.code
+            name = item.category.name
+            if code not in category_sums_dict:
+                category_sums_dict[code] = {
+                    'category__code': code,
+                    'category__name': name,
+                    'category_base_name': name,
+                    'total': Decimal('0.00')
+                }
+            category_sums_dict[code]['total'] += net_amount
+        else:
+            unallocated_sum += net_amount
+
+    # Convert to list and sort normal categories by code
+    category_sums_list = sorted(category_sums_dict.values(), key=lambda x: x['category__code'])
+
+    # Append individual VAT records
+    category_sums_list.extend(vat_items_list)
+
+    # Append individual rounding records
+    category_sums_list.extend(rounding_items_list)
+
+    # Append unallocated row if it exists
+    if unallocated_sum > Decimal('0.00'):
+        category_sums_list.append({
+            'category__code': None,
+            'category__name': "Pending category allocation",
+            'category_base_name': "Pending category allocation",
+            'total': unallocated_sum
+        })
+
+    # Append individual actual PV records
+    for item in actual_pv_items:
+        payment = item.payment
+        payee = payment.payee_name or (payment.payee.full_name if payment.payee else '') or str(payment.payee or '')
+        desc_str = f"{payee} - {item.description}" if payee and item.description else (payee or item.description or 'External PV')
+        category_sums_list.append({
+            'category__code': f"PV: {item.external_pv_no}",
+            'category__name': desc_str,
+            'category_base_name': desc_str,
+            'total': item.amount
+        })
+
+    # Compute unallocated count, excluding items belonging to replenishment or actual PV items
+    unallocated_count = items.filter(category__isnull=True).exclude(payment__payment_type='replenishment').exclude(
+        ~Q(external_pv_no='') & Q(external_pv_no__isnull=False)
+    ).count()
+
+    return category_sums_list, unallocated_count
+
+
 class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     template_name = 'accounting/payment_summary.html'
     permission_required = 'accounting.change_pettycashpayment'
@@ -401,151 +549,14 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
 
         selected_rep = round_data['selected_rep']
         is_active_round = round_data['is_active_round']
-        payments_qs = round_data['payments_qs']
-        # Apply advanced multi-condition search filtering on payments_qs
-        sf_list = self.request.GET.getlist('sf')
-        sv_list = self.request.GET.getlist('sv')
-        
-        q = self.request.GET.get('q', '').strip()
-        if q:
-            payments_qs = payments_qs.filter(
-                Q(payment_no__icontains=q) |
-                Q(payee_name__icontains=q) |
-                Q(note__icontains=q)
-            )
-
-        for sf, sv in zip(sf_list, sv_list):
-            sv = sv.strip()
-            if not sv:
-                continue
-            if sf == 'voucher_no':
-                payments_qs = payments_qs.filter(payment_no__icontains=sv)
-            elif sf == 'payee':
-                payments_qs = payments_qs.filter(payee_name__icontains=sv)
-            elif sf == 'gl_code':
-                payments_qs = payments_qs.filter(items__category__code__icontains=sv)
-            elif sf == 'external_pv':
-                payments_qs = payments_qs.filter(items__external_pv_no__icontains=sv)
-            elif sf == 'description':
-                payments_qs = payments_qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
-            else: # 'all' or fallback
-                payments_qs = payments_qs.filter(
-                    Q(payment_no__icontains=sv) |
-                    Q(payee_name__icontains=sv) |
-                    Q(note__icontains=sv) |
-                    Q(items__category__code__icontains=sv) |
-                    Q(items__external_pv_no__icontains=sv) |
-                    Q(items__description__icontains=sv)
-                )
-
-        payments_qs = payments_qs.distinct()
+        payments_qs = filter_payments_by_search(round_data['payments_qs'], self.request.GET)
 
         # Build search lines list for template
-        search_lines = []
-        for sf, sv in zip(sf_list, sv_list):
-            if sv.strip():
-                search_lines.append({'field': sf, 'value': sv.strip()})
-        
-        if not search_lines:
-            search_lines.append({'field': 'all', 'value': ''})
-            
-        context['search_lines'] = search_lines
-        context['q'] = q
+        sf_list = self.request.GET.getlist('sf')
+        sv_list = self.request.GET.getlist('sv')
+        q = self.request.GET.get('q', '').strip()
 
-        items = PettyCashPaymentItem.objects.filter(payment__in=payments_qs)
-        
-        round_items = items.exclude(payment__payment_type='replenishment')
-
-        # Distinguish actual PV items and normal items
-        actual_pv_items = round_items.exclude(external_pv_no='').exclude(external_pv_no__isnull=True).order_by('external_pv_no', 'id')
-        normal_items = round_items.filter(Q(external_pv_no='') | Q(external_pv_no__isnull=True))
-
-        # In-memory aggregation of normal items with VAT extraction and rounding adjustment deduction
-        category_sums_dict = {}
-        total_vat = Decimal('0.00')
-        total_rounding = Decimal('0.00')
-        unallocated_sum = Decimal('0.00')
-
-        # Prefetch payment to avoid N+1 queries on item.payment
-        normal_items = normal_items.select_related('payment')
-
-        vat_items_list = []
-        rounding_items_list = []
-        for item in normal_items:
-            tax_amount = item.tax or Decimal('0.00')
-            item_rounding = item.rounding_adjustment or Decimal('0.00')
-
-            net_amount = item.amount - tax_amount - item_rounding
-
-            if tax_amount > Decimal('0.00'):
-                vat_code = account.vat_category_code or '1155-00'
-                vat_cat = PettyCashCategory.objects.filter(code=vat_code, company=account.company, is_deleted=False).first()
-                vat_name = vat_cat.name if vat_cat else "ภาษีซื้อ-ยังไม่ถึงกำหนด"
-                payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
-                desc_str = f"VAT: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Input VAT')
-                vat_items_list.append({
-                    'category__code': vat_code,
-                    'category__name': f"{vat_name} ({desc_str})",
-                    'total': tax_amount
-                })
-
-            if item_rounding != Decimal('0.00'):
-                rounding_code = account.rounding_category_code or '4200-07'
-                rounding_cat = PettyCashCategory.objects.filter(code=rounding_code, company=account.company, is_deleted=False).first()
-                rounding_name = rounding_cat.name if rounding_cat else "รายได้-อื่นๆ"
-                payee = item.payment.payee_name or (item.payment.created_by.get_full_name() if item.payment.created_by else '') or str(item.payment.created_by or '')
-                desc_str = f"Rounding: {payee} - {item.description}" if payee and item.description else (payee or item.description or 'Rounding Adjustment')
-                rounding_items_list.append({
-                    'category__code': rounding_code,
-                    'category__name': f"{rounding_name} ({desc_str})",
-                    'total': item_rounding
-                })
-
-            if item.category:
-                code = item.category.code
-                name = item.category.name
-                if code not in category_sums_dict:
-                    category_sums_dict[code] = {
-                        'category__code': code,
-                        'category__name': name,
-                        'total': Decimal('0.00')
-                    }
-                category_sums_dict[code]['total'] += net_amount
-            else:
-                unallocated_sum += net_amount
-
-        # Convert to list and sort normal categories by code
-        category_sums_list = sorted(category_sums_dict.values(), key=lambda x: x['category__code'])
-
-        # Append individual VAT records
-        category_sums_list.extend(vat_items_list)
-
-        # Append individual rounding records
-        category_sums_list.extend(rounding_items_list)
-
-        # Append unallocated row if it exists
-        if unallocated_sum > Decimal('0.00'):
-            category_sums_list.append({
-                'category__code': None,
-                'category__name': "Pending category allocation",
-                'total': unallocated_sum
-            })
-
-        # Append individual actual PV records
-        for item in actual_pv_items:
-            payment = item.payment
-            payee = payment.payee_name or (payment.payee.full_name if payment.payee else '') or str(payment.payee or '')
-            desc_str = f"{payee} - {item.description}" if payee and item.description else (payee or item.description or 'External PV')
-            category_sums_list.append({
-                'category__code': f"PV: {item.external_pv_no}",
-                'category__name': desc_str,
-                'total': item.amount
-            })
-
-        # Compute unallocated count, excluding items belonging to replenishment or actual PV items
-        unallocated_count = items.filter(category__isnull=True).exclude(payment__payment_type='replenishment').exclude(
-            ~Q(external_pv_no='') & Q(external_pv_no__isnull=False)
-        ).count()
+        category_sums_list, unallocated_count = calculate_category_sums(account, payments_qs)
 
         context['payments'] = payments_qs
         context['category_sums'] = category_sums_list
@@ -683,49 +694,11 @@ class PettyCashPaymentSummaryExportView(LoginRequiredMixin, PermissionRequiredMi
 
     def get(self, request, account_code, *args, **kwargs):
         account = self.get_account(account_code)
-
         round_id = request.GET.get('round_id')
         round_data = get_round_data(account, round_id)
 
         selected_rep = round_data['selected_rep']
-        payments_qs = round_data['payments_qs']
-
-        # Apply multi-condition search filtering if any
-        sf_list = request.GET.getlist('sf')
-        sv_list = request.GET.getlist('sv')
-        q = request.GET.get('q', '').strip()
-        if q:
-            payments_qs = payments_qs.filter(
-                Q(payment_no__icontains=q) |
-                Q(payee_name__icontains=q) |
-                Q(note__icontains=q)
-            )
-
-        for sf, sv in zip(sf_list, sv_list):
-            sv = sv.strip()
-            if not sv:
-                continue
-            if sf == 'voucher_no':
-                payments_qs = payments_qs.filter(payment_no__icontains=sv)
-            elif sf == 'payee':
-                payments_qs = payments_qs.filter(payee_name__icontains=sv)
-            elif sf == 'gl_code':
-                payments_qs = payments_qs.filter(items__category__code__icontains=sv)
-            elif sf == 'external_pv':
-                payments_qs = payments_qs.filter(items__external_pv_no__icontains=sv)
-            elif sf == 'description':
-                payments_qs = payments_qs.filter(Q(items__description__icontains=sv) | Q(note__icontains=sv))
-            else:
-                payments_qs = payments_qs.filter(
-                    Q(payment_no__icontains=sv) |
-                    Q(payee_name__icontains=sv) |
-                    Q(note__icontains=sv) |
-                    Q(items__category__code__icontains=sv) |
-                    Q(items__external_pv_no__icontains=sv) |
-                    Q(items__description__icontains=sv)
-                )
-
-        payments_qs = payments_qs.distinct()
+        payments_qs = filter_payments_by_search(round_data['payments_qs'], request.GET)
 
         items = PettyCashPaymentItem.objects.filter(
             payment__in=payments_qs
@@ -733,163 +706,9 @@ class PettyCashPaymentSummaryExportView(LoginRequiredMixin, PermissionRequiredMi
             payment__payment_type='replenishment'
         ).select_related('payment', 'payment__payee').order_by('payment__payment_date', 'payment__id', 'id')
 
-        # Create workbook
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "ใบเบิกเงินสดย่อย"
-
-        # Styles
-        font_company = Font(name='Arial', size=14, bold=True)
-        font_title = Font(name='Arial', size=13, bold=True)
-        font_date = Font(name='Arial', size=10, italic=True)
-        font_header = Font(name='Arial', size=10, bold=True)
-        font_data = Font(name='Arial', size=10)
-        font_total = Font(name='Arial', size=10, bold=True)
-
-        header_fill = PatternFill(start_color='F2F4F7', end_color='F2F4F7', fill_type='solid')
-        total_fill = PatternFill(start_color='F9FAFB', end_color='F9FAFB', fill_type='solid')
-
-        thin_side = Side(style='thin', color='C0C0C0')
-        double_side = Side(style='double', color='000000')
-
-        cell_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
-        total_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=double_side)
-
-        # 3 Headers out of table
-        company_name = account.company.name if account.company else "องค์กร"
-        ws['A1'] = company_name
-        ws['A1'].font = font_company
-        ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.merge_cells('A1:F1')
-
-        ws['A2'] = "ใบเบิกเงินสดย่อย"
-        ws['A2'].font = font_title
-        ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.merge_cells('A2:F2')
-
-        if selected_rep and selected_rep.payment_date:
-            rep_date_str = selected_rep.payment_date.strftime('%d/%m/%Y')
-            ws['A3'] = f"วันที่เบิกชดเชย: {rep_date_str}"
-        elif round_id == 'active':
-            ws['A3'] = "วันที่เบิกชดเชย: รอบปัจจุบัน (ยังไม่ได้เบิกชดเชย)"
-        else:
-            ws['A3'] = "วันที่เบิกชดเชย: -"
-        ws['A3'].font = font_date
-        ws['A3'].alignment = Alignment(horizontal='center', vertical='center')
-        ws.merge_cells('A3:F3')
-
-        # Table Headers at Row 5
-        headers = ["ลำดับ", "วันที่", "จ่ายให้", "รายการ", "ภาษี", "ยอดเงิน"]
-        for col_idx, h in enumerate(headers, start=1):
-            cell = ws.cell(row=5, column=col_idx, value=h)
-            cell.font = font_header
-            cell.fill = header_fill
-            cell.border = cell_border
-            if col_idx in [1, 2]:
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-            elif col_idx in [5, 6]:
-                cell.alignment = Alignment(horizontal='right', vertical='center')
-            else:
-                cell.alignment = Alignment(horizontal='left', vertical='center')
-
-        current_row = 6
-        num_items = items.count()
-
-        for idx, item in enumerate(items, start=1):
-            date_str = item.payment.payment_date.strftime('%d/%m/%Y') if item.payment.payment_date else ''
-            payee = item.payment.payee_name or (item.payment.payee.full_name if item.payment.payee else '') or str(item.payment.payee or '')
-            desc = item.description or ''
-            tax_val = float(item.tax) if item.tax is not None else 0.0
-            amount_val = float(item.amount) if item.amount is not None else 0.0
-
-            cA = ws.cell(row=current_row, column=1, value=idx)
-            cA.alignment = Alignment(horizontal='center', vertical='center')
-
-            cB = ws.cell(row=current_row, column=2, value=date_str)
-            cB.alignment = Alignment(horizontal='center', vertical='center')
-
-            cC = ws.cell(row=current_row, column=3, value=payee)
-            cC.alignment = Alignment(horizontal='left', vertical='center')
-
-            cD = ws.cell(row=current_row, column=4, value=desc)
-            cD.alignment = Alignment(horizontal='left', vertical='center')
-
-            cE = ws.cell(row=current_row, column=5, value=tax_val)
-            cE.alignment = Alignment(horizontal='right', vertical='center')
-            cE.number_format = '#,##0.00'
-
-            cF = ws.cell(row=current_row, column=6, value=amount_val)
-            cF.alignment = Alignment(horizontal='right', vertical='center')
-            cF.number_format = '#,##0.00'
-
-            for c in [cA, cB, cC, cD, cE, cF]:
-                c.font = font_data
-                c.border = cell_border
-
-            current_row += 1
-
-        # Summary Row
-        summary_row = current_row
-        ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=4)
-        c_label = ws.cell(row=summary_row, column=1, value="รวม")
-        c_label.font = font_total
-        c_label.alignment = Alignment(horizontal='right', vertical='center')
-
-        for col_idx in range(1, 5):
-            cell = ws.cell(row=summary_row, column=col_idx)
-            cell.border = total_border
-            cell.fill = total_fill
-
-        c_sum_tax = ws.cell(row=summary_row, column=5)
-        c_sum_amount = ws.cell(row=summary_row, column=6)
-
-        if num_items > 0:
-            c_sum_tax.value = f"=SUM(E6:E{summary_row - 1})"
-            c_sum_amount.value = f"=SUM(F6:F{summary_row - 1})"
-        else:
-            c_sum_tax.value = 0.00
-            c_sum_amount.value = 0.00
-
-        for cell in [c_sum_tax, c_sum_amount]:
-            cell.font = font_total
-            cell.alignment = Alignment(horizontal='right', vertical='center')
-            cell.number_format = '#,##0.00'
-            cell.border = total_border
-            cell.fill = total_fill
-
-        # Column widths
-        column_widths = {
-            'A': 8,
-            'B': 13,
-            'C': 24,
-            'D': 36,
-            'E': 14,
-            'F': 16,
-        }
-        for col_letter, width in column_widths.items():
-            ws.column_dimensions[col_letter].width = width
-
-        # Row heights
-        ws.row_dimensions[1].height = 24
-        ws.row_dimensions[2].height = 22
-        ws.row_dimensions[3].height = 18
-        ws.row_dimensions[5].height = 22
-        for r in range(6, current_row + 1):
-            ws.row_dimensions[r].height = 20
-
-        # Print / Page Setup for A4
-        ws.page_setup.paperSize = ws.PAPERSIZE_A4
-        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
-        ws.sheet_properties.pageSetUpPr.fitToPage = True
-        ws.page_setup.fitToWidth = 1
-        ws.page_setup.fitToHeight = 0
-
-        buffer = io.BytesIO()
-        wb.save(buffer)
-        buffer.seek(0)
-
-        clean_round = "".join(c for c in (round_id or 'all') if c.isalnum() or c in ('-', '_'))
-        filename = f"petty_cash_{account.code}_{clean_round}.xlsx"
+        buffer, filename = PettyCashExcelExportService.generate_replenishment_vouchers_excel(
+            account, round_id, selected_rep, items
+        )
 
         response = HttpResponse(
             buffer.getvalue(),
@@ -897,3 +716,32 @@ class PettyCashPaymentSummaryExportView(LoginRequiredMixin, PermissionRequiredMi
         )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+
+
+class PettyCashCategorySummaryExportView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = 'accounting.view_pettycashpayment'
+
+    def get_account(self, account_code):
+        return get_object_or_404(PettyCashAccount, code=account_code, is_deleted=False)
+
+    def get(self, request, account_code, *args, **kwargs):
+        account = self.get_account(account_code)
+        round_id = request.GET.get('round_id')
+        round_data = get_round_data(account, round_id)
+
+        selected_rep = round_data['selected_rep']
+        payments_qs = filter_payments_by_search(round_data['payments_qs'], request.GET)
+
+        category_sums_list, _ = calculate_category_sums(account, payments_qs)
+
+        buffer, filename = PettyCashExcelExportService.generate_category_summary_excel(
+            account, round_id, selected_rep, category_sums_list
+        )
+
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+

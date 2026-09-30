@@ -844,6 +844,118 @@ class TestPettyCashPaymentViews:
         assert ws_filtered.cell(row=6, column=3).value == "Mr. Somsak"
         assert ws_filtered.cell(row=7, column=1).value == "รวม"
 
+    def test_category_summary_excel_export(self, client, manager_user, account, company):
+        client.force_login(manager_user)
+
+        cat1 = PettyCashCategory.objects.create(
+            company=company,
+            code="5101-00",
+            name="Travel Expense",
+            created_by=manager_user
+        )
+        cat2 = PettyCashCategory.objects.create(
+            company=company,
+            code="5102-00",
+            name="Office Supplies",
+            created_by=manager_user
+        )
+
+        pay1 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            payment_date=datetime.date(2026, 8, 1),
+            payee_name="Mr. Somsak",
+            items_data=[{
+                'description': 'Taxi fare',
+                'amount': Decimal('300.00'),
+                'category': cat1
+            }],
+            created_by=manager_user
+        )
+
+        pay2 = PettyCashPaymentService.create_payment(
+            account=account,
+            payment_type="disbursement",
+            payment_date=datetime.date(2026, 8, 2),
+            payee_name="Stationery Shop",
+            items_data=[{
+                'description': 'Printer paper',
+                'amount': Decimal('200.00'),
+                'tax': Decimal('14.00'),
+                'category': cat2
+            }],
+            created_by=manager_user
+        )
+
+        rep = PettyCashPayment.objects.create(
+            account=account,
+            payment_type="replenishment",
+            total_amount=Decimal("500.00"),
+            payment_date=datetime.date(2026, 8, 3),
+            created_by=manager_user
+        )
+        PettyCashPaymentItem.objects.create(
+            payment=rep,
+            amount=Decimal("500.00"),
+            description="Replenishment top up",
+            external_pv_no="PV6902-REP01"
+        )
+
+        export_url = reverse('accounting:payment-summary-category-export', kwargs={'account_code': account.code})
+        response = client.get(export_url, {'round_id': str(rep.id)})
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        assert f"petty_cash_categories_{account.code}_{rep.id}.xlsx" in response['Content-Disposition']
+
+        wb = openpyxl.load_workbook(io.BytesIO(response.content))
+        ws = wb.active
+        assert ws.title == "สรุปตามหมวดบัญชี"
+        assert ws['A1'].value == company.name
+        assert ws['A2'].value == "ใบสรุปค่าใช้จ่ายเงินสดย่อยตามหมวดบัญชี"
+        assert "PV6902-REP01" in ws['A3'].value
+        assert rep.payment_no not in ws['A3'].value
+
+        # Headers
+        assert ws.cell(row=5, column=1).value == "รหัสหมวดบัญชี"
+        assert ws.cell(row=5, column=2).value == "ชื่อหมวดหมู่ / รายการ"
+        assert ws.cell(row=5, column=3).value == "ยอดเงิน (บาท)"
+
+        # Check category rows exist
+        # Row 6: 5101-00 (300.00)
+        # Row 7: 5102-00 (net 186.00)
+        # Row 8: VAT (14.00) - must show only category name, not extended describe
+        assert ws.cell(row=6, column=1).value == "5101-00"
+        assert ws.cell(row=6, column=3).value == 300.00
+
+        assert ws.cell(row=7, column=1).value == "5102-00"
+        assert ws.cell(row=7, column=3).value == 186.00
+
+        assert ws.cell(row=8, column=1).value == "1155-00"
+        assert ws.cell(row=8, column=2).value == "ภาษีซื้อ-ยังไม่ถึงกำหนด"
+        assert ws.cell(row=8, column=3).value == 14.00
+
+        # Summary Row (Row 9)
+        assert ws.cell(row=9, column=1).value == "รวมทั้งสิ้น"
+        assert ws.cell(row=9, column=3).value == "=SUM(C6:C8)"
+
+        # Signatures section removed
+        assert ws.cell(row=13, column=1).value is None
+        assert ws.cell(row=13, column=2).value is None
+        assert ws.cell(row=13, column=3).value is None
+
+        # Verify when replenishment item has NO external PV, it is blank (not showing internal payment_no)
+        rep_item = rep.items.first()
+        rep_item.external_pv_no = ""
+        rep_item.save()
+
+        response2 = client.get(export_url, {'round_id': str(rep.id)})
+        wb2 = openpyxl.load_workbook(io.BytesIO(response2.content))
+        ws2 = wb2.active
+        assert "PV6902-REP01" not in ws2['A3'].value
+        assert rep.payment_no not in ws2['A3'].value
+        assert ws2['A3'].value == f"วงเงินสดย่อย: {account.name} ({account.code}) | วันที่เบิกชดเชย: 03/08/2026"
+
+
     def test_backdated_payment_appears_in_correct_round(self, client, manager_user, account, category):
         """Payments created after replenishment but backdated before replenishment date must appear in that round."""
         client.force_login(manager_user)
