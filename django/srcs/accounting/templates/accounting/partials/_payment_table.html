@@ -127,6 +127,7 @@
         <div id="coaForm" style="position: relative; margin-bottom: 1.5rem;">
             <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">Search Category</label>
             <input type="text" id="categorySearchInput" oninput="searchCategories()" placeholder="Type a code or name (e.g. 5101)..." 
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                    style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s;"
                    onfocus="this.style.border-color='var(--primary-light)'" onblur="this.style.border-color='var(--glass-border)'">
             
@@ -139,6 +140,7 @@
         <div id="pvForm" style="display: none; margin-bottom: 1.5rem;">
             <label style="display: block; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem;">External PV Number</label>
             <input type="text" id="externalPvInput" placeholder="Enter Express PV number (e.g. PV-6902-001)..." 
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                    style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s;"
                    onfocus="this.style.border-color='var(--primary-light)'" onblur="this.style.border-color='var(--glass-border)'">
             <span style="display: block; font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.4;">

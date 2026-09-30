@@ -50,6 +50,8 @@ class BasePaymentItemFormSet(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
         self.company = kwargs.pop('company', None)
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.extra = 0 if self.instance.items.exists() else 1
 
     def _construct_form(self, i, **kwargs):
         kwargs['company'] = self.company

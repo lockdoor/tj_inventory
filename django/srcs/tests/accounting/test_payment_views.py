@@ -137,6 +137,11 @@ class TestPettyCashPaymentViews:
         assert account.balance == Decimal("5000.00")
         
         url = reverse('accounting:payment-create', kwargs={'account_code': account.code})
+        # Verify GET renders exactly 1 line item by default
+        response_get = client.get(url)
+        assert response_get.status_code == 200
+        assert len(response_get.context['formset']) == 1
+
         data = {
             'payment_type': 'disbursement',
             'payment_date': '2026-07-03',
@@ -229,7 +234,11 @@ class TestPettyCashPaymentViews:
         assert account.balance == Decimal("4000.00")
         
         url = reverse('accounting:payment-update', kwargs={'pk': payment.pk})
-        
+        # Verify GET renders only the 1 existing item (no extra empty line)
+        response_get = client.get(url)
+        assert response_get.status_code == 200
+        assert len(response_get.context['formset']) == 1
+
         # We increase the line amount to 1500.00 (+500.00 difference)
         data = {
             'payment_type': 'disbursement',

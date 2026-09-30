@@ -103,15 +103,8 @@
 
             <!-- Formset Section -->
             <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
                     <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin: 0;">Line Items</h3>
-                    <button type="button" id="add-item-btn" class="btn btn-outline" style="padding: 0.4rem 1rem; font-weight: 700; border-color: rgba(255,255,255,0.1); font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Add Line Item
-                    </button>
                 </div>
 
                 {{ formset.management_form }}
@@ -188,6 +181,17 @@
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+
+                <!-- Add Line Item Button (Bottom) -->
+                <div style="margin-top: 1.25rem;">
+                    <button type="button" id="add-item-btn" class="btn btn-outline" style="padding: 0.5rem 1.25rem; font-weight: 700; border-color: rgba(255,255,255,0.15); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 6px; background: rgba(255,255,255,0.02); transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.06)'; this.style.borderColor='rgba(255,255,255,0.25)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.15)';">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Add Line Item
+                    </button>
                 </div>
             </div>
 
@@ -276,19 +280,28 @@ document.addEventListener("DOMContentLoaded", function() {
     const container = document.getElementById("formset-container");
     const totalFormsInput = document.getElementById("id_items-TOTAL_FORMS");
     
-    addButton.addEventListener("click", function() {
-        const currentCount = parseInt(totalFormsInput.value);
-        const templateRowHTML = document.querySelector("#formset-empty-row .formset-row").outerHTML;
-        
-        // Replace prefix index
-        const newRowHTML = templateRowHTML.replace(/__prefix__/g, currentCount);
-        
-        // Append to container
-        container.insertAdjacentHTML('beforeend', newRowHTML);
-        
-        // Increment count
-        totalFormsInput.value = currentCount + 1;
-    });
+    if (addButton) {
+        addButton.addEventListener("click", function() {
+            const currentCount = parseInt(totalFormsInput.value);
+            const templateRowHTML = document.querySelector("#formset-empty-row .formset-row").outerHTML;
+            
+            // Replace prefix index
+            const newRowHTML = templateRowHTML.replace(/__prefix__/g, currentCount);
+            
+            // Append to container
+            container.insertAdjacentHTML('beforeend', newRowHTML);
+            
+            // Increment count
+            totalFormsInput.value = currentCount + 1;
+
+            // Focus description field in the new row
+            const newRow = container.lastElementChild;
+            if (newRow) {
+                const descInput = newRow.querySelector('input[name$="-description"]');
+                if (descInput) descInput.focus();
+            }
+        });
+    }
 
     // Payee Autocomplete Search implementation
     const selectEl = document.getElementById("id_payee");
