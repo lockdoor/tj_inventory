@@ -193,46 +193,31 @@
                     Active round cannot be locked. Create a replenishment top-up voucher first to mark the end of this round.
                 </div>
             {% elif unposted_payments.exists %}
-                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}">
-                    {% csrf_token %}
-                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
-                    <input type="hidden" name="action" value="lock">
-                    
-                    {% if unallocated_count > 0 %}
-                    <button type="button" class="btn btn-primary" style="width: 100%; cursor: not-allowed; opacity: 0.5; font-weight: 700; padding: 0.75rem;" disabled>
-                        Post Lock Blocked
-                    </button>
-                    <div style="font-size: 0.8rem; color: #f87171; text-align: center; margin-top: 0.5rem; font-weight: 600;">
-                        Allocate categories to enable posting.
-                    </div>
-                    {% else %}
-                    <button type="submit" class="btn btn-primary" style="width: 100%; font-weight: 700; padding: 0.75rem;" onclick="return confirm('Are you sure you want to mark all unposted vouchers in this replenishment round as Posted? This will permanently lock them from future updates.');">
-                        Lock & Mark as Posted
-                    </button>
-                    {% endif %}
-                </form>
+                {% if unallocated_count > 0 %}
+                <button type="button" class="btn btn-primary" style="width: 100%; cursor: not-allowed; opacity: 0.5; font-weight: 700; padding: 0.75rem;" disabled>
+                    Post Lock Blocked
+                </button>
+                <div style="font-size: 0.8rem; color: #f87171; text-align: center; margin-top: 0.5rem; font-weight: 600;">
+                    Allocate categories to enable posting.
+                </div>
+                {% else %}
+                <button type="button" class="btn btn-primary" style="width: 100%; font-weight: 700; padding: 0.75rem;" onclick="openPostingModal('lock')">
+                    Lock & Mark as Posted
+                </button>
+                {% endif %}
+
                 {% if posted_payments.exists %}
-                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}" style="margin-top: 1rem;">
-                    {% csrf_token %}
-                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
-                    <input type="hidden" name="action" value="unlock">
-                    <button type="submit" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="return confirm('Are you sure you want to unlock all posted vouchers in this round? They will become unposted and editable.');">
-                        Unlock & Mark as Unposted
-                    </button>
-                </form>
+                <button type="button" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171; margin-top: 1rem;" onclick="openPostingModal('unlock')">
+                    Unlock & Mark as Unposted
+                </button>
                 {% endif %}
             {% else %}
                 <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: var(--primary-light); font-weight: 700; margin-bottom: 1rem;">
                     All vouchers for this round have been posted and locked.
                 </div>
-                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}">
-                    {% csrf_token %}
-                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
-                    <input type="hidden" name="action" value="unlock">
-                    <button type="submit" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="return confirm('Are you sure you want to unlock all vouchers in this round? They will become unposted and editable.');">
-                        Unlock & Mark as Unposted
-                    </button>
-                </form>
+                <button type="button" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="openPostingModal('unlock')">
+                    Unlock & Mark as Unposted
+                </button>
             {% endif %}
         </div>
 
@@ -245,4 +230,191 @@
         {% include "accounting/partials/_payment_table.html" %}
     </div>
 </div>
+
+{% if not is_active_round %}
+<!-- Posting Control Confirmation Modal (Lock & Unlock) -->
+<div id="postingModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+    <div id="postingModalCard" class="glass-card" style="width: 100%; max-width: 480px; padding: 2rem; border-color: rgba(255,255,255,0.15); transform: translateY(-20px); transition: transform 0.3s ease; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div id="postingModalIcon" style="width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                </div>
+                <h3 id="postingModalTitle" style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin: 0;"></h3>
+            </div>
+            <button type="button" onclick="closePostingModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; line-height: 1; padding: 0;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+        </div>
+        
+        <p id="postingModalDesc" style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.25rem;">
+        </p>
+
+        <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}" id="postingControlForm">
+            {% csrf_token %}
+            <input type="hidden" name="round_id" value="{{ selected_round_id }}">
+            <input type="hidden" name="action" id="postingActionInput" value="lock">
+            
+            <div id="postingPromptBox" style="border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <label for="confirmPostingInput" id="postingPromptLabel" style="display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.5rem; font-weight: 500;">
+                </label>
+                <input type="text" 
+                       id="confirmPostingInput" 
+                       name="confirm_payment_no" 
+                       autocomplete="off" 
+                       style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-family: monospace; font-size: 1rem; font-weight: 700; letter-spacing: 0.05em; outline: none; transition: all 0.2s;"
+                       oninput="validatePostingInput()">
+                <div id="postingInputHint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+                    Voucher number must match exactly
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closePostingModal()" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        id="submitPostingBtn" 
+                        disabled 
+                        style="padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 700; border-radius: 6px; border: none; cursor: not-allowed; opacity: 0.4; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const EXPECTED_ROUND_PV = '{{ selected_rep.payment_no|default:""|escapejs }}';
+    let currentPostingMode = 'lock';
+
+    function openPostingModal(mode) {
+        currentPostingMode = mode;
+        const modal = document.getElementById('postingModal');
+        const card = document.getElementById('postingModalCard');
+        const iconContainer = document.getElementById('postingModalIcon');
+        const title = document.getElementById('postingModalTitle');
+        const desc = document.getElementById('postingModalDesc');
+        const actionInput = document.getElementById('postingActionInput');
+        const promptBox = document.getElementById('postingPromptBox');
+        const promptLabel = document.getElementById('postingPromptLabel');
+        const input = document.getElementById('confirmPostingInput');
+        const submitBtn = document.getElementById('submitPostingBtn');
+        const hint = document.getElementById('postingInputHint');
+
+        actionInput.value = mode;
+        input.value = '';
+        input.style.borderColor = 'var(--glass-border)';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.4';
+        submitBtn.style.cursor = 'not-allowed';
+        hint.textContent = 'Voucher number must match exactly';
+        hint.style.color = 'var(--text-muted)';
+
+        const targetCode = EXPECTED_ROUND_PV || (mode === 'lock' ? 'LOCK' : 'UNLOCK');
+
+        if (mode === 'lock') {
+            card.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            iconContainer.style.background = 'rgba(16, 185, 129, 0.15)';
+            iconContainer.style.color = 'var(--primary-light)';
+            iconContainer.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>`;
+            title.textContent = 'Lock Replenishment Round';
+            desc.textContent = 'This will mark all unposted vouchers in this round as Posted to Express ERP and permanently lock them from future updates.';
+            promptBox.style.background = 'rgba(16, 185, 129, 0.06)';
+            promptBox.style.border = '1px solid rgba(16, 185, 129, 0.2)';
+            promptLabel.innerHTML = `Please type <strong style="font-family: monospace; color: var(--primary-light); font-size: 0.95rem;">${targetCode}</strong> to confirm locking:`;
+            input.placeholder = targetCode;
+            submitBtn.textContent = 'Lock & Mark as Posted';
+            submitBtn.style.background = 'var(--primary-light)';
+            submitBtn.style.color = 'white';
+        } else {
+            card.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            iconContainer.style.background = 'rgba(239, 68, 68, 0.15)';
+            iconContainer.style.color = '#f87171';
+            iconContainer.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                </svg>`;
+            title.textContent = 'Unlock Replenishment Round';
+            desc.textContent = 'This will unlock all posted vouchers in this round. They will become unposted and editable.';
+            promptBox.style.background = 'rgba(239, 68, 68, 0.06)';
+            promptBox.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+            promptLabel.innerHTML = `Please type <strong style="font-family: monospace; color: #f87171; font-size: 0.95rem;">${targetCode}</strong> to confirm unlocking:`;
+            input.placeholder = targetCode;
+            submitBtn.textContent = 'Unlock & Mark as Unposted';
+            submitBtn.style.background = '#ef4444';
+            submitBtn.style.color = 'white';
+        }
+
+        modal.style.display = 'flex';
+        modal.offsetHeight; // trigger reflow
+        modal.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+        setTimeout(() => input.focus(), 50);
+    }
+
+    function closePostingModal() {
+        const modal = document.getElementById('postingModal');
+        const card = document.getElementById('postingModalCard');
+        if (!modal) return;
+        modal.style.opacity = '0';
+        if (card) card.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    function validatePostingInput() {
+        const input = document.getElementById('confirmPostingInput');
+        const submitBtn = document.getElementById('submitPostingBtn');
+        const hint = document.getElementById('postingInputHint');
+        const val = input.value.trim();
+
+        const isExactMatch = EXPECTED_ROUND_PV && val === EXPECTED_ROUND_PV;
+        const isKeywordMatch = (currentPostingMode === 'lock' && val.toUpperCase() === 'LOCK') ||
+                               (currentPostingMode === 'unlock' && val.toUpperCase() === 'UNLOCK');
+
+        if (isExactMatch || isKeywordMatch) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            input.style.borderColor = '#10b981';
+            hint.textContent = '✓ Confirmation matches';
+            hint.style.color = '#10b981';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.4';
+            submitBtn.style.cursor = 'not-allowed';
+            if (val.length > 0) {
+                input.style.borderColor = '#ef4444';
+                hint.textContent = 'Confirmation does not match';
+                hint.style.color = '#f87171';
+            } else {
+                input.style.borderColor = 'var(--glass-border)';
+                hint.textContent = 'Voucher number must match exactly';
+                hint.style.color = 'var(--text-muted)';
+            }
+        }
+    }
+
+    // Close on Escape or click outside
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('postingModal');
+            if (modal && modal.style.display === 'flex') {
+                closePostingModal();
+            }
+        }
+    });
+
+    document.getElementById('postingModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePostingModal();
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

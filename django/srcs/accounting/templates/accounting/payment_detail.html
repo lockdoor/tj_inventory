@@ -58,16 +58,13 @@
                 </a>
                 {% endif %}
                 {% if perms.accounting.delete_pettycashpayment %}
-                <form method="post" action="{% url 'accounting:payment-cancel' payment.pk %}" style="display: inline-block;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; color: #f87171; border-color: rgba(239,68,68,0.2); display: flex; align-items: center; gap: 0.5rem;" onclick="return confirm('Are you sure you want to cancel this payment voucher? This will atomically reverse the cash box balance.');">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        Cancel Voucher
-                    </button>
-                </form>
+                <button type="button" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-weight: 700; color: #f87171; border-color: rgba(239,68,68,0.2); display: flex; align-items: center; gap: 0.5rem;" onclick="openCancelModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                    Cancel Voucher
+                </button>
                 {% endif %}
             {% endif %}
         </div>
@@ -188,4 +185,142 @@
 
     </div>
 </div>
+
+{% if not payment.is_deleted and not payment.is_posted and perms.accounting.delete_pettycashpayment %}
+<!-- Cancel Confirmation Modal -->
+<div id="cancelModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
+    <div class="glass-card" style="width: 100%; max-width: 480px; padding: 2rem; border-color: rgba(239,68,68,0.3); transform: translateY(-20px); transition: transform 0.3s ease; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+        <!-- Modal Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(239,68,68,0.15); display: flex; align-items: center; justify-content: center; color: #f87171;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-main); margin: 0;">Cancel Voucher</h3>
+            </div>
+            <button type="button" onclick="closeCancelModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.5rem; line-height: 1; padding: 0;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+        </div>
+        
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.25rem;">
+            This action cannot be undone. Cancelling this voucher will atomically reverse the cash box balance.
+        </p>
+
+        <form method="post" action="{% url 'accounting:payment-cancel' payment.pk %}" id="cancelVoucherForm">
+            {% csrf_token %}
+            <div style="background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.18); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                <label for="confirmPvInput" style="display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.5rem; font-weight: 500;">
+                    Please type <strong style="font-family: monospace; color: #f87171; font-size: 0.95rem;">{{ payment.payment_no }}</strong> to confirm:
+                </label>
+                <input type="text" 
+                       id="confirmPvInput" 
+                       name="confirm_payment_no" 
+                       autocomplete="off" 
+                       placeholder="{{ payment.payment_no }}" 
+                       style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); padding: 0.75rem 1rem; border-radius: 6px; color: var(--text-main); font-family: monospace; font-size: 1rem; font-weight: 700; letter-spacing: 0.05em; outline: none; transition: all 0.2s;"
+                       oninput="validateCancelInput()">
+                <div id="cancelInputHint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+                    Voucher number is case-sensitive
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closeCancelModal()" class="btn btn-outline" style="padding: 0.6rem 1.25rem; font-size: 0.9rem;">
+                    Keep Voucher
+                </button>
+                <button type="submit" 
+                        id="submitCancelBtn" 
+                        disabled 
+                        style="padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 700; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: not-allowed; opacity: 0.4; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    Confirm Cancellation
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const EXPECTED_PV = '{{ payment.payment_no|escapejs }}';
+
+    function openCancelModal() {
+        const modal = document.getElementById('cancelModal');
+        const input = document.getElementById('confirmPvInput');
+        const submitBtn = document.getElementById('submitCancelBtn');
+        const hint = document.getElementById('cancelInputHint');
+
+        input.value = '';
+        input.style.borderColor = 'var(--glass-border)';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.4';
+        submitBtn.style.cursor = 'not-allowed';
+        hint.textContent = 'Voucher number must match exactly';
+        hint.style.color = 'var(--text-muted)';
+
+        modal.style.display = 'flex';
+        modal.offsetHeight; // trigger reflow
+        modal.style.opacity = '1';
+        modal.firstElementChild.style.transform = 'translateY(0)';
+        setTimeout(() => input.focus(), 50);
+    }
+
+    function closeCancelModal() {
+        const modal = document.getElementById('cancelModal');
+        if (!modal) return;
+        modal.style.opacity = '0';
+        modal.firstElementChild.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    function validateCancelInput() {
+        const input = document.getElementById('confirmPvInput');
+        const submitBtn = document.getElementById('submitCancelBtn');
+        const hint = document.getElementById('cancelInputHint');
+        const val = input.value.trim();
+
+        if (val === EXPECTED_PV) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            input.style.borderColor = '#10b981';
+            hint.textContent = '✓ Voucher number matches';
+            hint.style.color = '#10b981';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.4';
+            submitBtn.style.cursor = 'not-allowed';
+            if (val.length > 0) {
+                input.style.borderColor = '#ef4444';
+                hint.textContent = 'Voucher number does not match';
+                hint.style.color = '#f87171';
+            } else {
+                input.style.borderColor = 'var(--glass-border)';
+                hint.textContent = 'Voucher number must match exactly';
+                hint.style.color = 'var(--text-muted)';
+            }
+        }
+    }
+
+    // Close on Escape or click outside
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('cancelModal');
+            if (modal && modal.style.display === 'flex') {
+                closeCancelModal();
+            }
+        }
+    });
+
+    document.getElementById('cancelModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeCancelModal();
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}

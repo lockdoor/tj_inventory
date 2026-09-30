@@ -22,10 +22,14 @@ Previously:
    Updated `PettyCashPaymentSummaryView.post` to accept an `action` parameter (`'lock'` or `'unlock'`). When `action == 'unlock'`, it finds all posted payments in the selected round and calls `PettyCashPaymentService.mark_payments_as_unposted`.
 
 3. **Summary Interface (`payment_summary.html`)**:
-   - Added an **"Unlock & Mark as Unposted"** button with confirmation prompts when a round is fully locked.
-   - Also provided the option to unlock previously posted vouchers if a round contains both posted and unposted transactions (e.g. when backdated vouchers are added after initial posting).
+   - Added an **"Unlock & Mark as Unposted"** button when a round is fully locked, as well as when a round contains both posted and backdated unposted vouchers.
+   - Replaced basic browser dialogs with an interactive confirmation modal requiring the user to explicitly type the replenishment voucher number (or keyword `LOCK`/`UNLOCK`) before executing either action.
+
+4. **Backend Guard**:
+   - Validates `confirm_payment_no` in `PettyCashPaymentSummaryView.post` to ensure unauthorized or accidental submissions without the expected voucher confirmation are aborted.
 
 ## Consequences
 
 - Accountants and authorized users can safely reopen a locked replenishment round for editing or re-allocation.
+- Accidental locking and unlocking actions are prevented through explicit voucher number confirmation prompts.
 - Complete audit trail preserved through SimpleHistory.

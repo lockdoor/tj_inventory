@@ -243,6 +243,12 @@ class PettyCashPaymentCancelView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         if payment.is_posted:
             messages.error(request, "This payment is posted to Express and cannot be cancelled.")
             return redirect('accounting:payment-detail', pk=payment.pk)
+
+        confirm_payment_no = request.POST.get('confirm_payment_no', '').strip()
+        if confirm_payment_no and confirm_payment_no != payment.payment_no:
+            messages.error(request, f"Entered voucher number '{confirm_payment_no}' does not match '{payment.payment_no}'. Cancellation aborted.")
+            return redirect('accounting:payment-detail', pk=payment.pk)
+
         try:
             PettyCashPaymentService.cancel_payment(payment, user=request.user)
             messages.success(request, "Voucher cancelled and balance reversed successfully.")
@@ -567,6 +573,18 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
 
         payments_qs = round_data['payments_qs']
         action = request.POST.get('action', 'lock')
+
+        confirm_payment_no = request.POST.get('confirm_payment_no', '').strip()
+        expected_pv = selected_rep.payment_no if selected_rep else ''
+        if confirm_payment_no and expected_pv:
+            valid_confirmations = [expected_pv]
+            if action == 'lock':
+                valid_confirmations.append('LOCK')
+            elif action == 'unlock':
+                valid_confirmations.append('UNLOCK')
+            if confirm_payment_no not in valid_confirmations:
+                messages.error(request, f"Entered confirmation '{confirm_payment_no}' does not match '{expected_pv}'. Action aborted.")
+                return redirect(f"{request.path}?round_id={round_id}")
 
         if action == 'unlock':
             posted_payments = payments_qs.filter(is_posted=True)

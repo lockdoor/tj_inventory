@@ -296,7 +296,16 @@ class TestPettyCashPaymentViews:
         assert account.balance == Decimal("4000.00")
         
         url = reverse('accounting:payment-cancel', kwargs={'pk': payment.pk})
-        response = client.post(url)
+
+        # 1. Attempt cancellation with wrong PV number
+        response = client.post(url, {'confirm_payment_no': 'WRONG-PV-NUMBER'})
+        assert response.status_code == 302
+        payment.refresh_from_db()
+        assert payment.is_deleted is False
+        assert account.balance == Decimal("4000.00")
+
+        # 2. Cancel with matching PV number
+        response = client.post(url, {'confirm_payment_no': payment.payment_no})
         assert response.status_code == 302
         
         # Payment is soft-deleted
@@ -361,9 +370,21 @@ class TestPettyCashPaymentViews:
         assert len(response.context['category_sums']) == 1
         assert response.context['unallocated_count'] == 0
         
-        # Post the round's vouchers
+        # Post with mismatched confirmation fails
+        response = client.post(url, {
+            'round_id': str(replenishment.id),
+            'action': 'lock',
+            'confirm_payment_no': 'WRONG-CONFIRMATION'
+        })
+        assert response.status_code == 302
+        payment.refresh_from_db()
+        assert payment.is_posted is False
+
+        # Post the round's vouchers with matching PV confirmation
         post_data = {
-            'round_id': str(replenishment.id)
+            'round_id': str(replenishment.id),
+            'action': 'lock',
+            'confirm_payment_no': replenishment.payment_no
         }
         response = client.post(url, post_data)
         assert response.status_code == 302
@@ -374,10 +395,21 @@ class TestPettyCashPaymentViews:
         assert payment.posted_by == manager_user
         assert payment.posted_at is not None
 
-        # Unlock the round's vouchers
+        # Unlock with mismatched confirmation fails
         response = client.post(url, {
             'round_id': str(replenishment.id),
-            'action': 'unlock'
+            'action': 'unlock',
+            'confirm_payment_no': 'INVALID-UNLOCK'
+        })
+        assert response.status_code == 302
+        payment.refresh_from_db()
+        assert payment.is_posted is True
+
+        # Unlock the round's vouchers with valid confirmation keyword
+        response = client.post(url, {
+            'round_id': str(replenishment.id),
+            'action': 'unlock',
+            'confirm_payment_no': 'UNLOCK'
         })
         assert response.status_code == 302
 
