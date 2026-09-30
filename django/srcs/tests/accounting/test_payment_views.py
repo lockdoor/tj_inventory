@@ -374,6 +374,19 @@ class TestPettyCashPaymentViews:
         assert payment.posted_by == manager_user
         assert payment.posted_at is not None
 
+        # Unlock the round's vouchers
+        response = client.post(url, {
+            'round_id': str(replenishment.id),
+            'action': 'unlock'
+        })
+        assert response.status_code == 302
+
+        # Verify payment is unlocked in DB
+        payment.refresh_from_db()
+        assert payment.is_posted is False
+        assert payment.posted_by is None
+        assert payment.posted_at is None
+
     def test_summary_view_posting_fails_if_unallocated(self, client, manager_user, account):
         """Should fail posting to Express if there are unallocated items in the summary period."""
         client.force_login(manager_user)

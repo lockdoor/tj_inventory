@@ -196,6 +196,7 @@
                 <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}">
                     {% csrf_token %}
                     <input type="hidden" name="round_id" value="{{ selected_round_id }}">
+                    <input type="hidden" name="action" value="lock">
                     
                     {% if unallocated_count > 0 %}
                     <button type="button" class="btn btn-primary" style="width: 100%; cursor: not-allowed; opacity: 0.5; font-weight: 700; padding: 0.75rem;" disabled>
@@ -210,10 +211,28 @@
                     </button>
                     {% endif %}
                 </form>
+                {% if posted_payments.exists %}
+                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}" style="margin-top: 1rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
+                    <input type="hidden" name="action" value="unlock">
+                    <button type="submit" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="return confirm('Are you sure you want to unlock all posted vouchers in this round? They will become unposted and editable.');">
+                        Unlock & Mark as Unposted
+                    </button>
+                </form>
+                {% endif %}
             {% else %}
-                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: var(--primary-light); font-weight: 700;">
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 6px; padding: 1rem; text-align: center; color: var(--primary-light); font-weight: 700; margin-bottom: 1rem;">
                     All vouchers for this round have been posted and locked.
                 </div>
+                <form method="post" action="{% url 'accounting:payment-summary' account.code %}?round_id={{ selected_round_id }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="round_id" value="{{ selected_round_id }}">
+                    <input type="hidden" name="action" value="unlock">
+                    <button type="submit" class="btn btn-outline" style="width: 100%; font-weight: 700; padding: 0.75rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" onclick="return confirm('Are you sure you want to unlock all vouchers in this round? They will become unposted and editable.');">
+                        Unlock & Mark as Unposted
+                    </button>
+                </form>
             {% endif %}
         </div>
 

@@ -227,3 +227,20 @@ class PettyCashPaymentService:
             payment.posted_at = timezone.now()
             payment.posted_by = user
             payment.save()
+
+    @staticmethod
+    @transaction.atomic
+    def mark_payments_as_unposted(payments, *, user=None):
+        """
+        Mark a list of PettyCashPayment records as unposted (unlocked).
+        """
+        for payment in payments:
+            if payment.is_deleted:
+                raise ValidationError(f"Voucher {payment.payment_no} is cancelled and cannot be updated.")
+            if not payment.is_posted:
+                continue
+
+            payment.is_posted = False
+            payment.posted_at = None
+            payment.posted_by = None
+            payment.save()

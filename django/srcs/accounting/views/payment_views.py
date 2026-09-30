@@ -566,6 +566,21 @@ class PettyCashPaymentSummaryView(LoginRequiredMixin, PermissionRequiredMixin, T
             selected_rep = get_object_or_404(PettyCashPayment, pk=int(round_id), account=account)
 
         payments_qs = round_data['payments_qs']
+        action = request.POST.get('action', 'lock')
+
+        if action == 'unlock':
+            posted_payments = payments_qs.filter(is_posted=True)
+            if not posted_payments.exists():
+                messages.warning(request, "No posted vouchers found to unlock for the selected round.")
+                return redirect(f"{request.path}?round_id={round_id}")
+
+            try:
+                PettyCashPaymentService.mark_payments_as_unposted(posted_payments, user=request.user)
+                messages.success(request, f"Successfully unlocked {len(posted_payments)} vouchers for this round.")
+            except ValidationError as e:
+                messages.error(request, e.message)
+
+            return redirect(f"{request.path}?round_id={round_id}")
 
         unposted_payments = payments_qs.filter(is_posted=False)
 
