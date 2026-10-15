@@ -929,19 +929,16 @@ class TestPettyCashPaymentViews:
         assert ws.cell(row=5, column=2).value == "ชื่อหมวดหมู่ / รายการ"
         assert ws.cell(row=5, column=3).value == "ยอดเงิน (บาท)"
 
-        # Check category rows exist
-        # Row 6: 5101-00 (300.00)
-        # Row 7: 5102-00 (net 186.00)
-        # Row 8: VAT (14.00) - must show only category name, not extended describe
-        assert ws.cell(row=6, column=1).value == "5101-00"
-        assert ws.cell(row=6, column=3).value == 300.00
+        # Category rows are sorted by category code, including VAT lines.
+        assert ws.cell(row=6, column=1).value == "1155-00"
+        assert ws.cell(row=6, column=2).value == "ภาษีซื้อ-ยังไม่ถึงกำหนด"
+        assert ws.cell(row=6, column=3).value == 14.00
 
-        assert ws.cell(row=7, column=1).value == "5102-00"
-        assert ws.cell(row=7, column=3).value == 186.00
+        assert ws.cell(row=7, column=1).value == "5101-00"
+        assert ws.cell(row=7, column=3).value == 300.00
 
-        assert ws.cell(row=8, column=1).value == "1155-00"
-        assert ws.cell(row=8, column=2).value == "ภาษีซื้อ-ยังไม่ถึงกำหนด"
-        assert ws.cell(row=8, column=3).value == 14.00
+        assert ws.cell(row=8, column=1).value == "5102-00"
+        assert ws.cell(row=8, column=3).value == 186.00
 
         # Summary Row (Row 9)
         assert ws.cell(row=9, column=1).value == "รวมทั้งสิ้น"

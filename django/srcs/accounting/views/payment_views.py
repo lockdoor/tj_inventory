@@ -471,8 +471,7 @@ def calculate_category_sums(account, payments_qs):
         else:
             unallocated_sum += net_amount
 
-    # Convert to list and sort normal categories by code
-    category_sums_list = sorted(category_sums_dict.values(), key=lambda x: x['category__code'])
+    category_sums_list = list(category_sums_dict.values())
 
     # Append individual VAT records
     category_sums_list.extend(vat_items_list)
@@ -500,6 +499,10 @@ def calculate_category_sums(account, payments_qs):
             'category_base_name': desc_str,
             'total': item.amount
         })
+
+    category_sums_list.sort(
+        key=lambda row: (row['category__code'] is None, row['category__code'] or '')
+    )
 
     # Compute unallocated count, excluding items belonging to replenishment or actual PV items
     unallocated_count = items.filter(category__isnull=True).exclude(payment__payment_type='replenishment').exclude(
@@ -744,4 +747,3 @@ class PettyCashCategorySummaryExportView(LoginRequiredMixin, PermissionRequiredM
         )
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
-
